@@ -1,0 +1,64 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="1110" viewBox="0 0 1200 1110" role="img" aria-labelledby="power-title power-desc">
+<title id="power-title">BPI-R3 Mini 供电、调试和控制连接</title>
+<desc id="power-desc">USB-C 的 VBUS 接电源树，CC 接 CH224K，USB 数据接 CH340E。CH340E 和三针 UART 共享 SoC UART0。5V 分支分别接 USB 限流器和风扇；I2C、GPIO、PWM 连接辅助外设。</desc>
+<defs>
+<marker id="p-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0 0L10 5L0 10Z" fill="#be6d1b"/></marker>
+<marker id="p-data" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0 0L10 5L0 10Z" fill="#2279a5"/></marker>
+<marker id="p-control" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0 0L10 5L0 10Z" fill="#64748b"/></marker>
+</defs>
+<style>text{font-family:"Microsoft YaHei","Noto Sans CJK SC","PingFang SC",sans-serif;fill:#142e43}.t{font-size:23px;font-weight:700}.b{font-size:19px}.s{font-size:17px;fill:#476276}.box{fill:#f2f7fb;stroke:#92b3c8;stroke-width:1.7}.pb{fill:#fff7ed;stroke:#cfaa7b;stroke-width:1.7}.p{fill:none;stroke:#be6d1b;stroke-width:2.8;marker-end:url(#p-arrow)}.d{fill:none;stroke:#2279a5;stroke-width:2.5;marker-start:url(#p-data);marker-end:url(#p-data)}.c{fill:none;stroke:#64748b;stroke-width:2;stroke-dasharray:7 5;marker-end:url(#p-control)}</style>
+<rect width="1200" height="1110" rx="16" fill="white"/>
+<text class="t" x="20" y="36">POWER / DEBUG / CONTROL</text>
+<text class="s" x="20" y="68">橙色：供电路径　蓝色：双向通信　灰色虚线：控制 / 状态</text>
+
+<rect class="box" x="20" y="110" width="230" height="340" rx="14"/>
+<text class="t" x="42" y="148">USB-C · CN7</text><text class="b" x="42" y="190">VBUS 电源</text><text class="b" x="42" y="295">CC1 / CC2</text><text class="b" x="42" y="399">USB D+ / D−</text><text class="s" x="42" y="430">供电与数据分开连接</text>
+
+<rect class="pb" x="420" y="110" width="310" height="100" rx="12"/><text class="t" x="442" y="146">+12VD 主输入</text><text class="b" x="442" y="181">VBUS → R301 → 电源网络</text>
+<path class="p" d="M250 177H340V160H420"/><text class="s" x="273" y="142">目标 12V</text>
+
+<rect class="box" x="420" y="245" width="310" height="105" rx="12"/><text class="t" x="442" y="282">CH224K · U14</text><text class="b" x="442" y="316">PD Sink · R299 24k → 12V</text>
+<path class="d" d="M254 292H416"/><text class="s" x="289" y="276">PD 协商</text>
+
+<rect class="box" x="420" y="385" width="310" height="100" rx="12"/><text class="t" x="442" y="423">CH340E · U27</text><text class="b" x="442" y="457">USB ↔ UART 桥接</text>
+<path class="d" d="M254 395H338V435H416"/><text class="s" x="271" y="421">USB 数据</text>
+
+<rect class="pb" x="880" y="110" width="300" height="145" rx="12"/>
+<text class="t" x="900" y="146">Buck / LDO 电源树</text><text class="b" x="900" y="181">3.3V / 1.8V / 0.85V</text><text class="b" x="900" y="210">1.024V / 模拟电源等</text><text class="s" x="900" y="238">供 SoC / 存储 / PHY / M.2</text>
+<path class="p" d="M730 160H880"/>
+
+<rect class="pb" x="880" y="300" width="300" height="112" rx="12"/>
+<text class="t" x="900" y="335">5V Buck · U25</text><text class="b" x="900" y="366">SM8103 / SY8113 替代料</text><text class="s" x="900" y="395">PWR_5V</text>
+<path class="p" d="M780 160V354H880"/><circle cx="780" cy="160" r="4" fill="#be6d1b"/>
+
+<rect class="box" x="20" y="545" width="305" height="125" rx="12"/>
+<text class="t" x="40" y="580">Debug UART · CON1</text><text class="b" x="40" y="614">1 GND · 2 RX · 3 TX</text><text class="s" x="40" y="646">3.3V TTL · 115200 baud</text>
+
+<rect x="420" y="545" width="310" height="360" rx="16" fill="#123d56"/>
+<text x="446" y="590" style="fill:white;font-size:28px;font-weight:700">MT7986A</text>
+<text x="446" y="638" style="fill:#d9eaf3;font-size:22px">UART0（共享 TX / RX）</text><text x="446" y="703" style="fill:#d9eaf3;font-size:22px">PWM0</text><text x="446" y="768" style="fill:#d9eaf3;font-size:22px">I²C0</text><text x="446" y="833" style="fill:#d9eaf3;font-size:22px">GPIO / Boot strap</text><text x="446" y="878" style="fill:#b6d8e9;font-size:17px">节点只表示共享网络，不是串联</text>
+<path class="d" d="M575 489V541"/>
+<path class="d" d="M329 612H375V515H575"/><circle cx="575" cy="515" r="5" fill="#2279a5"/>
+
+<rect class="pb" x="880" y="458" width="300" height="112" rx="12"/>
+<text class="t" x="900" y="492">SY6280 · U26</text><text class="b" x="900" y="523">限流开关 → USB-A VBUS</text><text class="s" x="900" y="552">RSET 推算约 1.45A</text>
+<path class="p" d="M1030 412V458"/>
+
+<rect class="box" x="880" y="626" width="300" height="120" rx="12"/>
+<text class="t" x="900" y="662">FAN · CN16</text><text class="b" x="900" y="694">1 5V · 2 GND · 3 PWM</text><text class="s" x="900" y="724">PWM 经 Q23；未见测速线</text>
+<path class="p" d="M1160 412V435H1190V652H1180"/>
+<path class="c" d="M730 692H880"/><text class="s" x="759" y="675">PWM0</text>
+
+<rect class="box" x="20" y="747" width="305" height="115" rx="12"/>
+<text class="t" x="40" y="783">24C02 · U23</text><text class="b" x="40" y="816">I²C 地址 0x50 · 256B</text><text class="s" x="40" y="844">SCL / SDA；另有 WP</text>
+<path class="d" d="M329 796H371V764H416"/>
+
+<rect class="box" x="880" y="797" width="300" height="155" rx="12"/>
+<text class="t" x="900" y="834">按键 / 指示 / 启动</text><text class="b" x="900" y="865">SW2 Reset · SW1 Boot</text><text class="b" x="900" y="896">SYS / W2G / W5G LED</text><text class="s" x="900" y="927">GPIO 输入 / 输出 / strap</text>
+<path class="c" d="M730 827H880"/>
+
+<rect class="box" x="20" y="960" width="750" height="105" rx="12"/>
+<text class="b" x="40" y="995">其他状态路径：PWR LED ← 电源；网口 LED ← PHY</text>
+<text class="b" x="40" y="1032">LTE LED ← Key-B LED#1；SSD LED ← Key-M DAS/DSS#</text>
+<text class="s" x="20" y="1097">来源：BPI-R3mini-V10-SCH-Reduce.pdf，PDF 第 3 / 7 页（Sheet 5 / 11）；原理图电流标注不等于整板功耗。</text>
+</svg>

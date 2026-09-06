@@ -1,0 +1,636 @@
+{
+  "report_version": "2.0",
+  "checked_date": "2026-09-07",
+  "git_head": "8d98145e9e8e533b1ea8c89b23e7076a0901233b",
+  "scope_note": "Read-only source audit; dirty worktree; build selection is not runtime confirmation. Configuration content is intentionally not copied.",
+  "files": [
+    {
+      "index": "L1",
+      "path": "target/linux/mediatek/files-6.6/arch/arm64/boot/dts/mediatek/mt7986a.dtsi",
+      "sha256": "d2fa2a65f404b4a3df028a3ec49b5aa70a863f704b27903c362d785f28ce3c59",
+      "references": [
+        {
+          "symbol": "arm,gic-v3",
+          "line_numbers": [
+            121
+          ]
+        },
+        {
+          "symbol": "wmcpu_emi:",
+          "line_numbers": [
+            85
+          ]
+        },
+        {
+          "symbol": "wocpu0_emi:",
+          "line_numbers": [
+            91
+          ]
+        },
+        {
+          "symbol": "wocpu1_emi:",
+          "line_numbers": [
+            98
+          ]
+        },
+        {
+          "symbol": "wocpu_data:",
+          "line_numbers": [
+            105
+          ]
+        },
+        {
+          "symbol": "mtketh-ppe-num",
+          "line_numbers": [
+            604
+          ]
+        },
+        {
+          "symbol": "wocpu0_ilm:",
+          "line_numbers": [
+            617
+          ]
+        },
+        {
+          "symbol": "wocpu_dlm:",
+          "line_numbers": [
+            626
+          ]
+        }
+      ]
+    },
+    {
+      "index": "L2",
+      "path": "target/linux/mediatek/files-6.6/drivers/net/ethernet/mediatek/mtk_hnat/hnat.h",
+      "sha256": "b60dc9a9670d8d9b1c426f362f424bb966ef7a8231682bd151f4b3cf79ed3d34",
+      "references": [
+        {
+          "symbol": "MAX_PPE_CACHE_NUM",
+          "line_numbers": [
+            173
+          ]
+        },
+        {
+          "symbol": "DEF_ETRY_NUM\t",
+          "line_numbers": [
+            626,
+            630
+          ]
+        },
+        {
+          "symbol": "MAX_PPE_NUM",
+          "line_numbers": [
+            643,
+            645,
+            682,
+            683,
+            684,
+            688,
+            690,
+            691,
+            692
+          ]
+        },
+        {
+          "symbol": "struct foe_entry",
+          "line_numbers": [
+            608,
+            683,
+            969
+          ]
+        },
+        {
+          "symbol": "PPE_CAH_CTRL",
+          "line_numbers": [
+            88,
+            159
+          ]
+        },
+        {
+          "symbol": "PPE_MIB_CAH_CTRL",
+          "line_numbers": [
+            100
+          ]
+        },
+        {
+          "symbol": "NR_WDMA0_PORT",
+          "line_numbers": [
+            891
+          ]
+        }
+      ]
+    },
+    {
+      "index": "L2",
+      "path": "target/linux/mediatek/files-6.6/drivers/net/ethernet/mediatek/mtk_hnat/hnat.c",
+      "sha256": "7fb08476a4d9325178ac766913e2ec0027628715d5192de3753ea6eb98094bfe",
+      "references": [
+        {
+          "symbol": "static int hnat_start",
+          "line_numbers": [
+            397
+          ]
+        },
+        {
+          "symbol": "foe_table_sz =",
+          "line_numbers": [
+            409,
+            529,
+            638
+          ]
+        },
+        {
+          "symbol": "dma_alloc_coherent",
+          "line_numbers": [
+            410,
+            432
+          ]
+        },
+        {
+          "symbol": "hnat_cache_ebl",
+          "line_numbers": [
+            58,
+            74,
+            88,
+            202,
+            318,
+            499,
+            622
+          ]
+        }
+      ]
+    },
+    {
+      "index": "L3",
+      "path": "package/mtk/drivers/mt_wifi/src/mt_wifi/chips/mt7986.c",
+      "sha256": "ec9d704de81d2dae26c284f171824c06b3ca1176d84b378f7dde87b32cb2e0be",
+      "references": [
+        {
+          "symbol": "WA_CPU",
+          "line_numbers": [
+            1365,
+            1366,
+            1368,
+            12273
+          ]
+        },
+        {
+          "symbol": "WM_CPU",
+          "line_numbers": [
+            1341,
+            1342,
+            1345,
+            1348,
+            1354,
+            1355,
+            1357,
+            1360,
+            12269,
+            12273,
+            12275
+          ]
+        },
+        {
+          "symbol": "hif_init_WFDMA",
+          "line_numbers": [
+            5340,
+            12838
+          ]
+        }
+      ]
+    },
+    {
+      "index": "L3",
+      "path": "package/mtk/drivers/mt_wifi/src/mt_wifi/chips/mt7986_dbg.c",
+      "sha256": "8fcc05b8b38e298c147e40cf3ad334e3c116d66389bef630c291c12514bc21ad",
+      "references": [
+        {
+          "symbol": "pg_sz =",
+          "line_numbers": [
+            637,
+            638,
+            1695,
+            1696
+          ]
+        },
+        {
+          "symbol": "Page Size",
+          "line_numbers": [
+            638,
+            1696
+          ]
+        },
+        {
+          "symbol": "WF_PSE_TOP_PBUF_CTRL_ADDR",
+          "line_numbers": [
+            610
+          ]
+        },
+        {
+          "symbol": "WF_PLE_TOP_PBUF_CTRL_ADDR",
+          "line_numbers": [
+            1677
+          ]
+        }
+      ]
+    },
+    {
+      "index": "L4",
+      "path": "package/mtk/drivers/warp/src/regs/reg_v2/warp_mt7986.c",
+      "sha256": "8f232305dbb9d1d7ec2ffac40644a4622a451f9bf7b16b636e0d6ca4b3aaa49a",
+      "references": [
+        {
+          "symbol": "miod_entry_size",
+          "line_numbers": [
+            183,
+            194
+          ]
+        },
+        {
+          "symbol": "MIOD_CNT",
+          "line_numbers": [
+            180
+          ]
+        },
+        {
+          "symbol": "FB_CMD_CNT",
+          "line_numbers": [
+            184
+          ]
+        },
+        {
+          "symbol": "RRO_QUE_CNT",
+          "line_numbers": [
+            185
+          ]
+        }
+      ]
+    },
+    {
+      "index": "L4",
+      "path": "package/mtk/drivers/warp/src/warp_hw.h",
+      "sha256": "7504d1cee6b11eb6f16d1e2503a2240b9496b85e8cb1810b6b4f0355b31dd019",
+      "references": [
+        {
+          "symbol": "MIOD_CNT",
+          "line_numbers": [
+            39
+          ]
+        },
+        {
+          "symbol": "FB_CMD_CNT",
+          "line_numbers": [
+            40
+          ]
+        },
+        {
+          "symbol": "RRO_QUE_CNT",
+          "line_numbers": [
+            41
+          ]
+        }
+      ]
+    },
+    {
+      "index": "L4",
+      "path": "package/mtk/drivers/warp/src/mcu/warp_wo.c",
+      "sha256": "08399fa8efbee704e23b279d447d01149cb398f39ed250b7239263580ef60165",
+      "references": [
+        {
+          "symbol": "CCIF",
+          "line_numbers": [
+            189,
+            196,
+            247,
+            441,
+            450,
+            453,
+            457,
+            458,
+            459,
+            463,
+            464
+          ]
+        },
+        {
+          "symbol": "woif",
+          "line_numbers": [
+            19,
+            35,
+            76,
+            88,
+            90,
+            121,
+            140,
+            167,
+            182,
+            198,
+            200,
+            242,
+            264,
+            291,
+            305,
+            312,
+            319,
+            320,
+            322,
+            324,
+            327,
+            329,
+            330,
+            332,
+            337,
+            348,
+            350,
+            369,
+            370,
+            371,
+            372,
+            379,
+            384,
+            393,
+            408,
+            414,
+            416,
+            436,
+            488,
+            490,
+            501,
+            504,
+            508,
+            510,
+            511,
+            514,
+            516,
+            525,
+            528,
+            538,
+            564,
+            671,
+            673,
+            674,
+            705,
+            707,
+            710,
+            712,
+            713,
+            723,
+            726,
+            728,
+            729,
+            732,
+            735,
+            753,
+            759,
+            762,
+            763,
+            767
+          ]
+        }
+      ]
+    },
+    {
+      "index": "L5",
+      "path": "build_dir/target-aarch64_cortex-a53_musl/linux-mediatek_filogic/linux-6.6.133/drivers/net/ethernet/mediatek/mtk_ppe.h",
+      "sha256": "004eb327b29389e26fa1187f36ef7226080b411c4d6b84b4f79a6f70ef3de83e",
+      "references": [
+        {
+          "symbol": "MTK_FOE_ENTRY_V2_SIZE",
+          "line_numbers": [
+            237
+          ]
+        },
+        {
+          "symbol": "MTK_PPE_ENTRIES_SHIFT",
+          "line_numbers": [
+            11,
+            12
+          ]
+        }
+      ]
+    },
+    {
+      "index": "L5",
+      "path": "build_dir/target-aarch64_cortex-a53_musl/linux-mediatek_filogic/linux-6.6.133/drivers/net/ethernet/mediatek/mtk_eth_soc.h",
+      "sha256": "6cee24e00ad14d20a572b489d52fb27843d25bc223b9abc2b4cce4ef7bf486fa",
+      "references": [
+        {
+          "symbol": "MTK_QDMA_NUM_QUEUES",
+          "line_numbers": [
+            29,
+            30,
+            1253,
+            1254,
+            1267,
+            1268
+          ]
+        }
+      ]
+    },
+    {
+      "index": "L5",
+      "path": "build_dir/target-aarch64_cortex-a53_musl/linux-mediatek_filogic/linux-6.6.133/drivers/net/ethernet/mediatek/mtk_eth_soc.c",
+      "sha256": "edbd4e6d54d66351f1278dc7c90b5744fdc9d71c7aa4a081fc69d3dd0180cdc7",
+      "references": [
+        {
+          "symbol": "mt7986_data",
+          "line_numbers": [
+            7049,
+            7169
+          ]
+        },
+        {
+          "symbol": "ppe_num = 2",
+          "line_numbers": [
+            7028,
+            7058,
+            7088
+          ]
+        }
+      ]
+    },
+    {
+      "index": "L6",
+      "path": ".config",
+      "sha256": "204e9db4352415b2b6056b5bec1644268fec45561a8d87394a85dcf26ede3e06",
+      "references": [
+        {
+          "symbol": "CONFIG_TARGET_mediatek_filogic_DEVICE_bananapi_bpi-r3-mini",
+          "line_numbers": [
+            75
+          ]
+        },
+        {
+          "symbol": "CONFIG_PACKAGE_kmod-mt_wifi",
+          "line_numbers": [
+            6789
+          ]
+        },
+        {
+          "symbol": "CONFIG_PACKAGE_kmod-warp",
+          "line_numbers": [
+            6977
+          ]
+        },
+        {
+          "symbol": "CONFIG_PACKAGE_kmod-mediatek_hnat",
+          "line_numbers": [
+            2807
+          ]
+        },
+        {
+          "symbol": "CONFIG_PACKAGE_kmod-mac80211",
+          "line_numbers": [
+            3258,
+            3259
+          ]
+        },
+        {
+          "symbol": "CONFIG_PACKAGE_kmod-crypto-hw-safexcel",
+          "line_numbers": [
+            2353
+          ]
+        }
+      ]
+    },
+    {
+      "index": "L6",
+      "path": "build_dir/target-aarch64_cortex-a53_musl/linux-mediatek_filogic/linux-6.6.133/.config",
+      "sha256": "07461d3eb7ba4255eb103113e7762227f4af494467efa76aad41b5f33b2f5279",
+      "references": [
+        {
+          "symbol": "CONFIG_NET_MEDIATEK_SOC_WED",
+          "line_numbers": [
+            2432
+          ]
+        },
+        {
+          "symbol": "CONFIG_MEDIATEK_NETSYS_V2",
+          "line_numbers": [
+            2435
+          ]
+        },
+        {
+          "symbol": "CONFIG_MEDIATEK_NETSYS_V3",
+          "line_numbers": [
+            2436
+          ]
+        },
+        {
+          "symbol": "CONFIG_MEDIATEK_NETSYS_RX_V2",
+          "line_numbers": []
+        },
+        {
+          "symbol": "CONFIG_NET_MEDIATEK_HNAT",
+          "line_numbers": [
+            2437
+          ]
+        },
+        {
+          "symbol": "CONFIG_CRYPTO_DEV_SAFEXCEL",
+          "line_numbers": [
+            5143
+          ]
+        }
+      ]
+    },
+    {
+      "index": "L7",
+      "path": "package/mtk/drivers/mt_wifi/src/mt_wifi/embedded/plug_in/warp_proxy/chips/warp_wifi_mt7986.c",
+      "sha256": "17f007684bbdecf42219849125806f90d4d7e6531ad43f5cd472ec60292da108",
+      "references": [
+        {
+          "symbol": "WFDMA",
+          "line_numbers": [
+            63,
+            64,
+            65,
+            72,
+            74,
+            79,
+            80,
+            81,
+            82,
+            83,
+            84,
+            85,
+            86,
+            89,
+            90,
+            91,
+            92,
+            95,
+            96,
+            97,
+            98,
+            99,
+            100,
+            101,
+            102,
+            105,
+            107,
+            109,
+            111,
+            113
+          ]
+        }
+      ]
+    },
+    {
+      "index": "L8",
+      "path": "build_dir/target-aarch64_cortex-a53_musl/linux-mediatek_filogic/linux-6.6.133/drivers/clk/mediatek/clk-mt7986-topckgen.c",
+      "sha256": "7faa6177b45df26d43d89f51f72a43a98b3997dcf68299a141b79d49cb58177f",
+      "references": [
+        {
+          "symbol": "netsys_parents",
+          "line_numbers": [
+            126,
+            227
+          ]
+        },
+        {
+          "symbol": "netsys_500m_parents",
+          "line_numbers": [
+            129,
+            230
+          ]
+        },
+        {
+          "symbol": "netsys_mcu_parents",
+          "line_numbers": [
+            133,
+            233
+          ]
+        },
+        {
+          "symbol": "netsys_2x_parents",
+          "line_numbers": [
+            138,
+            237
+          ]
+        },
+        {
+          "symbol": "conn_mcusys_parents",
+          "line_numbers": [
+            152,
+            250
+          ]
+        },
+        {
+          "symbol": "sysaxi_parents",
+          "line_numbers": [
+            111,
+            213
+          ]
+        },
+        {
+          "symbol": "sysapb_parents",
+          "line_numbers": [
+            115,
+            217
+          ]
+        }
+      ]
+    }
+  ]
+}
