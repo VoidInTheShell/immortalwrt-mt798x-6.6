@@ -1,0 +1,20 @@
+Subject: [PATCH] mt_wifi: use the Linux 6.6 receive API for radiotap packets
+
+Linux commit 2655926aea9b removed netif_rx_ni() in 5.18 after netif_rx()
+gained support for both process and interrupt context. Keep radiotap capture
+available on 6.6 using that replacement. These calls deliver monitor frames;
+the ordinary Ethernet receive and WARP/HNAT fast paths are unchanged.
+
+--- a/mt_wifi/os/linux/rt_profile.c
++++ b/mt_wifi/os/linux/rt_profile.c
+@@ -1414 +1414 @@
+-		netif_rx_ni(pOSPkt);
++		netif_rx(pOSPkt);
+--- a/mt_wifi/embedded/common/sniffer_radiotap.c
++++ b/mt_wifi/embedded/common/sniffer_radiotap.c
+@@ -578 +578 @@
+-	netif_rx_ni(pOSPkt);
++	netif_rx(pOSPkt);
+@@ -1130 +1130 @@
+-	netif_rx_ni(pOSPkt);
++	netif_rx(pOSPkt);

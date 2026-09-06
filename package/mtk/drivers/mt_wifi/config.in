@@ -558,16 +558,19 @@ config MTK_RTMP_FLASH_SUPPORT
 config MTK_PRE_CAL_TRX_SET1_SUPPORT
 	bool "Calibration To Flash/BinFile Support"
 	depends on MTK_WIFI_DRIVER
+	depends on MTK_CHIP_MT7615E
 	default y
 
 config MTK_RLM_CAL_CACHE_SUPPORT
 	bool "RlmCalibrationCache Support"
 	depends on MTK_WIFI_DRIVER
+	depends on MTK_CHIP_MT7615E
 	default y
 
 config MTK_PRE_CAL_TRX_SET2_SUPPORT
 	bool "Pre-calibration to Flash Support"
 	depends on MTK_WIFI_DRIVER
+	depends on MTK_CHIP_MT7615E
 	default y
 
 config MTK_CAL_BIN_FILE_SUPPORT
@@ -1377,4 +1380,3 @@ endif
 
 endif #MTK_WIFI_DRIVER#
 endif #PACKAGE_kmod-mt_wifi#
-

@@ -272,7 +272,10 @@ PKG_KCONFIG:= \
 	WIFI_CSI_CN_INFO_SUPPORT \
 	6G_AFC_SUPPORT \
 
-PKG_CONFIG_DEPENDS:=$(foreach c, $(PKG_KCONFIG),$(if $(CONFIG_MTK_$c),CONFIG_$(c)))
+# Track the OpenWrt symbols, including disabled ones, before translating them
+# to the vendor CONFIG_* names in Build/Compile. Otherwise changing e.g. WHNAT
+# or native chip/profile selections can leave a stale configured/built stamp.
+PKG_CONFIG_DEPENDS:=$(sort $(addprefix CONFIG_MTK_,$(PKG_KCONFIG)))
 PKG_PREPARED_DEPENDS:= CONFIG_MTK_MT7986_NEW_FW CONFIG_MTK_MT7981_NEW_FW
 
 include $(INCLUDE_DIR)/package.mk

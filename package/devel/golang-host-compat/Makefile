@@ -23,6 +23,7 @@ PKG_LICENSE_FILES:=LICENSE
 PKG_HOST_ONLY:=1
 HOST_BUILD_DIR:=$(BUILD_DIR_HOST)/go-$(PKG_VERSION)-linux-amd64
 HOST_BUILD_PARALLEL:=1
+HOST_GO_PLATFORM:=$(shell uname -s)-$(shell uname -m)
 
 include $(INCLUDE_DIR)/host-build.mk
 include $(INCLUDE_DIR)/package.mk
@@ -46,7 +47,7 @@ endef
 # consuming package opts into it by prepending this directory to PATH in its
 # GO_PKG_BUILD_VARS, so other Go packages keep using the feed toolchain.
 define Host/Compile
-	@test "$$(uname -s)-$$(uname -m)" = Linux-x86_64 || { echo 'This pinned Go host SDK requires Linux x86_64'; exit 1; }
+	@test "$(HOST_GO_PLATFORM)" = Linux-x86_64 || { echo "This pinned Go host SDK requires Linux x86_64 (got $(HOST_GO_PLATFORM))"; exit 1; }
 endef
 
 define Host/Install

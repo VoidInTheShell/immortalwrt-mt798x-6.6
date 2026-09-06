@@ -23,6 +23,9 @@ import time
 ROOT = Path(__file__).resolve().parents[1]
 OUT = ROOT / 'logs/r3mini-build'
 TIME_RE = re.compile(r'time: (.+)#([\d.]+)#([\d.]+)#([\d.]+)')
+LEGACY_WIFI_CAL = {'CONFIG_MTK_' + name for name in
+                   ('PRE_CAL_TRX_SET1_SUPPORT', 'PRE_CAL_TRX_SET2_SUPPORT', 'RLM_CAL_CACHE_SUPPORT')}
+WIFI_TARGET = 'package/mtk/drivers/mt_wifi/compile'
 
 
 def digest(data):
@@ -160,7 +163,7 @@ def make_plan():
                {'name': 'checksum', 'class': 'images', 'jobs': 1, 'targets': ['checksum']}]
     for i, stage in enumerate(stages, 1):
         stage['id'] = f'{i:04d}-' + stage['name'] + '-' + digest(' '.join(stage['targets']).encode())[:8]
-    return {'resources': res, 'stages': stages,
+    return {'resources': res, 'config_sha256': digest((ROOT / '.config').read_bytes()), 'stages': stages,
             'components': {n: {**classify(n), 'dependencies': sorted(ds)} for n, ds in graph.items()}}
 
 
@@ -220,6 +223,9 @@ def validate_config():
             errors.append('Forbidden target package: ' + package)
     if cfg.get('CONFIG_TARGET_ROOTFS_INITRAMFS') == 'y':
         errors.append('Full eMMC profile must not build a full-feature 32 MiB recovery image')
+    for symbol in sorted(LEGACY_WIFI_CAL):
+        if cfg.get(symbol) in ('y', 'm'):
+            errors.append(symbol + ': legacy calibration layout; R3 Mini uses native PRE_CAL_MT7986_SUPPORT')
     return errors
 
 
@@ -232,6 +238,9 @@ def save_json(path, value):
 
 def save_plan(logdir, plan):
     save_json(logdir / 'plan.json', plan)
+    config_path = ROOT / '.config'
+    if config_path.exists():
+        (logdir / 'config.snapshot').write_bytes(config_path.read_bytes())
     with (logdir / 'component-jobs.csv').open('w') as handle:
         fields = ['stage', 'target', 'class', 'jobs', 'upstream_parallel', 'recipe', 'dependencies']
         writer = csv.DictWriter(handle, fieldnames=fields)
@@ -257,8 +266,46 @@ def memory_group(pgid):
     return rss
 
 
-def validate_artifacts(stage_name):
+def validate_wifi_artifacts():
+    """Check compiled native calibration and fast-path code, not just selections."""
+    builds = list((ROOT / 'build_dir').glob('target-*/linux-mediatek_filogic/mt_wifi'))
+    if len(builds) != 1:
+        return ['Expected one compiled MT7986 vendor driver']
+    build = builds[0]
+    command = build / 'mt_wifi/chips/.mt7986.o.cmd'
+    module = build / 'mt_wifi_ap/mt_wifi.ko'
+    if not command.exists() or not module.exists():
+        return ['Missing MT7986 object build command or linked mt_wifi.ko']
+    defines = set(re.findall(r'(?:^|\s)-D(\w+)', command.read_text()))
+    required = {'PRE_CAL_MT7986_SUPPORT', 'CAL_FREE_IC_SUPPORT', 'DOT11_HE_AX', 'DBDC_MODE',
+                'TXBF_SUPPORT', 'HE_TXBF_SUPPORT', 'WHNAT_SUPPORT',
+                'WFDMA_WED_COMPATIBLE',
+                'CONFIG_FAST_NAT_SUPPORT', 'CUT_THROUGH', 'CUT_THROUGH_FULL_OFFLOAD',
+                'HDR_TRANS_TX_SUPPORT', 'HDR_TRANS_RX_SUPPORT'}
+    errors = ['Compiled mt_wifi lacks ' + name for name in sorted(required - defines)]
+    errors += ['Compiled mt_wifi still uses legacy layout ' + name for name in
+               sorted({symbol.removeprefix('CONFIG_MTK_') for symbol in LEGACY_WIFI_CAL} & defines)]
+    nm = subprocess.run(['nm', str(module)], text=True, capture_output=True)
+    if nm.returncode:
+        return errors + ['Cannot inspect linked MT7986 symbols: ' + nm.stderr.strip()]
+    defined, undefined = set(), set()
+    for line in nm.stdout.splitlines():
+        fields = line.split()
+        if len(fields) >= 2:
+            (undefined if fields[-2] == 'U' else defined).add(fields[-1])
+    required_symbols = {'MtCmdSetGroupPreCal_7986', 'MtCmdSetDpdFlatnessCal_7986',
+                        'GroupPreCalInfoAlloc_7986', 'DpdFlatnessCalInfoAlloc_7986'}
+    errors += ['Linked mt_wifi lacks native calibration symbol ' + name
+               for name in sorted(required_symbols - defined)]
+    errors += ['Linked mt_wifi lacks HNAT hook ' + name for name in
+               sorted({'ra_sw_nat_hook_rx', 'ra_sw_nat_hook_tx'} - undefined)]
+    return errors
+
+
+def validate_artifacts(stage_name, targets=()):
     """Check actual build outputs before advancing to the next expensive stage."""
+    if WIFI_TARGET in targets or stage_name == 'package-completion':
+        return validate_wifi_artifacts()
     if stage_name == 'kernel':
         paths = list((ROOT / 'build_dir').glob('target-*/linux-mediatek_filogic/linux-6.6.*/.config'))
         if len(paths) != 1:
@@ -280,9 +327,16 @@ def validate_artifacts(stage_name):
             return ['Expected one populated root-mediatek filesystem, found ' + str(len(roots))]
         rootfs = roots[0]
         required = ['lib/modules/*/mtkhnat.ko*', 'lib/modules/*/mt_wifi.ko*',
+                    'lib/modules/*/mtk_warp_proxy.ko*',
                     'lib/modules/*/mtk_warp.ko*', 'lib/modules/*/conninfra.ko*',
                     'lib/firmware/7986_WOCPU0_RAM_CODE_release.bin',
                     'lib/firmware/7986_WOCPU1_RAM_CODE_release.bin',
+                    'lib/firmware/WIFI_RAM_CODE_MT7986.bin',
+                    'lib/firmware/WIFI_RAM_CODE_MT7986_MT7975.bin',
+                    'lib/firmware/mt7986_patch_e1_hdr.bin',
+                    'lib/firmware/mt7986_patch_e1_hdr_mt7975.bin',
+                    'lib/firmware/7986_WACPU_RAM_CODE_release.bin',
+                    'lib/firmware/MT7986_ePAeLNA_EEPROM_ONEADIE_DBDC.bin',
                     'usr/bin/daed', 'usr/sbin/ModemManager', 'usr/bin/mmcli',
                     'lib/netifd/proto/modemmanager.sh', 'usr/libexec/rpcd/modemmanager',
                     'usr/share/luci/menu.d/luci-proto-modemmanager.json',
@@ -331,6 +385,45 @@ def make_parallel_flags():
     return []
 
 
+def build_environment():
+    """Keep host recipes from parsing WSL/Windows PATH fragments as shell code.
+
+    OpenWrt recipes sometimes expand PATH in an unquoted assignment passed to
+    ``bash -c`` (notably U-Boot's host-tool invocation).  WSL converts Windows
+    entries such as ``C:\\Program Files (x86)`` into ``/mnt/c/Program:Files
+    :(x86)``; the parentheses then become shell syntax.  None of those tools
+    are part of this Linux build, so remove mounted Windows entries while
+    retaining the normal Linux and repository-local tool paths.
+    """
+    environment = os.environ.copy()
+    path = environment.get('PATH', '')
+    entries = []
+    in_mounted_windows_path = False
+    raw_entries = path.split(os.pathsep)
+    for index, entry in enumerate(raw_entries):
+        if entry.startswith('/mnt/'):
+            in_mounted_windows_path = True
+            continue
+        # A WSL path containing a Windows filename with ':' is split into
+        # continuation fragments ("Files", "(x86)/Git") by PATH parsing.
+        # Keep skipping those fragments until the next absolute Unix entry.
+        if in_mounted_windows_path:
+            if entry.startswith('/'):
+                in_mounted_windows_path = False
+            else:
+                continue
+        if (not entry or '\\' in entry or '(' in entry or ')' in entry
+                or (len(entry) == 1 and entry.isalpha()
+                    and index + 1 < len(raw_entries)
+                    and '\\' in raw_entries[index + 1])):
+            continue
+        if re.match(r'^[A-Za-z]:[\\/]', entry):
+            continue
+        entries.append(entry)
+    environment['PATH'] = os.pathsep.join(entries)
+    return environment
+
+
 def run_stage(stage, logdir, cpus):
     jobs = stage['jobs']
     log = logdir / (stage['id'] + f"-attempt-{stage.get('attempt', 1):02d}.log")
@@ -343,7 +436,8 @@ def run_stage(stage, logdir, cpus):
     peak = 0
     with log.open('w') as output:
         p = subprocess.Popen(cmd, cwd=ROOT, stdout=output, stderr=subprocess.STDOUT,
-                             start_new_session=True, preexec_fn=setup)
+                             start_new_session=True, preexec_fn=setup,
+                             env=build_environment())
         try:
             while p.poll() is None:
                 peak = max(peak, memory_group(p.pid))
@@ -383,6 +477,104 @@ def report(state, logdir):
     return summary
 
 
+def stage_layout(plan):
+    """Return the parts of a plan that determine stage identity and ordering."""
+    return [{key: stage[key] for key in ('id', 'name', 'class', 'targets')}
+            for stage in plan.get('stages', [])]
+
+
+def successful_stage_ids(state, stage_ids):
+    """Get stages that completed, including only attempts that passed validation."""
+    completed = set(state.get('completed', ()))
+    return completed & set(stage_ids)
+
+
+def calibration_only_change(previous_bytes, current_bytes):
+    """Recognize the reviewed R3 Mini legacy-calibration fix, conservatively.
+
+    Only these three mt_wifi-local flags may differ. Package, chip, kernel and
+    toolchain choices must match. This never marks the changed driver complete.
+    """
+    def values(data):
+        return dict(re.findall(r'^(CONFIG_[^=]+)=(.*)$', data.decode(), re.M))
+    previous, current = values(previous_bytes), values(current_bytes)
+    if current.get('CONFIG_MTK_CHIP_MT7986') != 'y':
+        return False
+    changed = {key for key in previous.keys() | current.keys()
+               if previous.get(key, 'n') != current.get(key, 'n')}
+    return bool(changed) and changed <= LEGACY_WIFI_CAL
+
+
+def prior_successful_stage_ids(logdir, plan):
+    """Find successful stages from compatible earlier runs in the same log tree.
+
+    A new log directory is normally required when sources or the plan change.  The
+    compiler still has valid OpenWrt stamps from the earlier run, though, and
+    invoking those already-successful stages again is an incremental operation.
+    Their targets are therefore eligible for the 24-job fast path.  We only use
+    this as a scheduling hint: every target is still handed to GNU make, which
+    rechecks its own dependency and stamp graph. Stage layout and configuration
+    must match, except for the three reviewed mt_wifi legacy-calibration flags:
+    a hash-verified configuration snapshot may prove that only those changed,
+    allowing stages before mt_wifi to retain their warm scheduling budget.
+
+    Plans written before ``config_sha256`` was added are accepted when their
+    complete stage layout matches.  The layout contains every selected target and
+    is the best compatibility signal available for those legacy logs.
+    """
+    stage_ids = {stage['id'] for stage in plan.get('stages', [])}
+    layout = stage_layout(plan)
+    config_path = ROOT / '.config'
+    config_hash = plan.get('config_sha256')
+    if not config_hash and config_path.exists():
+        config_hash = digest(config_path.read_bytes())
+    candidates = []
+    parent = logdir.resolve().parent
+    if logdir.exists():
+        candidates.append(logdir.resolve())
+    candidates.extend(sorted((path.resolve() for path in parent.glob('r3mini-build-*')
+                              if path.is_dir() and path.resolve() != logdir.resolve()),
+                             key=lambda path: path.stat().st_mtime, reverse=True))
+    reusable = set()
+    for candidate in candidates:
+        statepath, planpath = candidate / 'state.json', candidate / 'plan.json'
+        if not statepath.exists() or not planpath.exists():
+            continue
+        try:
+            previous_plan = json.loads(planpath.read_text())
+            previous_state = json.loads(statepath.read_text())
+        except (OSError, ValueError, TypeError):
+            continue
+        if stage_layout(previous_plan) != layout:
+            continue
+        previous_hash = previous_plan.get('config_sha256')
+        eligible = stage_ids
+        if previous_hash and config_hash and previous_hash != config_hash:
+            snapshot = candidate / 'config.snapshot'
+            if not snapshot.exists() or not config_path.exists():
+                continue
+            previous_bytes = snapshot.read_bytes()
+            if digest(previous_bytes) != previous_hash or not calibration_only_change(previous_bytes, config_path.read_bytes()):
+                continue
+            # Only stages before the changed driver are eligible. Its consumers,
+            # aggregate package build and image stages retain their fresh caps.
+            eligible = set()
+            for stage in plan['stages']:
+                if WIFI_TARGET in stage['targets']:
+                    break
+                eligible.add(stage['id'])
+        reusable.update(successful_stage_ids(previous_state, eligible))
+    return reusable
+
+
+def rerun_jobs(resources_info):
+    """Return the safe fast-path ceiling for already-successful stages."""
+    # Use the light-package memory estimate as a conservative bound.  On this
+    # host it yields 24, while a constrained CI/container host automatically
+    # falls back instead of risking an OOM during a stamp-only recheck.
+    return min(24, resources_info['cpus'], resources_info['caps']['light'])
+
+
 def execute(plan, logdir, resume):
     logdir.mkdir(parents=True, exist_ok=True)
     statepath = logdir / 'state.json'
@@ -405,6 +597,7 @@ def execute(plan, logdir, resume):
     else:
         state = {'fingerprint': mark, 'completed': [], 'attempts': [], 'session_wall_seconds': []}
     save_plan(logdir, plan)
+    warm_stages = prior_successful_stage_ids(logdir, plan)
     start = time.monotonic()
     code = 0
     try:
@@ -416,12 +609,18 @@ def execute(plan, logdir, resume):
                 raise RuntimeError('Less than 4 GiB available memory before stage; free memory and resume')
             # The saved plan gives ceilings. Other host workloads may consume
             # memory meanwhile; reduce this attempt's jobs and record the value.
-            jobs = min(stage['jobs'], current_resources['caps'][stage['class']])
-            print(f"[{stage['id']}] jobs={jobs} targets={len(stage['targets'])}", flush=True)
+            # A stage proven successful in an earlier compatible run is an
+            # incremental stamp recheck on this pass, so prefer all 24 jobs.
+            warm = stage['id'] in warm_stages
+            ceiling = rerun_jobs(current_resources) if warm else current_resources['caps'][stage['class']]
+            jobs = min(stage['jobs'], ceiling) if not warm else ceiling
+            print(f"[{stage['id']}] jobs={jobs} targets={len(stage['targets'])}"
+                  + (' warm-reuse=1' if warm else ''), flush=True)
             attempt = 1 + sum(r['id'] == stage['id'] for r in state['attempts'])
-            row = run_stage({**stage, 'jobs': jobs, 'attempt': attempt}, logdir, current_resources['affinity'])
+            row = run_stage({**stage, 'jobs': jobs, 'attempt': attempt, 'warm_reuse': warm},
+                            logdir, current_resources['affinity'])
             if not row['exit_code']:
-                errors = validate_artifacts(stage['name'])
+                errors = validate_artifacts(stage['name'], stage['targets'])
                 if errors:
                     row['exit_code'] = 1
                     row['artifact_errors'] = errors
