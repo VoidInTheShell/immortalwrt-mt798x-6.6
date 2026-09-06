@@ -1,0 +1,89 @@
+{
+  "root_revision": "ec9ef10efc65da1e6d1de4e2c043c0e13d08eed8",
+  "sources": [
+    {
+      "path": "feeds/luci",
+      "origin": "https://github.com/immortalwrt/luci.git",
+      "revision": "80ed8a44f244627c5a9f808d09f4c3d8f985b764",
+      "patch": "feeds-luci.patch",
+      "patch_sha256": "ae77bbf3d29293ede68dd6273a18306e90e4d9cf7d309a5d17c8d97c0c1a186c"
+    },
+    {
+      "path": "feeds/packages",
+      "origin": "https://github.com/immortalwrt/packages.git",
+      "revision": "0cb6db25afff9a17be88520bc3fdd8f4c79f80de",
+      "patch": "feeds-packages.patch",
+      "patch_sha256": "44089586357bd7881c53ddfb6521a41b135b72b66dba9c52b78266e182c4b727"
+    },
+    {
+      "path": "package/luci-app-adguardhome",
+      "origin": "https://github.com/sirpdboy/luci-app-adguardhome.git",
+      "revision": "73ecb5d6a2bddc43e9273bccab2719728a238c1e",
+      "patch": "package-luci-app-adguardhome.patch",
+      "patch_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "package/luci-app-advancedplus",
+      "origin": "https://github.com/sirpdboy/luci-app-advancedplus.git",
+      "revision": "aba81aa40e0f9aa1f1c5a69ee66a7a943a5f6384",
+      "patch": "package-luci-app-advancedplus.patch",
+      "patch_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "package/luci-app-nikki",
+      "origin": "https://github.com/nikkinikki-org/OpenWrt-nikki.git",
+      "revision": "3799926b147d7065ac98508f16951f8714e53659",
+      "patch": "package-luci-app-nikki.patch",
+      "patch_sha256": "10f2c22df1b63087bfd2fba36d8576a5df66fea6f15982bfed5889f6cddffd84"
+    },
+    {
+      "path": "package/luci-app-poweroffdevice",
+      "origin": "https://github.com/sirpdboy/luci-app-poweroffdevice.git",
+      "revision": "8f53359c3234c7c398b846b5425f9b0b017c03ec",
+      "patch": "package-luci-app-poweroffdevice.patch",
+      "patch_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "package/luci-app-qosmate",
+      "origin": "https://github.com/hudra0/luci-app-qosmate.git",
+      "revision": "6d2abc73d463fbf314d52404ce1b010544b0bca2",
+      "patch": "package-luci-app-qosmate.patch",
+      "patch_sha256": "77cf793fb965c25d04e11ff88abed828d523b760e29215d6a732d8f3073b89e6"
+    },
+    {
+      "path": "package/luci-app-taskplan",
+      "origin": "https://github.com/sirpdboy/luci-app-taskplan.git",
+      "revision": "babd67a496a592ad9bd625fbc08db804cff45ab9",
+      "patch": "package-luci-app-taskplan.patch",
+      "patch_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "package/luci-theme-kucat",
+      "origin": "https://github.com/sirpdboy/luci-theme-kucat.git",
+      "revision": "1c8e7f7c1052552f4fac09d60e5adc07ed33bfa3",
+      "patch": "package-luci-theme-kucat.patch",
+      "patch_sha256": "01e5745dcfd37d74b563a2ea0360bf0d57b958066386fb47239561395fe34619"
+    },
+    {
+      "path": "package/mm-ui-sms",
+      "origin": "https://github.com/4IceG/luci-app-sms-manager.git",
+      "revision": "322392909e046c172f06e8dfff8a956b9ede4bbb",
+      "patch": "package-mm-ui-sms.patch",
+      "patch_sha256": "40862bccd8a293687716fa7b2d0fbe06d4c04957b1893746c86f317952954fb1"
+    },
+    {
+      "path": "package/netspeedtest",
+      "origin": "https://github.com/sirpdboy/netspeedtest.git",
+      "revision": "0c936e9dd513b2915229871b088b85ca817f5083",
+      "patch": "package-netspeedtest.patch",
+      "patch_sha256": "1f18b3057c6280c991612f44f5368f5158472c8e326a52938c69210ac5b28af4"
+    },
+    {
+      "path": "package/qosmate",
+      "origin": "https://github.com/hudra0/qosmate.git",
+      "revision": "5a27872a2274c01eb42d7e0728cab6331fadf6bb",
+      "patch": "package-qosmate.patch",
+      "patch_sha256": "85e0101d14717df76cd499eeb6f0efcda15f1c8ccb3e23d2c9dae979bde2cc31"
+    }
+  ]
+}

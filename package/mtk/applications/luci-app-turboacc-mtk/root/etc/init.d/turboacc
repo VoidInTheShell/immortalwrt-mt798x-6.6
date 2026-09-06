@@ -5,129 +5,153 @@
 START=90
 STOP=10
 USE_PROCD=1
+
 start_service() {
 	config_load "turboacc"
 
-	local fastpath
+	local fastpath fastpath_mh_eth_hnat_ap=""
 	config_get fastpath "config" "fastpath"
+	# Software shaping must keep seeing packets even if this page is reloaded
+	# while QoSmate is active. Do not overwrite the user's saved UCI choice.
+	if [ "$(uci -q get qosmate.global.enabled)" = "1" ] && [ "$fastpath" != "disabled" ]; then
+		logger -t turboacc "QoSmate is enabled; stop it before enabling a fast path"
+		fastpath=disabled
+	fi
 
 	if [ "$fastpath" != "fast_classifier" ] && lsmod | grep -q "fast_classifier"; then
-		echo "0" > "/sys/fast_classifier/skip_to_bridge_ingress" 2>"/dev/null"
+		[ ! -e "/sys/fast_classifier/skip_to_bridge_ingress" ] || echo "0" > "/sys/fast_classifier/skip_to_bridge_ingress"
 		rm -f "/dev/sfe_ipv6"
-		rmmod "fast_classifier" 2>"/dev/null"
+		rmmod "fast_classifier" 2>/dev/null
 	fi
 
 	if [ "$fastpath" != "shortcut_fe_cm" ] && lsmod | grep -q "shortcut_fe_cm"; then
-		rmmod "shortcut_fe_cm" 2>"/dev/null"
+		rmmod "shortcut_fe_cm" 2>/dev/null
 	fi
 
 	if [ "$fastpath" != "mediatek_hnat" ] && lsmod | grep -q "mtkhnat"; then
-		echo "0" > "/sys/kernel/debug/hnat/hook_toggle" 2>"/dev/null"
+		[ ! -e "/sys/kernel/debug/hnat/hook_toggle" ] || echo "0" > "/sys/kernel/debug/hnat/hook_toggle"
 	fi
 
 	case "$fastpath" in
-	"fast_classifier")
+	fast_classifier)
 		local fastpath_fc_br fastpath_fc_ipv6
 		config_get_bool fastpath_fc_br "config" "fastpath_fc_br" "0"
 		config_get_bool fastpath_fc_ipv6 "config" "fastpath_fc_ipv6" "0"
 
-		lsmod | grep -q "fast_classifier" || modprobe "fast_classifier" 2>"/dev/null"
-		echo "$fastpath_fc_br" > "/sys/fast_classifier/skip_to_bridge_ingress" 2>"/dev/null"
+		lsmod | grep -q "fast_classifier" || modprobe "fast_classifier" 2>/dev/null
+		[ ! -e "/sys/fast_classifier/skip_to_bridge_ingress" ] || echo "$fastpath_fc_br" > "/sys/fast_classifier/skip_to_bridge_ingress"
 		if [ "$fastpath_fc_ipv6" -eq "1" ]; then
-			[ -e "/dev/sfe_ipv6" ] || mknod "/dev/sfe_ipv6" "c" "$(cat "/sys/sfe_ipv6/debug_dev")" "0"
+			if [ ! -e "/dev/sfe_ipv6" ] && [ -r "/sys/sfe_ipv6/debug_dev" ]; then
+				local sfe_ipv6_dev
+				sfe_ipv6_dev="$(cat "/sys/sfe_ipv6/debug_dev")"
+				[ -z "$sfe_ipv6_dev" ] || mknod "/dev/sfe_ipv6" c "$sfe_ipv6_dev" 0
+			fi
 		else
 			[ ! -e "/dev/sfe_ipv6" ] || rm -f "/dev/sfe_ipv6"
 		fi
 		;;
-	"shortcut_fe_cm")
-		lsmod |grep -q "shortcut_fe_cm" || modprobe "shortcut_fe_cm" 2>"/dev/null"
+	shortcut_fe_cm)
+		lsmod | grep -q "shortcut_fe_cm" || modprobe "shortcut_fe_cm" 2>/dev/null
 		;;
-	"mediatek_hnat")
-		local fastpath_mh_eth_hnat
+	mediatek_hnat)
+		local fastpath_mh_eth_hnat fastpath_mh_eth_hnat_v6
+		local fastpath_mh_eth_hnat_bind_rate
 		local hnat_path="/sys/kernel/debug/hnat"
 
-		config_get_bool "fastpath_mh_eth_hnat" "config" "fastpath_mh_eth_hnat" "1"
-		echo 1 > "$hnat_path/hook_toggle"
-		echo 0 > "$hnat_path/hook_toggle"
-		echo "$fastpath_mh_eth_hnat" > "$hnat_path/hook_toggle"
+		config_get_bool fastpath_mh_eth_hnat "config" "fastpath_mh_eth_hnat" "1"
+		if [ -e "$hnat_path/hook_toggle" ]; then
+			# A single write avoids the transient disable/enable sequence
+			# that flushed active flows on every service reload.
+			echo "$fastpath_mh_eth_hnat" > "$hnat_path/hook_toggle"
+		else
+			logger -t turboacc "MTK HNAT debugfs control is unavailable"
+		fi
 
 		if [ "$fastpath_mh_eth_hnat" -eq "1" ]; then
-			local fastpath_mh_eth_hnat_v6 fastpath_mh_eth_hnat_ap fastpath_mh_eth_hnat_bind_rate
+			config_get_bool fastpath_mh_eth_hnat_v6 "config" "fastpath_mh_eth_hnat_v6" "1"
+			if [ -e "$hnat_path/hnat_setting" ]; then
+				echo "8 $fastpath_mh_eth_hnat_v6" > "$hnat_path/hnat_setting"
+			fi
 
-			config_get_bool "fastpath_mh_eth_hnat_v6" "config" "fastpath_mh_eth_hnat_v6" "1"
-			echo "8 $fastpath_mh_eth_hnat_v6" > "$hnat_path/hnat_setting"
+			config_get fastpath_mh_eth_hnat_bind_rate "config" "fastpath_mh_eth_hnat_bind_rate" "30"
+			if [ -e "$hnat_path/hnat_setting" ]; then
+				echo "11 $fastpath_mh_eth_hnat_bind_rate" > "$hnat_path/hnat_setting"
+			fi
 
-			config_get "fastpath_mh_eth_hnat_bind_rate" "config" "fastpath_mh_eth_hnat_bind_rate" "30"
-			echo "11 $fastpath_mh_eth_hnat_bind_rate" > "$hnat_path/hnat_setting"
-
-			config_get "fastpath_mh_eth_hnat_ap" "config" "fastpath_mh_eth_hnat_ap" ""
+			config_get fastpath_mh_eth_hnat_ap "config" "fastpath_mh_eth_hnat_ap" ""
 		fi
 		;;
 	esac
 
-	local fullcone
-	config_get "fullcone" "config" "fullcone" "2"
-	echo "$fullcone" > /proc/sys/net/netfilter/nf_conntrack_nat_mode
+	local fullcone tcpcca
+	config_get fullcone "config" "fullcone" "0"
+	if [ -e /proc/sys/net/netfilter/nf_conntrack_nat_mode ]; then
+		echo "$fullcone" > /proc/sys/net/netfilter/nf_conntrack_nat_mode
+	fi
 
-	local tcpcca
-	config_get "tcpcca" "config" "tcpcca" "cubic"
-	sysctl -w net.ipv4.tcp_congestion_control="$tcpcca" >"/dev/null"
+	config_get tcpcca "config" "tcpcca" "cubic"
+	if [ -e /proc/sys/net/ipv4/tcp_congestion_control ]; then
+		sysctl -w net.ipv4.tcp_congestion_control="$tcpcca" >/dev/null 2>&1
+	fi
 
-	uci -q commit "firewall"
-	/etc/init.d/firewall restart >"/dev/null" 2>&1
-	available_interfaces=""
-for iface in eth0 eth1 wan; do
-    if ifconfig $iface 2>&1 | grep -qv "error fetching interface information"; then
-        echo "$iface interface detected."
-        available_interfaces="$available_interfaces $iface"
-    else
-        echo "$iface interface not found."
-    fi
-done
+	# AP conversion is intentionally opt-in.  An empty or malformed value
+	# must not rewrite network, DHCP, or wireless configuration at boot.
+	if [ -n "$fastpath_mh_eth_hnat_ap" ]; then
+		if printf '%s\n' "$fastpath_mh_eth_hnat_ap" | awk -F. 'NF != 4 { exit 1 } { for (i=1; i<=4; i++) if ($i !~ /^[0-9]+$/ || length($i)>3 || $i+0>255) exit 1 }'; then
+			local available_interfaces iface current_ports new_ports
+			available_interfaces=""
+			for iface in eth0 eth1 wan; do
+				if ifconfig "$iface" 2>&1 | grep -qv "error fetching interface information"; then
+					echo "$iface interface detected."
+					available_interfaces="$available_interfaces $iface"
+				fi
+			done
 
-    if echo "$fastpath_mh_eth_hnat_ap" | grep -qE '^([0-9]{1,3}\.){3}[0-9]{1,3}$'; then
-    echo "Valid IPv4 address detected: $fastpath_mh_eth_hnat_ap"
-    uci delete network.wan
-    uci delete network.wwan
-    uci delete network.wan6
+			echo "Valid IPv4 address detected: $fastpath_mh_eth_hnat_ap"
+			uci -q delete network.wan
+			uci -q delete network.wwan
+			uci -q delete network.wan6
 
-    current_ports=$(uci get network.@device[0].ports)
-    echo "Current bridge ports: $current_ports"
+			current_ports="$(uci -q get network.@device[0].ports)"
+			echo "Current bridge ports: $current_ports"
+			new_ports="$current_ports"
+			for iface in $available_interfaces; do
+				if echo "$current_ports" | grep -qw "$iface"; then
+					echo "Port $iface is already part of the bridge"
+				else
+					echo "Adding port $iface to the bridge"
+					new_ports="$new_ports $iface"
+				fi
+			done
 
-    new_ports="$current_ports"
-    for port in $available_interfaces; do
-        if echo "$current_ports" | grep -qw "$port"; then
-            echo "Port $port is already part of the bridge"
-        else
-            echo "Adding port $port to the bridge"
-            new_ports="$new_ports $port"
-        fi
-    done
-
-    uci set network.@device[0].ports="$new_ports"
-    uci set dhcp.lan.ignore=1
-    uci set network.lan.ipaddr="$fastpath_mh_eth_hnat_ap"
-    uci set wireless.wifinet1.network='lan'
-    uci set wireless.wifinet2.network='lan'
-    echo "Committing changes"
-    uci commit
-else
-    echo "Invalid IPv4 address: $fastpath_mh_eth_hnat_ap"
-fi
-    echo 4096 > /proc/sys/vm/min_free_kbytes
-    echo 3 > /proc/sys/vm/drop_caches
-    sed -i '/prefer-family/d' /etc/wgetrc
-    echo "prefer-family = IPv4" >> /etc/wgetrc
+			uci set network.@device[0].ports="$new_ports"
+			uci set dhcp.lan.ignore=1
+			uci set network.lan.ipaddr="$fastpath_mh_eth_hnat_ap"
+			uci set wireless.wifinet1.network=lan
+			uci set wireless.wifinet2.network=lan
+			uci commit network
+			uci commit dhcp
+			uci commit wireless
+		else
+			logger -t turboacc "Ignoring invalid MTK HNAT AP IPv4 address: $fastpath_mh_eth_hnat_ap"
+		fi
+	fi
 }
 
 reload_service() {
-        start
+	start
 }
 
 stop_service() {
-        stop
+	local hnat_path="/sys/kernel/debug/hnat"
+	local fast_classifier_path="/sys/fast_classifier/skip_to_bridge_ingress"
+
+	# rc.common calls stop_service from stop; calling stop here recurses.
+	[ ! -e "$hnat_path/hook_toggle" ] || echo 0 > "$hnat_path/hook_toggle"
+	[ ! -e "$fast_classifier_path" ] || echo 0 > "$fast_classifier_path"
+	[ ! -e "/dev/sfe_ipv6" ] || rm -f "/dev/sfe_ipv6"
 }
 
 service_triggers() {
-        procd_add_reload_trigger "turboacc"
+	procd_add_reload_trigger "turboacc"
 }

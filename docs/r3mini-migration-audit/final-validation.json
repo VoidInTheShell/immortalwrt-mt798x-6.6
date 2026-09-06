@@ -1,0 +1,127 @@
+{
+  "checked_at": "2026-09-06T11:56:42.805346+00:00",
+  "firmware_compilation_started": false,
+  "target_hardware_tested": false,
+  "config_verification": {
+    "missing": {},
+    "forbidden_selected": {},
+    "declared_conflicts": [],
+    "duplicate_selected_definitions": {},
+    "automatic_shared_dependencies": [
+      "kmod-cfg80211",
+      "kmod-dax",
+      "kmod-random-core",
+      "kmod-tpm",
+      "wifi-scripts",
+      "wireless-regdb"
+    ],
+    "selected_packages": 951,
+    "hardware_fragment_present": true,
+    "modem_fragment_present": true,
+    "config_sha256": "204e9db4352415b2b6056b5bec1644268fec45561a8d87394a85dcf26ede3e06"
+  },
+  "package_selections": {
+    "y": 948,
+    "m": 3
+  },
+  "build_only_packages": [
+    "hs20-client",
+    "hs20-common",
+    "hs20-server"
+  ],
+  "migration_decisions": {
+    "migrate": 860,
+    "exclude": 208,
+    "replace-hardware": 32,
+    "replace": 7,
+    "build-only": 3,
+    "dependency-only": 7,
+    "migrate-modem-driver": 12
+  },
+  "source_repositories_locked": 12,
+  "source_patch_hashes_verified": true,
+  "source_apply_roundtrip": "passed",
+  "prepare_roundtrip": "passed: logs/r3mini-final-prepare.log",
+  "kernel_patches": {
+    "total": 917,
+    "passed": 917,
+    "with_fuzz_or_offset": 125,
+    "rejects": 0,
+    "note": "Fresh full-stack application was checked; final report reuses the verified tree."
+  },
+  "build_plan": {
+    "stages": 82,
+    "components": 481,
+    "resources": {
+      "cpus": 24,
+      "affinity": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17,
+        18,
+        19,
+        20,
+        21,
+        22,
+        23
+      ],
+      "memory_total": 26898202624,
+      "memory_available": 23292952576,
+      "disk_available": 726764380160,
+      "reserve_gib": 4,
+      "caps": {
+        "light": 24,
+        "kernel": 24,
+        "toolchain": 12,
+        "go": 8,
+        "rust": 4,
+        "rust-host": 2,
+        "chromium": 5,
+        "cpp": 8,
+        "mtk": 8,
+        "images": 4,
+        "download": 8
+      }
+    }
+  },
+  "download": {
+    "log_directory": "logs/r3mini-download-ready",
+    "wall_seconds": 21.534,
+    "exit_code": 0
+  },
+  "checks_passed": [
+    "GNU make evaluated dependency DAG; all migrated package and feature expectations; no selected duplicate/declared conflict",
+    "Host prerequisite check including Python development files, setuptools 80.9.0, swig, rsync, clang",
+    "r3mini-build-test.py: 4 tests, including failure/resume/timing and unchanged saved job ceilings when available resources vary",
+    "r3mini-hnat-rpc-test.lua: one JSON response, live HNAT state and PPE parsing",
+    "mtkhqos tests: disabled inert behavior, queue setup/reset/restore, hook ownership and decimal inputs",
+    "r3mini-qosmate-test.py: 2 tests, persistent offload recovery and no foreign qdisc cleanup while disabled",
+    "r3mini-mm-rpc-test.lua: percent signs, absent SIM/bearers and optional/non-3GPP fields",
+    "MM SMS: 4 mocked tests; Unicode/punctuation body, private temporary files, failure cleanup and read/write ACL separation",
+    "MM bands: mock checks for real comma mode records, anonymous UCI, invalid choices, any reset, exact device matching and prepare without recursion",
+    "MM SMS/bands/official frontend JS, shell and JSON syntax checks; selected source patch whitespace checks"
+  ],
+  "remaining_build_and_runtime_checks": [
+    "Actual compiler/linker execution, package install file conflicts and final eMMC image sizes have not been tested.",
+    "Generated kernel Kconfig, actual AArch64 binaries, private modules/WO firmware and frontend rootfs artifacts will be checked by the build runner.",
+    "HNAT throughput/PPE counters, PWM thermal control, daed interception and modem/SIM/SMS/band changes require the real R3 Mini and module.",
+    "Go modules, npm/pnpm and Cargo may download additional upstream build dependencies; no offline-complete claim.",
+    "Three unselected-package metadata warnings remain: Radicale3 rpcd-mod-rad3-enc, QModem kmod-mhi-wwan, rmnet-nss kmod-qca-nss-drv.",
+    "Thread ceilings are conservative estimates from resources and package types, not experimentally proven maximum safe values."
+  ]
+}

@@ -1,0 +1,24 @@
+{
+  "url": "https://github.com/daeuniverse/daed/releases/download/v1.27.0/web.zip",
+  "main_commit": "06857f52c33cc3264aea9eb90431afbe8909073c",
+  "wing_commit": "6bb6a310ef3d98bea691fd5955cc703306835546",
+  "dae_core_commit": "7e67e31e241a6d2cc5f2b5ff228b4fb5faf6d24a",
+  "bytes": 8984701,
+  "sha256": "da8755fb2cabfab392854e807e385b12d9e9842d6c8b5e347284d1ae0e582bfc",
+  "member_count": 497,
+  "top_level": [
+    "web"
+  ],
+  "index_files": [
+    "web/index.html"
+  ],
+  "worker_files": [
+    "web/assets/server.browser-DHrhRdWu.js",
+    "web/assets/html.worker-IWNXhnIC.js",
+    "web/assets/css.worker-DyDu5ynT.js",
+    "web/assets/editor.worker-Dpt_xPrs.js",
+    "web/assets/workers-BkGp8lKz.js",
+    "web/assets/json.worker-c4h5s80L.js",
+    "web/assets/ts.worker-BwM5Ha3L.js"
+  ]
+}

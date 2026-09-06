@@ -1,0 +1,52 @@
+{
+  "fresh_prepare_exit_code": 0,
+  "source_recovery": "12 pristine upstream commits from local Git object caches plus committed patches; upstream origins retained",
+  "package_selection_identical": true,
+  "selected_packages": 951,
+  "packages_y": 948,
+  "packages_m": 3,
+  "component_graph_identical": true,
+  "components": 481,
+  "stages": 82,
+  "fresh_config_sha256": "1521ed583edff38b52cc80cabf4a8487be4983551ebd37071dd26b65b249df3d",
+  "current_config_sha256": "204e9db4352415b2b6056b5bec1644268fec45561a8d87394a85dcf26ede3e06",
+  "migration_verification": {
+    "missing": {},
+    "forbidden_selected": {},
+    "declared_conflicts": [],
+    "duplicate_selected_definitions": {},
+    "automatic_shared_dependencies": [
+      "kmod-cfg80211",
+      "kmod-dax",
+      "kmod-random-core",
+      "kmod-tpm",
+      "wifi-scripts",
+      "wireless-regdb"
+    ],
+    "selected_packages": 951,
+    "hardware_fragment_present": true,
+    "modem_fragment_present": true,
+    "config_sha256": "1521ed583edff38b52cc80cabf4a8487be4983551ebd37071dd26b65b249df3d"
+  },
+  "source_recovery_unit_tests": 4,
+  "frozen_migration_regeneration_identical": true,
+  "firmware_compilation_started": false,
+  "active_config_differences": {
+    "CONFIG_FEED_qmodem": {
+      "existing": "y",
+      "fresh": null
+    },
+    "CONFIG_PACKAGE_luci-app-qmodem_INCLUDE_ndisc6": {
+      "existing": "y",
+      "fresh": null
+    },
+    "CONFIG_PACKAGE_luci-app-qmodem_INCLUDE_vendor-qmi-wwan": {
+      "existing": "y",
+      "fresh": null
+    },
+    "CONFIG_PACKAGE_luci-app-qmodem_USE_TOM_CUSTOMIZED_QUECTEL_CM": {
+      "existing": "y",
+      "fresh": null
+    }
+  }
+}

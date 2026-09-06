@@ -1,0 +1,10 @@
+#!/bin/sh /etc/rc.common
+# Replay a committed offload journal after an interrupted QoSmate shutdown.
+START=18
+
+start() {
+    [ "$(cat /tmp/sysinfo/board_name 2>/dev/null)" = 'bananapi,bpi-r3-mini' ] || return 0
+    [ -e /etc/qosmate.d/offload-state/prepared ] || return 0
+    [ -x /etc/init.d/qosmate ] || return 0
+    /etc/init.d/qosmate recover_offload
+}

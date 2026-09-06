@@ -1,156 +1,675 @@
 #!/bin/sh
 
-. /lib/functions.sh
+# mtkhqos is a one-shot state applier.  It deliberately does not own HNAT,
+# firewall rules, tc qdiscs, or the lifetime of the kernel module.  TurboACC
+# owns the HNAT choice; this utility only programs QDMA when explicitly
+# enabled in UCI.
+functions_file="${MTKHQOS_FUNCTIONS:-/lib/functions.sh}"
+. "$functions_file"
 
-hqos_path="/sys/kernel/debug/hnat"
+hqos_path="${MTKHQOS_DEBUGFS:-/sys/kernel/debug/hnat}"
+state_dir="${MTKHQOS_STATE_DIR:-/var/run/mtkhqos}"
+bridge_sysctl_dir="${MTKHQOS_BRIDGE_SYSCTL_DIR:-/proc/sys/net/bridge}"
+uci_config_dir="${MTKHQOS_UCI_CONFIG_DIR:-/etc/config}"
+max_queues=64
+bridge_sysctls="bridge-nf-call-iptables bridge-nf-call-ip6tables"
 
-config_load mtkhqos
-config_get hnat global hnat 1
-config_get hqos global hqos 0
-config_get txq_num global txq_num 64
+log_msg() {
+	if command -v logger >/dev/null 2>&1; then
+		logger -t mtkhqos_util "$*" 2>/dev/null
+	fi
+	printf '%s\n' "$*" >&2
+}
 
-config_get sch0_enable global sch0_enable 0
-config_get sch0_mode global sch0_mode 0
-config_get sch0_bw global sch0_bw 1000000
+fail() {
+	log_msg "ERROR: $*"
+	return 1
+}
 
-config_get sch1_enable global sch1_enable 0
-config_get sch1_mode global sch1_mode 0
-config_get sch1_bw global sch1_bw 1000000
+normalize_bool() {
+	case "$1" in
+		1|on|true|yes|enabled)
+			printf '1\n'
+			;;
+		0|off|false|no|disabled)
+			printf '0\n'
+			;;
+		*)
+			return 1
+			;;
+	esac
+}
 
-dbg() {
-	logger -t "mtkhqos_util" "$1"
-	echo "$1"
+is_uint() {
+	case "$1" in
+		''|*[!0-9]*) return 1 ;;
+	esac
+	return 0
+}
+
+# Ash arithmetic may interpret a leading zero as octal on some versions.
+# Canonicalise values before using them in arithmetic expressions.
+decimal_value() {
+	local value="$1"
+
+	while [ "$value" != "0" ] && [ "${value#0}" != "$value" ]; do
+		value="${value#0}"
+		[ -n "$value" ] || value=0
+	done
+	printf '%s\n' "$value"
+}
+
+uint_in_range() {
+	is_uint "$1" || return 1
+	local value
+	value="$(decimal_value "$1")"
+	[ "$value" -ge "$2" ] 2>/dev/null && [ "$value" -le "$3" ] 2>/dev/null
+}
+
+write_value() {
+	local path="$1"
+	shift
+
+	[ -e "$path" ] || {
+		log_msg "Missing control file: $path"
+		return 1
+	}
+	[ -w "$path" ] || {
+		log_msg "Control file is not writable: $path"
+		return 1
+	}
+	printf '%s\n' "$*" > "$path"
+}
+
+read_value() {
+	[ -r "$1" ] || return 1
+	cat "$1" 2>/dev/null | tr -d '[:space:]'
+}
+
+toggle_state() {
+	case "$1" in
+		1|enabled|on|true) return 0 ;;
+		0|disabled|off|false) return 1 ;;
+		*) return 2 ;;
+	esac
 }
 
 sch_mode2str() {
-	if [ "$1" = "0" ]; then
-		echo "wrr"
-	elif [ "$1" = "1" ]; then
-		echo "sp"
+	if [ "$1" = "1" ]; then
+		echo sp
 	else
-		echo "wrr"
+		echo wrr
 	fi
 }
 
-# disable bridge netfilter module to avoid high cpu usage
-echo 0 > /proc/sys/net/bridge/bridge-nf-call-arptables
-echo 0 > /proc/sys/net/bridge/bridge-nf-call-iptables
-echo 0 > /proc/sys/net/bridge/bridge-nf-call-ip6tables
-echo 0 > /proc/sys/net/bridge/bridge-nf-filter-pppoe-tagged
-echo 0 > /proc/sys/net/bridge/bridge-nf-filter-vlan-tagged
-echo 0 > /proc/sys/net/bridge/bridge-nf-pass-vlan-input-dev
-echo 1035876 >/proc/sys/net/core/rmem_max
-echo 1035876 >/proc/sys/net/core/wmem_max
-if [ ! -d $hqos_path ]; then
-	modprobe mtkhnat
-	if [ "$?" != "0" ]; then
-		exit 1
+# The package used to ship an anonymous global section while asking
+# config_get() for the literal section name "global".  Iterating by type also
+# reads old anonymous configurations, while the packaged file uses a named
+# section.  More than one global section is ambiguous and is rejected.
+enabled=0
+hqos=0
+txq_num=64
+sch0_enable=0
+sch0_mode=0
+sch0_bw=1000000
+sch1_enable=0
+sch1_mode=0
+sch1_bw=1000000
+global_loaded=0
+global_error=0
+
+load_global() {
+	local section="$1"
+
+	if [ "$global_loaded" -eq 1 ]; then
+		global_error=1
+		return 0
 	fi
-fi
+	global_loaded=1
+	config_get enabled "$section" enabled "$enabled"
+	config_get hqos "$section" hqos "$hqos"
+	config_get txq_num "$section" txq_num "$txq_num"
+	config_get sch0_enable "$section" sch0_enable "$sch0_enable"
+	config_get sch0_mode "$section" sch0_mode "$sch0_mode"
+	config_get sch0_bw "$section" sch0_bw "$sch0_bw"
+	config_get sch1_enable "$section" sch1_enable "$sch1_enable"
+	config_get sch1_mode "$section" sch1_mode "$sch1_mode"
+	config_get sch1_bw "$section" sch1_bw "$sch1_bw"
+}
 
-if [ "$hnat" -eq "0" ]; then
-	# disable hnat & hqos
-	dbg "disable hnat & hqos"
-	echo 0 $(sch_mode2str $sch0_mode) ${sch0_bw} > $hqos_path/qdma_sch0
-	echo 0 $(sch_mode2str $sch1_mode) ${sch1_bw} > $hqos_path/qdma_sch1
+load_configuration() {
+	config_load mtkhqos
+	config_foreach load_global global
+}
 
-	echo 0 0 0 0 0 0 4 > $hqos_path/qdma_txq0
-	for i in $(seq 1 $((txq_num - 1))); do
-		echo 0 0 0 0 0 0 0 > $hqos_path/qdma_txq$i
+validate_global() {
+	local value field
+
+	if [ "$global_error" -ne 0 ]; then
+		fail "multiple global sections are not supported"
+		return 1
+	fi
+
+	for field in txq_num sch0_enable sch0_mode sch0_bw sch1_enable sch1_mode sch1_bw; do
+		value="$(eval "printf '%s' \"\${$field}\"")"
+		is_uint "$value" || {
+			fail "global option $field must be a non-negative integer"
+			return 1
+		}
 	done
 
-	echo 0 > $hqos_path/qos_toggle
-	echo 0 > $hqos_path/hook_toggle
+	txq_num="$(decimal_value "$txq_num")"
+	sch0_enable="$(decimal_value "$sch0_enable")"
+	sch0_mode="$(decimal_value "$sch0_mode")"
+	sch0_bw="$(decimal_value "$sch0_bw")"
+	sch1_enable="$(decimal_value "$sch1_enable")"
+	sch1_mode="$(decimal_value "$sch1_mode")"
+	sch1_bw="$(decimal_value "$sch1_bw")"
 
-	exit 0
-fi
+	uint_in_range "$txq_num" 1 "$max_queues" || {
+		fail "txq_num must be between 1 and $max_queues"
+		return 1
+	}
+	uint_in_range "$sch0_enable" 0 1 || {
+		fail "sch0_enable must be 0 or 1"
+		return 1
+	}
+	uint_in_range "$sch1_enable" 0 1 || {
+		fail "sch1_enable must be 0 or 1"
+		return 1
+	}
+	uint_in_range "$sch0_mode" 0 1 || {
+		fail "sch0_mode must be 0 (WRR) or 1 (SP)"
+		return 1
+	}
+	uint_in_range "$sch1_mode" 0 1 || {
+		fail "sch1_mode must be 0 (WRR) or 1 (SP)"
+		return 1
+	}
+	uint_in_range "$sch0_bw" 0 10000000 || {
+		fail "sch0_bw must be between 0 and 10000000 Kbps"
+		return 1
+	}
+	uint_in_range "$sch1_bw" 0 10000000 || {
+		fail "sch1_bw must be between 0 and 10000000 Kbps"
+		return 1
+	}
+	if [ "$sch0_enable" -eq 1 ] && [ "$sch0_bw" -eq 0 ]; then
+		fail "sch0_bw must be greater than zero when sch0 is enabled"
+		return 1
+	fi
+	if [ "$sch1_enable" -eq 1 ] && [ "$sch1_bw" -eq 0 ]; then
+		fail "sch1_bw must be greater than zero when sch1 is enabled"
+		return 1
+	fi
+}
 
-if [ "$hqos" -eq 0 ]; then
-	# disable hqos, enable hnat
-	dbg "disable hqos, enable hnat"
-	SOC=`cat /proc/device-tree/ethernet*/compatible | cut -c 10-15`
-	DUAL_SCH=$(if [ $SOC = "mt7981" ]; then echo true; fi)
+queue_error=0
+queue_count=0
+seen_queue_ids=""
 
-	echo 0 $(sch_mode2str $sch0_mode) ${sch0_bw} > $hqos_path/qdma_sch0
-	echo 0 $(sch_mode2str $sch1_mode) ${sch1_bw} > $hqos_path/qdma_sch1
+queue_error_msg() {
+	queue_error=1
+	log_msg "ERROR: queue $1"
+}
 
-	for i in $(seq 0 $((txq_num - 1))); do
-		if [ "${i}" -le $(((txq_num / 2) - 1)) ] || [ ! $DUAL_SCH ]; then
-			echo 0 0 0 0 0 0 4 > $hqos_path/qdma_txq$i
-		else
-			echo 1 0 0 0 0 0 4 > $hqos_path/qdma_txq$i
+validate_queue() {
+	local section="$1"
+	local queue_id queue_minrate queue_maxrate queue_weight queue_resv
+
+	config_get queue_id "$section" id 0
+	config_get queue_minrate "$section" minrate 0
+	config_get queue_maxrate "$section" maxrate 0
+	config_get queue_weight "$section" weight 4
+	config_get queue_resv "$section" resv 4
+
+	is_uint "$queue_id" || {
+		queue_error_msg "$section id must be a non-negative integer"
+		return 0
+	}
+	is_uint "$queue_minrate" || {
+		queue_error_msg "$section minrate must be a non-negative integer"
+		return 0
+	}
+	is_uint "$queue_maxrate" || {
+		queue_error_msg "$section maxrate must be a non-negative integer"
+		return 0
+	}
+	is_uint "$queue_weight" || {
+		queue_error_msg "$section weight must be a non-negative integer"
+		return 0
+	}
+	is_uint "$queue_resv" || {
+		queue_error_msg "$section resv must be a non-negative integer"
+		return 0
+	}
+
+	queue_id="$(decimal_value "$queue_id")"
+	queue_minrate="$(decimal_value "$queue_minrate")"
+	queue_maxrate="$(decimal_value "$queue_maxrate")"
+	queue_weight="$(decimal_value "$queue_weight")"
+	queue_resv="$(decimal_value "$queue_resv")"
+
+	uint_in_range "$queue_id" 0 "$((txq_num - 1))" || {
+		queue_error_msg "$section id $queue_id is outside txq_num=$txq_num"
+		return 0
+	}
+	case " $seen_queue_ids " in
+		*" $queue_id "*)
+			queue_error_msg "$section duplicates queue id $queue_id"
+			return 0
+			;;
+		*) seen_queue_ids="$seen_queue_ids $queue_id" ;;
+	esac
+	uint_in_range "$queue_minrate" 0 100 || {
+		queue_error_msg "$section minrate must be between 0 and 100 percent"
+		return 0
+	}
+	uint_in_range "$queue_maxrate" 0 100 || {
+		queue_error_msg "$section maxrate must be between 0 and 100 percent"
+		return 0
+	}
+	[ "$queue_minrate" -le "$queue_maxrate" ] || {
+		queue_error_msg "$section minrate cannot exceed maxrate"
+		return 0
+	}
+	uint_in_range "$queue_weight" 1 255 || {
+		queue_error_msg "$section weight must be between 1 and 255"
+		return 0
+	}
+	uint_in_range "$queue_resv" 0 255 || {
+		queue_error_msg "$section resv must be between 0 and 255"
+		return 0
+	}
+	queue_count=$((queue_count + 1))
+}
+
+validate_queues() {
+	queue_error=0
+	queue_count=0
+	seen_queue_ids=""
+	config_foreach validate_queue queue
+	[ "$queue_error" -eq 0 ]
+}
+
+queue_capacity=0
+
+detect_queue_capacity() {
+	queue_capacity=0
+	while [ "$queue_capacity" -lt "$max_queues" ] && \
+		[ -e "$hqos_path/qdma_txq$queue_capacity" ]; do
+		queue_capacity=$((queue_capacity + 1))
+	done
+	[ "$queue_capacity" -gt 0 ] || {
+		log_msg "No QDMA queue controls found below $hqos_path"
+		return 1
+	}
+	return 0
+}
+
+check_control_files() {
+	local name
+
+	[ -d "$hqos_path" ] || {
+		fail "HNAT debugfs directory is unavailable: $hqos_path"
+		return 1
+	}
+	for name in qos_toggle hook_toggle qdma_sch0 qdma_sch1; do
+		[ -e "$hqos_path/$name" ] || {
+			fail "HNAT control is unavailable: $hqos_path/$name"
+			return 1
+		}
+	done
+	[ -r "$hqos_path/hook_toggle" ] || {
+		fail "HNAT hook state cannot be read"
+		return 1
+	}
+	[ -r "$hqos_path/qos_toggle" ] || {
+		fail "HQoS state cannot be read"
+		return 1
+	}
+	[ -w "$hqos_path/qos_toggle" ] || {
+		fail "HQoS state cannot be changed"
+		return 1
+	}
+	[ -w "$hqos_path/qdma_sch0" ] || {
+		fail "QDMA scheduler 0 cannot be changed"
+		return 1
+	}
+	[ -w "$hqos_path/qdma_sch1" ] || {
+		fail "QDMA scheduler 1 cannot be changed"
+		return 1
+	}
+}
+
+uci_enabled() {
+	local package="$1" key="$2" value
+
+	[ -f "$uci_config_dir/$package" ] || return 1
+	command -v uci >/dev/null 2>&1 || return 1
+	value="$(uci -q get "$key" 2>/dev/null)" || return 1
+	value="$(normalize_bool "$value" 2>/dev/null)" || return 1
+	[ "$value" = 1 ]
+}
+
+software_qdisc_active() {
+	command -v tc >/dev/null 2>&1 || return 1
+	tc qdisc show 2>/dev/null | grep -Eq '(^|[[:space:]])(cake|hfsc|htb)([[:space:]]|$)'
+}
+
+qosmate_runtime_active() {
+	[ -d /tmp/qosmate ] || [ -f /tmp/qosmate_wan ] || {
+		command -v nft >/dev/null 2>&1 || return 1
+		nft -t list table inet dscptag >/dev/null 2>&1
+	}
+}
+
+check_incompatible_services() {
+	if uci_enabled qosmate qosmate.global.enabled || qosmate_runtime_active; then
+		fail "QoSmate is active; stop it before enabling hardware HQoS"
+		return 1
+	fi
+	if uci_enabled eqos eqos.config.enabled || software_qdisc_active; then
+		fail "EQOS or another software shaping qdisc is active; stop it before enabling hardware HQoS"
+		return 1
+	fi
+	return 0
+}
+
+save_bridge_state() {
+	local name path value
+
+	for name in $bridge_sysctls; do
+		path="$bridge_sysctl_dir/$name"
+		[ -e "$path" ] || continue
+		[ -r "$path" ] && [ -w "$path" ] || {
+			log_msg "Bridge netfilter sysctl is not readable and writable: $path"
+			return 1
+		}
+		value="$(cat "$path" 2>/dev/null)" || return 1
+		printf '%s\n' "$value" > "$state_dir/$name.before" || return 1
+		printf '1\n' > "$state_dir/$name.wanted" || return 1
+	done
+}
+
+set_bridge_sysctls() {
+	local name path current
+
+	for name in $bridge_sysctls; do
+		[ -f "$state_dir/$name.before" ] || continue
+		path="$bridge_sysctl_dir/$name"
+		[ -e "$path" ] || continue
+		current="$(cat "$path" 2>/dev/null)" || return 1
+		[ "$current" = 1 ] || write_value "$path" 1 || return 1
+	done
+}
+
+restore_bridge_state() {
+	local name path before wanted current ret=0
+
+	[ -f "$state_dir/active" ] || return 0
+	for name in $bridge_sysctls; do
+		[ -f "$state_dir/$name.before" ] || continue
+		path="$bridge_sysctl_dir/$name"
+		[ -e "$path" ] || continue
+		before="$(cat "$state_dir/$name.before" 2>/dev/null)" || {
+			ret=1
+			continue
+		}
+		wanted="$(cat "$state_dir/$name.wanted" 2>/dev/null)"
+		current="$(cat "$path" 2>/dev/null)" || {
+			ret=1
+			continue
+		}
+		# Restore only a value that is still what this utility requested.  A
+		# later user/service change remains authoritative.
+		if [ "$current" = "$wanted" ]; then
+			write_value "$path" "$before" || ret=1
 		fi
 	done
-
-	echo 1 > $hqos_path/hook_toggle
-	echo 0 > $hqos_path/qos_toggle
-
-	exit 0
-fi
-
-# enable hnat & hqos
-dbg "sch0=${sch0_enable}, mode=$(sch_mode2str $sch0_mode), bw=${sch0_bw}"
-echo ${sch0_enable} $(sch_mode2str $sch0_mode) ${sch0_bw} > $hqos_path/qdma_sch0
-
-dbg "sch1=${sch1_enable}, mode=$(sch_mode2str $sch1_mode), bw=${sch1_bw}"
-echo ${sch1_enable} $(sch_mode2str $sch1_mode) ${sch1_bw} > $hqos_path/qdma_sch1
-
-# enable bridge netfilter module to allow skb being marked
-echo 1 > /proc/sys/net/bridge/bridge-nf-call-iptables
-echo 1 > /proc/sys/net/bridge/bridge-nf-call-ip6tables
-
-setup_queue() {
-	local queue_id queue_scheduler queue_minebl queue_maxebl
-	local queue_minrate queue_maxrate queue_resv minrate maxrate queue_weight
-
-	config_get queue_id $1 id 0
-	config_get queue_minrate $1 minrate 0
-	config_get queue_maxrate $1 maxrate 0
-	config_get queue_resv $1 resv 4
-	config_get queue_weight $1 weight 4
-
-	# check qid < txq max num or not for loop condition
-	[ "${queue_id}" -gt $((txq_num - 1)) ] && return 0
-
-	# start to set per queue config
-	queue_minebl=1
-	queue_maxebl=1
-	queue_scheduler=0
-
-	# if min rate = 0, set min enable = 0
-	# if max rate = 0, set max enable = 0
-	[ "${queue_minrate}" -eq 0 ] && queue_minebl=0
-	[ "${queue_maxrate}" -eq 0 ] && queue_maxebl=0
-
-	# calculate min rate according to sch0_bw
-	minrate=$((sch0_bw * $queue_minrate))
-	minrate=$((minrate / 100))
-
-	# calculate max rate according to sch0_bw
-	maxrate=$((sch0_bw * $queue_maxrate))
-	maxrate=$((maxrate / 100))
-
-	# set the queue of sch0 group(the lower half of total queues)
-	[ "${queue_id}" -le $(((txq_num / 2) - 1)) ] && \
-	echo 0 ${queue_minebl} ${minrate} ${queue_maxebl} ${maxrate} ${queue_weight} \
-		${queue_resv} > $hqos_path/qdma_txq${queue_id}
-
-	# calculate min rate according to sch1_bw
-	minrate=$((sch1_bw * $queue_minrate))
-	minrate=$((minrate / 100))
-
-	# calculate max rate according to sch1_bw
-	maxrate=$((sch1_bw * $queue_maxrate))
-	maxrate=$((maxrate / 100))
-
-	# set the queue of sch1 group(the upper half of total queues)
-	[ "${queue_id}" -gt $(((txq_num / 2) - 1)) ] && \
-	echo 1 ${queue_minebl} ${minrate} ${queue_maxebl} ${maxrate} ${queue_weight} \
-		${queue_resv} > $hqos_path/qdma_txq${queue_id}
+	return "$ret"
 }
 
-config_foreach setup_queue queue
+clear_state() {
+	rm -f \
+		"$state_dir/active" \
+		"$state_dir/bridge-nf-call-iptables.before" \
+		"$state_dir/bridge-nf-call-iptables.wanted" \
+		"$state_dir/bridge-nf-call-ip6tables.before" \
+		"$state_dir/bridge-nf-call-ip6tables.wanted"
+	rmdir "$state_dir" 2>/dev/null
+}
 
-# enable hooks
-echo 1 > $hqos_path/hook_toggle
-echo 0 > $hqos_path/qos_toggle
+prepare_state() {
+	mkdir -p "$state_dir" || {
+		log_msg "Cannot create state directory: $state_dir"
+		return 1
+	}
+	if [ ! -f "$state_dir/active" ]; then
+		# Remove only files owned by this package if a previous invocation was
+		# interrupted before writing its marker.
+		rm -f \
+			"$state_dir/bridge-nf-call-iptables.before" \
+			"$state_dir/bridge-nf-call-iptables.wanted" \
+			"$state_dir/bridge-nf-call-ip6tables.before" \
+			"$state_dir/bridge-nf-call-ip6tables.wanted"
+		save_bridge_state || return 1
+		printf 'active\n' > "$state_dir/active" || return 1
+	fi
+}
+
+reset_hardware() {
+	local i scheduler name ret=0
+
+	# If the module has gone away, there is no live hardware state left to
+	# reset.  This keeps stop safe during shutdown/module removal.
+	[ -d "$hqos_path" ] || return 0
+	if [ -e "$hqos_path/qos_toggle" ]; then
+		write_value "$hqos_path/qos_toggle" 0 || ret=1
+	fi
+	if detect_queue_capacity; then
+		for i in $(seq 0 $((queue_capacity - 1))); do
+			scheduler=0
+			[ "$i" -ge "$((queue_capacity / 2))" ] && scheduler=1
+			write_value "$hqos_path/qdma_txq$i" "$scheduler 0 0 0 0 0 4" || ret=1
+		done
+	else
+		ret=1
+	fi
+	# hnat_qos_disable() resets the kernel scheduler state when qos_toggle is
+	# changed to zero.  Keep debugfs controls visibly unshaped as well, where
+	# the corresponding scheduler exists on this SoC.
+	for name in qdma_sch0 qdma_sch1 qdma_sch2 qdma_sch3; do
+		[ -e "$hqos_path/$name" ] || continue
+		write_value "$hqos_path/$name" "0 wrr 0" || ret=1
+	done
+	return "$ret"
+}
+
+rollback_apply() {
+	local ret=0
+
+	reset_hardware || ret=1
+	restore_bridge_state || ret=1
+	[ "$ret" -eq 0 ] && clear_state
+	return "$ret"
+}
+
+apply_scheduler() {
+	local id="$1" enable="$2" mode="$3" bandwidth="$4"
+
+	write_value "$hqos_path/qdma_sch$id" \
+		"$enable $(sch_mode2str "$mode") $bandwidth"
+}
+
+apply_queue() {
+	local section="$1"
+	local queue_id queue_minrate queue_maxrate queue_weight queue_resv
+	local scheduler bandwidth min_enable max_enable minrate maxrate
+
+	config_get queue_id "$section" id 0
+	config_get queue_minrate "$section" minrate 0
+	config_get queue_maxrate "$section" maxrate 0
+	config_get queue_weight "$section" weight 4
+	config_get queue_resv "$section" resv 4
+	queue_id="$(decimal_value "$queue_id")"
+	queue_minrate="$(decimal_value "$queue_minrate")"
+	queue_maxrate="$(decimal_value "$queue_maxrate")"
+	queue_weight="$(decimal_value "$queue_weight")"
+	queue_resv="$(decimal_value "$queue_resv")"
+
+	scheduler=0
+	bandwidth="$sch0_bw"
+	[ "$queue_id" -ge "$((txq_num / 2))" ] && {
+		scheduler=1
+		bandwidth="$sch1_bw"
+	}
+	min_enable=1
+	max_enable=1
+	[ "$queue_minrate" -eq 0 ] && min_enable=0
+	[ "$queue_maxrate" -eq 0 ] && max_enable=0
+	minrate=$((bandwidth * queue_minrate / 100))
+	maxrate=$((bandwidth * queue_maxrate / 100))
+	write_value "$hqos_path/qdma_txq$queue_id" \
+		"$scheduler $min_enable $minrate $max_enable $maxrate $queue_weight $queue_resv" || \
+		apply_error=1
+}
+
+check_hnat_ready() {
+	local hook_state qos_state
+
+	hook_state="$(read_value "$hqos_path/hook_toggle")" || \
+		fail "cannot read HNAT hook state"
+	toggle_state "$hook_state"
+	case "$?" in
+		0) ;;
+		1) fail "HNAT hook is disabled; enable HNAT through TurboACC first"; return 1 ;;
+		*) fail "unrecognised HNAT hook state: $hook_state"; return 1 ;;
+	esac
+
+	qos_state="$(read_value "$hqos_path/qos_toggle")" || \
+		fail "cannot read HQoS state"
+	toggle_state "$qos_state"
+	case "$?" in
+		0)
+			[ -f "$state_dir/active" ] || {
+				fail "QDMA HQoS is already enabled by another owner"
+				return 1
+			}
+			;;
+		1) ;;
+		*) fail "unrecognised HQoS state: $qos_state"; return 1 ;;
+	esac
+}
+
+apply_hqos() {
+	local ret=0
+
+	check_control_files || return 1
+	detect_queue_capacity || return 1
+	[ "$txq_num" -le "$queue_capacity" ] || {
+		fail "txq_num=$txq_num exceeds the $queue_capacity QDMA queues exposed by this board"
+		return 1
+	}
+	check_incompatible_services || return 1
+	check_hnat_ready || return 1
+	validate_global || return 1
+	validate_queues || return 1
+
+	prepare_state || return 1
+	# Reset stale queue definitions before applying the new set.  This also
+	# invokes the driver's hnat_qos_disable() through qos_toggle=0.
+	reset_hardware || {
+		rollback_apply
+		return 1
+	}
+	set_bridge_sysctls || {
+		rollback_apply
+		return 1
+	}
+
+	apply_scheduler 0 "$sch0_enable" "$sch0_mode" "$sch0_bw" || ret=1
+	apply_scheduler 1 "$sch1_enable" "$sch1_mode" "$sch1_bw" || ret=1
+	apply_error=0
+	config_foreach apply_queue queue
+	[ "$apply_error" -eq 0 ] || ret=1
+	if [ "$ret" -ne 0 ]; then
+		rollback_apply
+		return 1
+	fi
+
+	# The MediaTek driver defines 1 as IS_HQOS_MODE.  Leave hook_toggle alone:
+	# HNAT is owned by TurboACC and must remain enabled independently.
+	write_value "$hqos_path/qos_toggle" 1 || {
+		rollback_apply
+		return 1
+	}
+	return 0
+}
+
+stop_hqos() {
+	local ret=0
+
+	# A disabled, never-started service has no state to undo.  In particular,
+	# do not touch HNAT, bridge sysctls, sockets, nftables, iptables, or tc.
+	[ -f "$state_dir/active" ] || return 0
+	reset_hardware || ret=1
+	restore_bridge_state || ret=1
+	if [ "$ret" -eq 0 ]; then
+		clear_state
+		log_msg "HQoS disabled and QDMA queues reset to the unshaped baseline"
+	else
+		log_msg "HQoS stop could not complete; state marker was kept for retry"
+	fi
+	return "$ret"
+}
+
+status_hqos() {
+	if [ -f "$state_dir/active" ]; then
+		echo active
+	else
+		echo inactive
+	fi
+}
+
+run_apply() {
+	local value
+
+	load_configuration
+	value="$(normalize_bool "$enabled")" || {
+		fail "global enabled must be a boolean"
+		return 1
+	}
+	enabled="$value"
+	if [ "$enabled" -eq 0 ]; then
+		stop_hqos
+		return $?
+	fi
+	value="$(normalize_bool "$hqos")" || {
+		fail "global hqos must be a boolean"
+		return 1
+	}
+	hqos="$value"
+	if [ "$hqos" -eq 0 ]; then
+		stop_hqos
+		return $?
+	fi
+	validate_global || return 1
+	apply_hqos
+}
+
+case "${1:-apply}" in
+	apply|start|reload)
+		run_apply
+		;;
+	stop|reset)
+		stop_hqos
+		;;
+	status)
+		status_hqos
+		;;
+	*)
+		printf 'Usage: %s [apply|start|reload|stop|reset|status]\n' "$0" >&2
+		exit 2
+		;;
+esac

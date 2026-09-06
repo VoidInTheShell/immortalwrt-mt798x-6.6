@@ -20,6 +20,7 @@
 #include <linux/platform_device.h>
 #include <linux/reset.h>
 #include <linux/rtnetlink.h>
+#include <linux/string.h>
 #include <net/netlink.h>
 
 #include "nf_hnat_mtk.h"
@@ -699,7 +700,10 @@ static int hnat_probe(struct platform_device *pdev)
 	if (err < 0)
 		return -EINVAL;
 
-	strncpy(hnat_priv->wan, "eth0", IFNAMSIZ);
+	/* The MT7986 R3 Mini exposes eth0 as LAN and eth1 as WAN.  Keep
+	 * classification broad through IS_WAN/IS_LAN, but honor the board's
+	 * explicit WAN device for g_wandev and netdevice notifications. */
+	strscpy(hnat_priv->wan, name, sizeof(hnat_priv->wan));
 	dev_info(&pdev->dev, "wan = %s\n", hnat_priv->wan);
 
 	err = of_property_read_string(np, "mtketh-lan", &name);

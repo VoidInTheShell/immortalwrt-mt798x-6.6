@@ -1,0 +1,14 @@
+diff --git a/openwrt/Makefile b/openwrt/Makefile
+index 82d92ff..37954ac 100644
+--- a/openwrt/Makefile
++++ b/openwrt/Makefile
+@@ -12,7 +12,8 @@ PKG_MAINTAINER:=SunBK201 <sunbk201gm@gmail.com>
+ PKG_LICENSE:=GPL-3.0-only
+ PKG_LICENSE_FILES:=LICENSE
+ 
+-PKG_BUILD_DEPENDS:=golang/host
++# Build/Prepare invokes po2lmo from luci-base's host tools.
++PKG_BUILD_DEPENDS:=golang/host luci-base/host
+ PKG_BUILD_PARALLEL:=1
+ PKG_BUILD_FLAGS:=no-mips16
+ 

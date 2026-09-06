@@ -82,6 +82,7 @@ if PACKAGE_wifi-dats
 	if first_card
 	config first_card_name
 		string "1st card name"
+		default "MT7986" if TARGET_mediatek_filogic_DEVICE_bananapi_bpi-r3-mini
 		default "MT7981"
 	endif
 

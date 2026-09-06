@@ -1,0 +1,24 @@
+{
+  "returncode": 0,
+  "requests": 17,
+  "not_preserved": {},
+  "node_selected": {},
+  "selected_package_count": 315,
+  "baseline_package_changes": {},
+  "kernel_delta": {
+    "CONFIG_KERNEL_KPROBES": "y",
+    "CONFIG_KERNEL_BPF_STREAM_PARSER": "y",
+    "CONFIG_KERNEL_XDP_SOCKETS": "y",
+    "CONFIG_KERNEL_PERF_EVENTS": "y",
+    "CONFIG_KERNEL_KPROBE_EVENTS": "y",
+    "CONFIG_KERNEL_ARM_PMUV3": "y",
+    "CONFIG_KERNEL_ARM_PMU": "y",
+    "CONFIG_KERNEL_MODULE_ALLOW_BTF_MISMATCH": "y",
+    "CONFIG_KERNEL_DEBUG_INFO_REDUCED": "n",
+    "CONFIG_KERNEL_DEBUG_INFO_BTF_MODULES": "y",
+    "CONFIG_KERNEL_FTRACE": "y",
+    "CONFIG_KERNEL_DEBUG_INFO_BTF": "y",
+    "CONFIG_KERNEL_BPF_EVENTS": "y"
+  },
+  "selected_y_conflicts": []
+}

@@ -1,0 +1,66 @@
+{
+  "x86_packages": {
+    "y": 1082,
+    "m": 47
+  },
+  "target_packages": {
+    "y": 305
+  },
+  "triage": {
+    "generic-candidate": 200,
+    "runtime-review": 135,
+    "modem-review": 21,
+    "wireless-review": 36,
+    "exclude-hardware": 162,
+    "replace": 1,
+    "keep-target": 274,
+    "dependency": 141,
+    "missing-special": 2,
+    "heavy-build": 6,
+    "generic-kernel-review": 73,
+    "optional-peripheral": 17,
+    "tls-variant": 3,
+    "translation": 38,
+    "exclude-node": 20
+  },
+  "missing_real_packages": [
+    "autocore",
+    "bridger",
+    "kmod-nft-fullcone"
+  ],
+  "x86_duplicate_definitions": {
+    "luci-app-athena-led": [
+      "package/luci-app-athena-led/Makefile",
+      "package/luci-app-athena-led/Makefile"
+    ],
+    "luci-app-onliner": [
+      "package/luci-app-onliner/luci-app-onliner/Makefile",
+      "package/luci-app-onliner/luci-app-onliner/Makefile"
+    ],
+    "luci-app-qosmate": [
+      "package/luci-app-qosmate/Makefile",
+      "package/luci-app-qosmate/Makefile"
+    ]
+  },
+  "target_duplicate_definitions": {
+    "luci-app-athena-led": [
+      "package/luci-app-athena-led/Makefile",
+      "package/luci-app-athena-led/Makefile"
+    ],
+    "luci-app-onliner": [
+      "package/luci-app-onliner/luci-app-onliner/Makefile",
+      "package/luci-app-onliner/luci-app-onliner/Makefile"
+    ],
+    "luci-app-qosmate": [
+      "package/luci-app-qosmate/Makefile",
+      "package/luci-app-qosmate/Makefile"
+    ]
+  },
+  "sha256": {
+    "/home/beihai/x86_immortalwrt/.config": "29cb24acbb65bf1322c4c070a77bb09846d10c2442dd9682d1283d29ef0e5bb3",
+    "/home/beihai/x86_immortalwrt/tmp/.packageinfo": "baff60cc65f7ef01f493065c1d17e28e629372c6ee929d50882e7396439f7efe",
+    "/home/beihai/immortalwrt-mt798x-6.6/.config": "9e4f6483e1a67b5580459f404338de2181dffb051fdd20a62199ff08aa899a78",
+    "/home/beihai/immortalwrt-mt798x-6.6/tmp/.packageinfo": "9b94be12bfaa0ea56f1d4ad71e78d988bce6a1a14897c1cd6a095498b48ea12c"
+  },
+  "scope": "Existing metadata only; no configuration writes, downloads, builds or runtime tests."
+}

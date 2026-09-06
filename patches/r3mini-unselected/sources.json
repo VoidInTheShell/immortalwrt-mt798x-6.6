@@ -1,0 +1,33 @@
+{
+  "purpose": "Archive compatibility fixes for sources explicitly excluded from this profile; never restored by the default bootstrap.",
+  "sources": [
+    {
+      "path": "package/UA-Mask",
+      "origin": "https://github.com/Zesuy/UA-Mask.git",
+      "revision": "83846d3780b1e30f87816310ae75d95798a5bd4d",
+      "patch": "UA-Mask.patch",
+      "patch_sha256": "3535e42efc924e2a2ea55bf5d7cc1c87bb2a1cdb0640da3b0734ac6594f0ac05"
+    },
+    {
+      "path": "package/UA3F",
+      "origin": "https://github.com/SunBK201/UA3F.git",
+      "revision": "7a3869714df6b46af7b1a52287e6560d4bfbd6ba",
+      "patch": "UA3F.patch",
+      "patch_sha256": "8b5b98955d96af8f86e07e82e2bdcbc3bdf062dff5a692fb957237cd80776773"
+    },
+    {
+      "path": "package/luci-app-modem",
+      "origin": "https://github.com/qianlyun123/luci-app-modem.git",
+      "revision": "3a2137336635d27b8b83f1f477384366b081a491",
+      "patch": "luci-app-modem.patch",
+      "patch_sha256": "f9eaea8bb1078faedd7f05e0a60c3e83bdef59d63953920424657d20e1f4ae6f"
+    },
+    {
+      "path": "package/luci-app-onliner",
+      "origin": "https://github.com/danchexiaoyang/luci-app-onliner.git",
+      "revision": "f4387aee9b0f4dd17d193e8a16ae6b8c74eb695b",
+      "patch": "luci-app-onliner.patch",
+      "patch_sha256": "49cdefb7ff61015749da00f2d926affee08e4e52b121dab9068bd520bd1aabbd"
+    }
+  ]
+}

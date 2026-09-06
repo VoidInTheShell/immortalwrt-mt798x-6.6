@@ -1,0 +1,20 @@
+diff --git a/luci-app-onliner/Makefile b/luci-app-onliner/Makefile
+index cb2a27f..3691bbd 100644
+--- a/luci-app-onliner/Makefile
++++ b/luci-app-onliner/Makefile
+@@ -12,8 +12,7 @@ LUCI_DEPENDS:=+arp-scan
+ 
+ include $(TOPDIR)/feeds/luci/luci.mk
+ 
+-# 移除手写的 install 区块，让 luci.mk 自动处理 ./luasrc 和 ./root
+-# 25.12 强烈建议通过标准的 BuildPackage 调用来触发自动化逻辑
++# call BuildPackage - OpenWrt metadata scan marker; luci.mk expands it once.
+ 
+ define Package/luci-app-onliner/postinst
+ #!/bin/sh
+@@ -24,5 +23,3 @@ if [ -z "$${IPKG_INSTROOT}" ]; then
+ fi
+ exit 0
+ endef
+-
+-$(eval $(call BuildPackage,luci-app-onliner))

@@ -1,0 +1,20 @@
+{
+	"admin/network/mmconfig": {
+		"title": "ModemManager",
+		"order": 65,
+		"action": {
+			"type": "firstchild"
+		},
+		"depends": {
+			"acl": [ "luci-app-mmconfig" ]
+		}
+	},
+	"admin/network/mmconfig/bands": {
+		"title": "Bands and modes",
+		"order": 10,
+		"action": {
+			"type": "view",
+			"path": "mmconfig/bands"
+		}
+	}
+}

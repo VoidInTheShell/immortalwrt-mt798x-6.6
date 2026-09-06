@@ -13,7 +13,23 @@
 /logs
 /feeds
 /feeds.conf
-/files
+# PortalWRT's board-aware branding overlay is versioned with this profile.
+/.portalwrt-backups/
+/.r3mini-checks/
+/.r3mini-host/
+**/__pycache__/
+# Selected external sources are restored by scripts/r3mini-sources.py from
+# patches/r3mini-sources/sources.json, never stored as incomplete gitlinks.
+/package/luci-app-adguardhome/
+/package/luci-app-advancedplus/
+/package/luci-app-nikki/
+/package/luci-app-poweroffdevice/
+/package/luci-app-qosmate/
+/package/luci-app-taskplan/
+/package/luci-theme-kucat/
+/package/mm-ui-sms/
+/package/netspeedtest/
+/package/qosmate/
 /target/linux/feeds
 /overlay
 /package/feeds

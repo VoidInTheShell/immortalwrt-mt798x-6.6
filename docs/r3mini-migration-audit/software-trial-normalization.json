@@ -1,0 +1,20 @@
+{
+  "returncode": 0,
+  "requests": 403,
+  "not_preserved": {},
+  "node_selected": {},
+  "selected_package_count": 875,
+  "baseline_package_changes": {
+    "CONFIG_PACKAGE_ethtool": {
+      "before": "y",
+      "after": "m"
+    }
+  },
+  "kernel_delta": {},
+  "selected_y_conflicts": [
+    [
+      "ntfs-3g",
+      "ntfs3-mount"
+    ]
+  ]
+}

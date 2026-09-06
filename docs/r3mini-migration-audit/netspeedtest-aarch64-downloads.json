@@ -1,0 +1,37 @@
+[
+  {
+    "package": "homebox",
+    "url": "https://github.com/sirpdboy/homebox/releases/download/v1.0.1/homebox-linux-arm64-musl-v1.0.1.tar.gz",
+    "expected_sha256": "e645229b4cffef9ab1d4b3989f1b9523f487bf3f570c4391c4b62522de3e6b7f",
+    "bytes": 2970433,
+    "sha256": "e645229b4cffef9ab1d4b3989f1b9523f487bf3f570c4391c4b62522de3e6b7f",
+    "hash_matches": true,
+    "archive_members": [
+      "README.md",
+      "homebox"
+    ],
+    "elf_magic": "7f454c46",
+    "elf_class": 2,
+    "elf_machine": 183,
+    "interpreter": null,
+    "dynamic_segment": false
+  },
+  {
+    "package": "ookla-speedtest",
+    "url": "https://install.speedtest.net/app/cli/ookla-speedtest-1.2.0-linux-aarch64.tgz",
+    "expected_sha256": "3953d231da3783e2bf8904b6dd72767c5c6e533e163d3742fd0437affa431bd3",
+    "bytes": 1082287,
+    "sha256": "3953d231da3783e2bf8904b6dd72767c5c6e533e163d3742fd0437affa431bd3",
+    "hash_matches": true,
+    "archive_members": [
+      "speedtest",
+      "speedtest.md",
+      "speedtest.5"
+    ],
+    "elf_magic": "7f454c46",
+    "elf_class": 2,
+    "elf_machine": 183,
+    "interpreter": null,
+    "dynamic_segment": false
+  }
+]

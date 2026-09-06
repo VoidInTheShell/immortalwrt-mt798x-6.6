@@ -1,0 +1,1259 @@
+diff --git a/README.md b/README.md
+index 5975c7f..4325732 100644
+--- a/README.md
++++ b/README.md
+@@ -1,6 +1,26 @@
+ # luci-app-sms-manager
+ Simple user interface to handle SMS / USSD / AT commands via ModemManager application.
+ 
++## ModemManager integration in this checkout
++
++This checkout is pinned to upstream commit `322392909e046c172f06e8dfff8a956b9ede4bbb`,
++the current `main` tip after the `1.0.9-r20260225` release. SMS listing, reading,
++deletion and sending use `/usr/bin/mmcli` and ModemManager's D-Bus API. The status
++overview also reads modem data through `mmcli -J`, so the package does not require
++the separate `modemdata` or `sms-tool` packages.
++
++The optional AT page still sends commands through `mmcli --command`; it does not
++open a modem device node. ModemManager must be built with
++`CONFIG_MODEMMANAGER_WITH_AT_COMMAND_VIA_DBUS=y` for that page to work. SMS itself
++does not require that optional build flag.
++
++The local package release is 20260906. Its init entry registers procd reload
++triggers but starts no worker with the default lednotify=0 configuration.
++Notifications and mail forwarding require an explicit user action; mailsend is
++declared as a dependency. SMS text is passed via a private temporary UTF-8 file,
++and mutations require write access. See tests/test-sms-manager.py for the mocked
++text/permissions/failure checks; no real SMS is sent by those tests.
++
+ ![GitHub release (latest by date)](https://img.shields.io/github/v/release/4IceG/luci-app-sms-manager?style=flat-square)
+ ![GitHub stars](https://img.shields.io/github/stars/4IceG/luci-app-sms-manager?style=flat-square)
+ ![GitHub forks](https://img.shields.io/github/forks/4IceG/luci-app-sms-manager?style=flat-square)
+@@ -59,5 +79,3 @@ This is a development version of the package, so not everything may work....
+ ![](https://github.com/4IceG/Personal_data/blob/master/zrzuty/sms-manager/sms_manager_last/smsm7%20Package%20update%20and%20support%20ZBT%20LuCI.png?raw=true)
+ 
+ 
+-
+-
+diff --git a/luci-app-sms-manager/Makefile b/luci-app-sms-manager/Makefile
+index 4ecf755..2908520 100644
+--- a/luci-app-sms-manager/Makefile
++++ b/luci-app-sms-manager/Makefile
+@@ -7,13 +7,16 @@
+ include $(TOPDIR)/rules.mk
+ 
+ PKG_NAME:=luci-app-sms-manager
++PKG_LICENSE:=GPL-3.0-only
+ LUCI_TITLE:=SMS Support in LuCI JS via ModemManager
+ PKG_MAINTAINER:=Rafał Wabik <4Rafal@gmail.com>
+-LUCI_DESCRIPTION:=LuCI JS interface for the SMS via ModemManager. The user interface supports SMS / USSD Codes / AT Commands.
++LUCI_DESCRIPTION:=LuCI JS interface for SMS, USSD and optional AT commands through ModemManager's mmcli/D-Bus API.
+ LUCI_PKGARCH:=all
+-LUCI_DEPENDS:=+modemmanager +luci-proto-modemmanager
++# The SMS pages use mmcli directly; modemmanager-rpcd keeps the selected
++# ModemManager LuCI stack complete for the shared modem status/configuration UI.
++LUCI_DEPENDS:=+modemmanager +modemmanager-rpcd +luci-proto-modemmanager +rpcd-mod-file +jshn +uci +mailsend
+ PKG_VERSION:=1.0.9
+-PKG_RELEASE:=20260225
++PKG_RELEASE:=20260906
+ 
+ define Package/luci-app-sms-manager/conffiles
+ /etc/config/sms_manager
+diff --git a/luci-app-sms-manager/htdocs/luci-static/resources/view/modem/sms_manager_config.js b/luci-app-sms-manager/htdocs/luci-static/resources/view/modem/sms_manager_config.js
+index eebcbfd..577086a 100644
+--- a/luci-app-sms-manager/htdocs/luci-static/resources/view/modem/sms_manager_config.js
++++ b/luci-app-sms-manager/htdocs/luci-static/resources/view/modem/sms_manager_config.js
+@@ -692,10 +692,7 @@ return view.extend({
+ 		s.tab('attab', _('AT Commands Settings'));
+ 
+ 		o = s.taboption('attab', form.ListValue, 'atport', _('AT commands sending modem'),
+-			_('Select one of the available modems from ModemManager. \
+-			<br /><br /><b>Important</b> \
+-			<br />Sending AT commands via ModemManager requires the AT command interface to be compiled in. \
+-			This functionality is not available in the standard ModemManager package and requires custom compilation with AT command support enabled.'));
++			_('Select a modem. AT commands are sent through ModemManager; supported commands depend on the modem firmware.'));
+ 		modems.forEach(function(modem) { o.value(modem.path, modem.displayName); });
+ 		o.placeholder = _('Please select a modem'); o.rmempty = false;
+ 
+@@ -710,57 +707,9 @@ return view.extend({
+ 
+ 		o = s.taboption('notifytab', form.Flag, 'lednotify', _('Notify new messages'),
+ 			_('The LED informs about a new message. Before activating this function, please config and save the SMS reading modem, time to check SMS inbox and select the notification LED.'));
+-		o.rmempty = false; o.default = true;
+-		o.write = function(section_id, value) {
+-			return uci.load('sms_manager').then(function() {
+-				let portR = uci.get('sms_manager', '@sms_manager[0]', 'readport');
+-				let dsled = uci.get('sms_manager', '@sms_manager[0]', 'ledtype');
+-				let led   = uci.get('sms_manager', '@sms_manager[0]', 'smsled');
+-				if (!portR) {
+-					ui.addNotification(null, E('p', {}, _('Please configure SMS reading modem first')), 'info');
+-					return form.Flag.prototype.write.apply(this, [section_id, value]);
+-				}
+-				let modemNum = portR.split('/').pop();
+-				return L.resolveDefault(fs.exec_direct('/usr/bin/mmcli', ['-m', modemNum, '--messaging-list-sms']), null)
+-					.then(function(res) {
+-						let smsCount = 0;
+-						if (res) { let m = res.matchAll(/\/SMS\/(\d+)/g); for (let match of m) smsCount++; }
+-
+-						if (value == '1') {
+-							uci.set('sms_manager', '@sms_manager[0]', 'sms_count', String(smsCount));
+-							uci.set('sms_manager', '@sms_manager[0]', 'lednotify', '1');
+-							let PTR = uci.get('sms_manager', '@sms_manager[0]', 'prestart');
+-							return uci.save()
+-								.then(function() { return L.resolveDefault(fs.read('/etc/crontabs/root'), ''); })
+-								.then(function(crontab) {
+-									let lines = (crontab || '').trim().replace(/\r\n/g, '\n').split('\n')
+-										.filter(function(l) { return l.trim() !== '' && !l.includes('/etc/init.d/sms_manager'); });
+-									lines.push('1 */' + PTR + ' * * *  /etc/init.d/sms_manager enable && /etc/init.d/sms_manager restart');
+-									return fs.write('/etc/crontabs/root', lines.join('\n') + '\n');
+-								})
+-								.then(function() { return fs.exec_direct('/etc/init.d/cron', ['restart']); })
+-								.then(function() { return fs.exec_direct('/etc/init.d/sms_manager', ['enable']); })
+-								.then(function() { return fs.exec_direct('/etc/init.d/sms_manager', ['start']); });
+-						}
+-						if (value == '0') {
+-							uci.set('sms_manager', '@sms_manager[0]', 'lednotify', '0');
+-							return uci.save()
+-								.then(function() { return L.resolveDefault(fs.read('/etc/crontabs/root'), ''); })
+-								.then(function(crontab) {
+-									let lines = (crontab || '').trim().replace(/\r\n/g, '\n').split('\n')
+-										.filter(function(l) { return l.trim() !== '' && !l.includes('sms_manager'); });
+-									return fs.write('/etc/crontabs/root', lines.join('\n') + '\n');
+-								})
+-								.then(function() { return fs.exec_direct('/etc/init.d/cron', ['restart']); })
+-								.then(function() { return fs.exec_direct('/etc/init.d/sms_manager', ['stop']); })
+-								.then(function() { return fs.exec_direct('/etc/init.d/sms_manager', ['disable']); })
+-								.then(function() { if (dsled == 'D' && led) return fs.write('/sys/class/leds/' + led + '/brightness', '0'); });
+-						}
+-					}.bind(this));
+-			}.bind(this)).then(function() {
+-				return form.Flag.prototype.write.apply(this, [section_id, value]);
+-			}.bind(this));
+-		};
++		o.rmempty = false; o.default = '0';
++		// Standard Save & Apply triggers the procd service. With lednotify=0
++		// the service has no worker; no cron jobs or global restarts are needed.
+ 
+ 		o = s.taboption('notifytab', form.Flag, 'ontopsms', _('Show notification icon'),
+ 			_('Show the new message notification icon on the status overview page.'));
+@@ -769,15 +718,6 @@ return view.extend({
+ 		o = s.taboption('notifytab', form.Value, 'checktime', _('Check inbox every minute(s)'),
+ 			_('Specify how many minutes you want your inbox to be checked.'));
+ 		o.default = '10'; o.rmempty = false; o.datatype = 'range(5, 59)';
+-		o.validate = function(section_id, value) {
+-			if (value.match(/^[0-9]+(?:\.[0-9]+)?$/) && +value >= 5 && +value < 60) return true;
+-			return _('Expect a decimal value between five and fifty-nine');
+-		};
+-
+-		o = s.taboption('notifytab', form.ListValue, 'prestart', _('Restart the inbox checking process every'),
+-			_('The process will restart at the selected time interval. This will eliminate the delay in checking your inbox.'));
+-		o.value('4', _('4h')); o.value('6', _('6h')); o.value('8', _('8h')); o.value('12', _('12h'));
+-		o.default = '6'; o.rmempty = false;
+ 
+ 		o = s.taboption('notifytab', form.ListValue, 'ledtype', _('The diode is dedicated only to these notifications'),
+ 			_("Select 'No' in case the router has only one LED or if the LED is multi-tasking. \
+diff --git a/luci-app-sms-manager/htdocs/luci-static/resources/view/modem/sms_manager_readsms.js b/luci-app-sms-manager/htdocs/luci-static/resources/view/modem/sms_manager_readsms.js
+index ca50eb9..5ad8f74 100644
+--- a/luci-app-sms-manager/htdocs/luci-static/resources/view/modem/sms_manager_readsms.js
++++ b/luci-app-sms-manager/htdocs/luci-static/resources/view/modem/sms_manager_readsms.js
+@@ -7,6 +7,8 @@
+ 'require view';
+ 'require rpc';
+ 
++var commitSMSConfig = rpc.declare({ object: 'uci', method: 'commit', params: [ 'config' ], reject: true });
++
+ /*
+ 	Copyright 2026 Rafał Wabik - IceG - From eko.one.pl forum
+ 	
+@@ -154,10 +156,9 @@ return view.extend({
+ 					return uci.load('sms_manager').then(function() {
+ 						try {
+ 							uci.set('sms_manager', '@sms_manager[0]', 'sms_count', String(remainingSms));
+-							fs.exec('sleep 2');
+-							uci.save();
+-							fs.exec('sleep 2');
+-							uci.apply();
++							uci.save().then(function() { return commitSMSConfig('sms_manager'); }).catch(function(error) {
++								ui.addNotification(null, E('p', error.message), 'error');
++							});
+ 						} catch (e) {}
+ 						
+ 						ui.addNotification(null, E('p', _('Message(s) deleted successfully')), 'info');
+@@ -486,10 +487,9 @@ return view.extend({
+ 							return uci.load('sms_manager').then(function() {
+ 								try {
+ 									uci.set('sms_manager', '@sms_manager[0]', 'sms_count', String(sortedSmsList.length));
+-									fs.exec('sleep 2');
+-									uci.save();
+-									fs.exec('sleep 2');
+-									uci.apply();
++									uci.save().then(function() { return commitSMSConfig('sms_manager'); }).catch(function(error) {
++								ui.addNotification(null, E('p', error.message), 'error');
++							});
+ 								} catch (e) {}
+ 							}).then(function() {
+ 								let Lres = L.resource('icons/sms_manager_delsms.png');
+diff --git a/luci-app-sms-manager/htdocs/luci-static/resources/view/modem/sms_manager_sendsms.js b/luci-app-sms-manager/htdocs/luci-static/resources/view/modem/sms_manager_sendsms.js
+index 3bfef84..16e49f6 100644
+--- a/luci-app-sms-manager/htdocs/luci-static/resources/view/modem/sms_manager_sendsms.js
++++ b/luci-app-sms-manager/htdocs/luci-static/resources/view/modem/sms_manager_sendsms.js
+@@ -5,6 +5,12 @@
+ 'require ui';
+ 'require uci';
+ 'require view';
++'require rpc';
++
++var callSendMessage = rpc.declare({
++	object: 'sms_manager_send', method: 'send',
++	params: [ 'modem', 'number', 'text' ], reject: true
++});
+ 
+ /*
+ 	Copyright 2022-2026 Rafał Wabik - IceG - From eko.one.pl forum
+@@ -316,7 +322,7 @@ return view.extend({
+ 		let num = document.getElementById('phonenumber').value;
+ 		let body = document.getElementById('smstext').value;
+ 
+-		if (num.length < 3) {
++			if (num.length < 1 && (ev.currentTarget || ev.target).getAttribute('data-action') !== 'sendg') {
+ 			ui.addNotification(null, E('p', _('Please specify the phone number')), 'info');
+ 			return false;
+ 		}
+@@ -331,71 +337,32 @@ return view.extend({
+ 			return false;
+ 		}
+ 
+-		let sendtype = ev.target.getAttribute('data-action');
+-		
+-		if (sendtype === 'sendg') {
+-			return fs.read_direct('/etc/modem/sms_manager_phonebook.user').then(L.bind(function(phonebook) {
+-				if (!phonebook || phonebook.trim().length === 0) {
+-					ui.addNotification(null, E('p', _('Phone book is empty')), 'info');
+-					return false;
+-				}
+-
+-				let lines = phonebook.trim().split('\n');
+-				let numbers = [];
+-				
+-				lines.forEach(function(line) {
+-					let parts = line.split(';');
+-					if (parts.length >= 2) {
+-						numbers.push(parts[1].trim());
+-					}
+-				});
+-
+-				if (numbers.length === 0) {
+-					ui.addNotification(null, E('p', _('No valid phone numbers in phonebook')), 'info');
+-					return false;
+-				}
+-
+-				let modemNum = modemPath.split('/').pop();
+-		
+-				let dx = 4000;
+-				
+-				for (let i = 0; i < numbers.length; i++) {
+-					(function(index) {
+-						setTimeout(function() {
+-							fs.exec('/usr/bin/mmcli', ['-m', modemNum, '--messaging-create-sms=number=' + numbers[index] + ',text=' + body])
+-								.then(function(createRes) {
+-									let smsMatch = createRes.stdout.match(/\/SMS\/(\d+)/);
+-									if (smsMatch) {
+-										let smsId = smsMatch[1];
+-										// Send SMS
+-										return fs.exec('/usr/bin/mmcli', ['-s', smsId, '--send']);
+-									}
+-								});
+-						}, dx * index);
+-					})(i);
+-				}
+-
+-				ui.addNotification(null, E('p', _('Sending SMS to %d contacts...').format(numbers.length)), 'info');
+-				
+-			}, this));
+-		} else {
+ 			let modemNum = modemPath.split('/').pop();
+-
+-			return fs.exec('/usr/bin/mmcli', ['-m', modemNum, '--messaging-create-sms=number=' + num + ',text=' + body])
+-				.then(L.bind(function(createRes) {
+-					let smsMatch = createRes.stdout.match(/\/SMS\/(\d+)/);
+-					if (smsMatch) {
+-						let smsId = smsMatch[1];
+-						return this.handleCommand('/usr/bin/mmcli', ['-s', smsId, '--send']);
+-					} else {
+-						ui.addNotification(null, E('p', _('Failed to create SMS')), 'error');
+-						return false;
+-					}
+-				}, this))
+-				.catch(function(err) {
+-					ui.addNotification(null, E('p', _('Error creating SMS: ') + err), 'error');
+-				});
+-		}
++			let button = ev.currentTarget || ev.target;
++			let group = button.getAttribute('data-action') === 'sendg';
++			button.disabled = true;
++			let recipients = group
++				? fs.read_direct('/etc/modem/sms_manager_phonebook.user').then(function(text) {
++					return (text || '').split('\n').map(function(line) { return line.split(';')[1]; }).filter(Boolean);
++				})
++				: Promise.resolve([ num ]);
++			let sent = 0;
++			return recipients.then(function(numbers) {
++				numbers = numbers.map(function(number) { return number.replace(/[\s()-]/g, ''); });
++				if (!numbers.length || numbers.some(function(number) { return !/^\+?[0-9]{1,32}$/.test(number); }))
++					throw new Error(_('Invalid phone number'));
++				return numbers.reduce(function(previous, number) {
++					return previous.then(function() { return callSendMessage(modemNum, number, body); })
++						.then(function(result) {
++							if (!result.success) throw new Error(result.message || _('Error sending SMS'));
++							sent++;
++						});
++				}, Promise.resolve());
++			}).then(function() {
++				ui.addNotification(null, E('p', _('SMS sent successfully!') + ' (' + sent + ')'), 'info');
++			}).catch(function(error) {
++				ui.addNotification(null, E('p', _('Error sending SMS: ') + error.message + ' (' + sent + ')'), 'error');
++			}).finally(function() { button.disabled = false; });
+ 	},
+ 
+ 	handleClear: function(ev) {
+diff --git a/luci-app-sms-manager/htdocs/luci-static/resources/view/status/include/10_sms_manager_info.js b/luci-app-sms-manager/htdocs/luci-static/resources/view/status/include/10_sms_manager_info.js
+index dedc21a..40434df 100644
+--- a/luci-app-sms-manager/htdocs/luci-static/resources/view/status/include/10_sms_manager_info.js
++++ b/luci-app-sms-manager/htdocs/luci-static/resources/view/status/include/10_sms_manager_info.js
+@@ -208,39 +208,125 @@ return baseclass.extend({
+ 		});
+ 	},
+ 
+-	getModemDataMm: function(comm_port, forced_plmn_op) {
++	getModemDataMm: function(comm_port) {
+ 		if (!comm_port) return Promise.resolve(null);
+ 
++		/*
++		 * Keep the status block independent from modemdata.  The latter is a
++		 * separate, AT-oriented package and is not part of the ModemManager
++		 * frontend dependency set.  mmcli -J exposes the same values through
++		 * ModemManager's D-Bus API and is present with modemmanager 1.22.0.
++		 */
++		let value = function(obj, names) {
++			if (!obj) return null;
++			for (let i = 0; i < names.length; i++) {
++				if (obj[names[i]] !== undefined && obj[names[i]] !== null)
++					return obj[names[i]];
++			}
++			return null;
++		};
++
++		let displayValue = function(raw) {
++			if (raw === undefined || raw === null) return '';
++			if (Array.isArray(raw)) return raw.join(', ');
++			if (typeof raw === 'object') return JSON.stringify(raw);
++			return String(raw).replace(/^'|'$/g, '').trim();
++		};
++
++		let parseOutput = function(output) {
++			if (!output) return null;
++
++			let data = null;
++			try {
++				data = JSON.parse(output.replace(/[\u0000-\u001F\u007F-\u009F]/g, ''));
++			} catch (e) {
++				/* The text fallback keeps the badge useful with older mmcli output. */
++				let signalText = output.match(/signal quality:\s*'?([0-9]+)%?/i);
++				let operatorText = output.match(/operator name:\s*'?([^'\n]+)'?/i);
++				let modeText = output.match(/access technolog(?:y|ies):\s*'?([^'\n]+)'?/i);
++				if (!signalText && !operatorText && !modeText) return null;
++				return {
++					operator: operatorText ? operatorText[1].trim() : '-',
++					mode: modeText ? modeText[1].trim() : '-',
++					signalQuality: signalText ? Math.min(parseInt(signalText[1], 10) || 0, 100) : 0
++				};
++			}
++
++			let modem = data && (data.modem || data);
++			if (!modem) return null;
++			let status = modem.status || {};
++			let gpp = modem['3gpp'] || modem['3GPP'] || {};
++			let operator = displayValue(value(gpp, ['operator name', 'operator-name', 'operator_name'])) ||
++				displayValue(value(status, ['operator name', 'operator-name', 'operator_name'])) || '-';
++			let mode = displayValue(value(status, ['access technologies', 'access-technologies', 'access_technologies'])) || '-';
++			let signalRaw = displayValue(value(status, ['signal quality value', 'signal-quality-value', 'signal_quality_value'])) ||
++				displayValue(value(status, ['signal quality', 'signal-quality', 'signal_quality']));
++			let signalMatch = signalRaw.match(/[0-9]+/);
++			let signalQuality = signalMatch ? Math.min(parseInt(signalMatch[0], 10) || 0, 100) : 0;
++
++			return {
++				operator: operator,
++				mode: mode,
++				signalQuality: signalQuality
++			};
++		};
++
++		let getModemNumber = function(path) {
++			let match = String(path).match(/\/Modem\/(\d+)$/i);
++			return match ? match[1] : null;
++		};
++
++		let readModem = function(number) {
++			return L.resolveDefault(
++				fs.exec('/usr/bin/mmcli', ['-m', number, '-J']),
++				null
++			).then(function(res) {
++				if (!res || res.code !== 0) return null;
++				return parseOutput(res.stdout || '');
++			});
++		};
++
++		let modemNumber = getModemNumber(comm_port);
++		if (modemNumber !== null) return readModem(modemNumber);
++
++		/* Some defmodems configurations store a device/port instead of an
++		 * object path. Resolve it against the ModemManager object list. */
++		let portName = String(comm_port).split('/').pop();
+ 		return L.resolveDefault(
+-			fs.exec_direct('/usr/bin/md_modemmanager', [comm_port, '', forced_plmn_op || '0']),
++			fs.exec('/usr/bin/mmcli', ['-L', '-J']),
+ 			null
+-		).then(function(res) {
+-			if (!res) return null;
++		).then(function(listRes) {
++			if (!listRes || listRes.code !== 0) return null;
++			let ids = [];
+ 			try {
+-				let jsonraw = JSON.parse(res.replace(/[\u0000-\u001F\u007F-\u009F]/g, ''));
+-				let json = Object.values(jsonraw);
+-				if (!json || json.length < 3 || !json[2]) return null;
+-
+-				let signalQuality = 0;
+-
+-				if (json[2].signal != null && String(json[2].signal).trim() !== '') {
+-					signalQuality = parseInt(json[2].signal) || 0;
+-				} else if (json[2].csq_per != null && String(json[2].csq_per).trim() !== '') {
+-					signalQuality = parseInt(json[2].csq_per) || 0;
+-				} else if (json[2].csq != null && String(json[2].csq).trim() !== '') {
+-					let csq = parseInt(json[2].csq);
+-					if (!isNaN(csq) && csq >= 0 && csq !== 99)
+-						signalQuality = Math.min(Math.round((csq / 31) * 100), 100);
+-				}
++				let list = JSON.parse(listRes.stdout || '');
++				let paths = list && list['modem-list'];
++				if (Array.isArray(paths)) paths.forEach(function(path) {
++					let id = getModemNumber(path);
++					if (id !== null && ids.indexOf(id) === -1) ids.push(id);
++				});
++			} catch (e) {}
+ 
+-				return {
+-					operator:      json[2].operator_name || '-',
+-					mode:          json[2].mode          || '-',
+-					signalQuality: signalQuality
+-				};
+-			} catch (e) {
+-				return null;
++			if (ids.length === 0) {
++				let match;
++				let re = /\/Modem\/(\d+)/g;
++				while ((match = re.exec(listRes.stdout || '')) !== null && ids.indexOf(match[1]) === -1)
++					ids.push(match[1]);
+ 			}
++
++			return Promise.all(ids.map(function(id) {
++				return L.resolveDefault(fs.exec('/usr/bin/mmcli', ['-m', id, '-J']), null)
++					.then(function(res) {
++						let output = res && res.stdout || '';
++						if (!res || res.code !== 0 ||
++							output.indexOf(String(comm_port)) < 0 &&
++							(!portName || output.indexOf(portName) < 0)) return null;
++						return parseOutput(output);
++					});
++			})).then(function(results) {
++				for (let i = 0; i < results.length; i++) if (results[i]) return results[i];
++				return null;
++			});
+ 		});
+ 	},
+ 	
+diff --git a/luci-app-sms-manager/root/etc/config/sms_manager b/luci-app-sms-manager/root/etc/config/sms_manager
+index 0f179cd..efeaf19 100644
+--- a/luci-app-sms-manager/root/etc/config/sms_manager
++++ b/luci-app-sms-manager/root/etc/config/sms_manager
+@@ -1,7 +1,7 @@
+ 
+ config sms_manager
+-	option pnumber '+48'
+-	option prefix '1'
++	option pnumber ''
++	option prefix '0'
+ 	option lednotify '0'
+ 	option readport ''
+ 	option sendport ''
+diff --git a/luci-app-sms-manager/root/etc/init.d/sms_manager b/luci-app-sms-manager/root/etc/init.d/sms_manager
+index b9d0eaf..51a7478 100644
+--- a/luci-app-sms-manager/root/etc/init.d/sms_manager
++++ b/luci-app-sms-manager/root/etc/init.d/sms_manager
+@@ -9,8 +9,9 @@ STOP=01
+ 
+ 
+ start_service() {
++    [ "$(uci -q get sms_manager.@sms_manager[0].lednotify)" = "1" ] || return 0
+     procd_open_instance
+-    procd_set_param command /bin/sh "/sbin/sms_manager_led.sh"
++    procd_set_param command /bin/sh /sbin/sms_m_led.sh
+     procd_close_instance
+ }
+ 
+@@ -21,16 +22,5 @@ service_triggers()
+ }
+ 
+ 
+-stop_service() {
+-	for KILLPID in `ps | grep 'sms_manager' | awk ' { print $1;}'`; do 
+-  	kill -9 $KILLPID >/dev/null 2>&1 &
+-	done
+-	sleep 1
+-	return 0
+-}
+-
+-
+-restart_service() {
+-    stop_service
+-    start_service
+-}
++# rc.common/procd stops only the instance it owns. Never grep process names:
++# that can kill the requesting RPC, another SMS operation, or this init script.
+diff --git a/luci-app-sms-manager/root/etc/uci-defaults/off_sms_manager.sh b/luci-app-sms-manager/root/etc/uci-defaults/off_sms_manager.sh
+deleted file mode 100644
+index b68f98f..0000000
+--- a/luci-app-sms-manager/root/etc/uci-defaults/off_sms_manager.sh
++++ /dev/null
+@@ -1,11 +0,0 @@
+-#!/bin/sh
+-# 
+-# Copyright 2026 Rafał Wabik (IceG) - From eko.one.pl forum
+-# Licensed to the GNU General Public License v3.0.
+-# 
+-
+-/etc/init.d/sms_manager stop >/dev/null 2>&1 &
+-/etc/init.d/sms_manager disable >/dev/null 2>&1 &
+-/etc/init.d/sms_manager disable >/dev/null 2>&1 &
+- 
+-exit 0
+diff --git a/luci-app-sms-manager/root/etc/uci-defaults/setup_sms_manager.sh b/luci-app-sms-manager/root/etc/uci-defaults/setup_sms_manager.sh
+index fa2033c..b30cae8 100644
+--- a/luci-app-sms-manager/root/etc/uci-defaults/setup_sms_manager.sh
++++ b/luci-app-sms-manager/root/etc/uci-defaults/setup_sms_manager.sh
+@@ -4,14 +4,14 @@
+ # Licensed to the GNU General Public License v3.0.
+ #
+ 
+-chmod +x /sbin/sms_m_led.sh >/dev/null 2>&1 &
+-chmod +x /sbin/sms_manager_led.sh >/dev/null 2>&1 &
+-chmod +x /etc/uci-defaults/off_sms_manager.sh >/dev/null 2>&1 &
+-chmod +x /etc/uci-defaults/setup_sms_manager.sh >/dev/null 2>&1 &
+-chmod +x /etc/init.d/sms_manager >/dev/null 2>&1 &
++chmod +x /sbin/sms_m_led.sh >/dev/null 2>&1 || true
++chmod +x /sbin/sms_manager_led.sh >/dev/null 2>&1 || true
++chmod +x /etc/uci-defaults/setup_sms_manager.sh >/dev/null 2>&1 || true
++chmod +x /etc/init.d/sms_manager >/dev/null 2>&1 || true
+ 
+-chmod +x /usr/libexec/rpcd/sms_manager_sms_forward >/dev/null 2>&1 &
++chmod +x /usr/libexec/rpcd/sms_manager_sms_forward >/dev/null 2>&1 || true
++chmod +x /usr/libexec/rpcd/sms_manager_send >/dev/null 2>&1 || true
+ 
+-rm -rf /tmp/luci-indexcache >/dev/null 2>&1 &
+-rm -rf /tmp/luci-modulecache/ >/dev/null 2>&1 &
++rm -rf /tmp/luci-indexcache >/dev/null 2>&1 || true
++rm -rf /tmp/luci-modulecache/ >/dev/null 2>&1 || true
+ exit 0
+diff --git a/luci-app-sms-manager/root/sbin/sms_m_led.sh b/luci-app-sms-manager/root/sbin/sms_m_led.sh
+old mode 100644
+new mode 100755
+index f2285d6..52dd95c
+--- a/luci-app-sms-manager/root/sbin/sms_m_led.sh
++++ b/luci-app-sms-manager/root/sbin/sms_m_led.sh
+@@ -1,22 +1,12 @@
+ #!/bin/sh
+-#
+-# Copyright 2026 Rafał Wabik (IceG) - From eko.one.pl forum
+-# Licensed to the GNU General Public License v3.0.
+-#
+-
+-sleep 2
+-CT=$(uci -q get sms_manager.@sms_manager[0].checktime)
+-TX=$(echo $CT | tr -dc '0-9')
+-TM=$(($TX * 60))
+-
+-while [ 1 ]; do 
+-	LED=$(uci -q get sms_manager.@sms_manager[0].lednotify)
+-	if [ $LED == "1" ]; then
+-    	sleep $TM
+-		/sbin/sms_manager_led.sh >/dev/null 2>&1 &
+-		continue
+-	fi
+-	sleep 1
++# procd owns this optional worker; no cron or background copies are needed.
++while [ "$(uci -q get sms_manager.@sms_manager[0].lednotify)" = "1" ]; do
++	/sbin/sms_manager_led.sh
++	minutes=$(uci -q get sms_manager.@sms_manager[0].checktime)
++	case "$minutes" in ''|*[!0-9]*) minutes=5 ;; esac
++	minutes=$(printf '%s' "$minutes" | sed 's/^0*//')
++	[ -n "$minutes" ] || minutes=5
++	[ "${#minutes}" -le 4 ] || minutes=5
++	[ "$minutes" -ge 1 ] && [ "$minutes" -le 1440 ] || minutes=5
++	sleep "$((minutes * 60))"
+ done
+- 
+-exit 0
+diff --git a/luci-app-sms-manager/root/sbin/sms_manager_led.sh b/luci-app-sms-manager/root/sbin/sms_manager_led.sh
+old mode 100644
+new mode 100755
+index 2427c10..14a5962
+--- a/luci-app-sms-manager/root/sbin/sms_manager_led.sh
++++ b/luci-app-sms-manager/root/sbin/sms_manager_led.sh
+@@ -1,47 +1,23 @@
+ #!/bin/sh
+-#
+-# Copyright 2026 Rafał Wabik (IceG) - From eko.one.pl forum
+-# Licensed to the GNU General Public License v3.0.
+-#
+-
+-	DEV=$(uci -q get sms_manager.@sms_manager[0].readport)
+-	LEDX=$(uci -q get sms_manager.@sms_manager[0].smsled)
+-	SMSC=$(uci -q get sms_manager.@sms_manager[0].sms_count)
+-	SMSD=$(echo $SMSC | tr -dc '0-9')
+-	LEDT="/sys/class/leds/$LEDX/trigger"
+-	LEDON="/sys/class/leds/$LEDX/delay_on"
+-	LEDOFF="/sys/class/leds/$LEDX/delay_off"
+-
+-	TMON=$((1 * 1000))
+-	TMOFF=$((5 * 1000))
+-
+-if [ -z "$DEV" ]; then
+-	exit 0
++# Read inbox state through MM only. Empty/default configuration is inert.
++[ "$(uci -q get sms_manager.@sms_manager[0].lednotify)" = "1" ] || exit 0
++device=$(uci -q get sms_manager.@sms_manager[0].readport)
++index=${device##*/}
++case "$index" in ''|*[!0-9]*) exit 0 ;; esac
++led=$(uci -q get sms_manager.@sms_manager[0].smsled)
++case "$led" in ''|*[!A-Za-z0-9_:.-]*|.|..) exit 0 ;; esac
++directory="/sys/class/leds/$led"
++[ -w "$directory/trigger" ] || exit 0
++baseline=$(uci -q get sms_manager.@sms_manager[0].sms_count)
++case "$baseline" in ''|*[!0-9]*) baseline=0 ;; esac
++baseline=$(printf '%s' "$baseline" | sed 's/^0*//')
++baseline=${baseline:-0}
++[ "${#baseline}" -le 9 ] || exit 0
++listing=$(mmcli -m "$index" --messaging-list-sms 2>/dev/null) || exit 0
++count=$(printf '%s\n' "$listing" | grep -c '/SMS/')
++if [ "$count" -gt "$baseline" ]; then
++	printf '%s\n' timer > "$directory/trigger"
++	[ -w "$directory/delay_on" ] && printf '%s\n' 1000 > "$directory/delay_on"
++	[ -w "$directory/delay_off" ] && printf '%s\n' 5000 > "$directory/delay_off"
+ fi
+-
+-MODEM_NUM=$(echo $DEV | awk -F'/' '{print $NF}')
+-
+-SMS_LIST=$(mmcli -m $MODEM_NUM --messaging-list-sms  >/dev/null 2>&1)
+-
+-if [ -z "$SMS_LIST" ]; then
+-	exit 0
+-fi
+-
+-SMS=$(echo "$SMS_LIST" | grep -c "/SMS/")
+-
+-if [ $SMS == $SMSD ]; then
+-
+-	exit 0
+-fi
+-
+-if [ $SMS -gt $SMSD ]; then
+-
+-echo timer > $LEDT
+-echo $TMOFF > $LEDOFF
+-echo $TMON > $LEDON
+-exit 0
+-
+-fi
+-
+-
+ exit 0
+diff --git a/luci-app-sms-manager/root/usr/libexec/rpcd/sms_manager_sms_forward b/luci-app-sms-manager/root/usr/libexec/rpcd/sms_manager_sms_forward
+index 4728585..ed61feb 100644
+--- a/luci-app-sms-manager/root/usr/libexec/rpcd/sms_manager_sms_forward
++++ b/luci-app-sms-manager/root/usr/libexec/rpcd/sms_manager_sms_forward
+@@ -83,7 +83,7 @@ case "$1" in
+     call)
+         case "$2" in
+             forward)
+-                read input
++                IFS= read -r input
+                 json_load "$input"
+                 json_get_var subject subject
+                 json_get_var message message
+diff --git a/luci-app-sms-manager/root/usr/share/rpcd/acl.d/luci-app-sms-manager.json b/luci-app-sms-manager/root/usr/share/rpcd/acl.d/luci-app-sms-manager.json
+index 276ec90..dc56ca8 100644
+--- a/luci-app-sms-manager/root/usr/share/rpcd/acl.d/luci-app-sms-manager.json
++++ b/luci-app-sms-manager/root/usr/share/rpcd/acl.d/luci-app-sms-manager.json
+@@ -1,78 +1,352 @@
+ {
+ 	"luci-app-sms-manager": {
+-		"description": "Grant access to LuCI app SMS Manager",
++		"description": "Read MM SMS state; write permission is required for sending, deletion and modem commands",
+ 		"read": {
+-			"cgi-io": [ "exec", "upload" ],
++			"cgi-io": [
++				"exec"
++			],
+ 			"file": {
+-				"/sys/class/leds": [ "list" ],
+-				"/etc/crontabs/root": [ "read" ],
+-				"/etc/init.d/sms_manager start": [ "exec" ],
+-				"/etc/init.d/sms_manager stop": [ "exec" ],
+-				"/etc/init.d/sms_manager enable": [ "exec" ],
+-				"/etc/init.d/sms_manager disable": [ "exec" ],
+-				"/etc/init.d/sms_manager restart": [ "exec" ],
+-				"/etc/init.d/led restart": [ "exec" ],
+-				"/sbin/sms_manager_led.sh": [ "exec" ],
+-				"/sbin/sms_m_led.sh": [ "exec" ],
+-				"/usr/bin/mmcli": [ "exec" ],
+-				"/usr/bin/opkg list-installed": [ "exec" ],
+-				"/usr/libexec/package-manager-call list-installed": [ "exec" ],
+-				"/usr/libexec/opkg-list installed": [ "exec" ],
+-				"/usr/libexec/opkg-call list-installed": [ "exec" ],
+-				"/bin/sh": [ "exec" ],
+-				"/bin/tar": [ "exec" ],
+-				"/bin/chmod": [ "exec" ],
+-				"/bin/rm": [ "exec" ],
+-				"/etc/sms_manager": [ "read" ],
+-				"/tmp/mysms_manager.txt": [ "read" ],
+-				"/tmp/smsmgr_ussdcodes.tar.gz": [ "read" ],
+-				"/tmp/smsmgr_ussdcodes_upload.tar.gz": [ "read" ],
+-				"/tmp/smsmgr_atcmmds.tar.gz": [ "read" ],
+-				"/tmp/smsmgr_atcmmds_upload.tar.gz": [ "read" ],
+-				"/etc/modem/sms_manager_phonebook.user": [ "read" ],
+-				"/etc/modem/sms_manager_atcmmds.user": [ "read" ],
+-				"/etc/modem/sms_manager_atcmmds": [ "list" ],
+-				"/etc/modem/sms_manager_atcmmds/*": [ "read" ],
+-				"/etc/modem/sms_manager_atcmmds/*.user": [ "read" ],
+-				"/etc/modem/sms_manager_ussdcodes.user": [ "read" ],
+-				"/etc/modem/sms_manager_ussdcodes": [ "list" ],
+-				"/etc/modem/sms_manager_ussdcodes/*": [ "read" ],
+-				"/etc/modem/sms_manager_ussdcodes/*.user": [ "read" ]
++				"/sys/class/leds": [
++					"list"
++				],
++				"/usr/bin/mmcli -L": [
++					"exec"
++				],
++				"/usr/bin/mmcli -L -J": [
++					"exec"
++				],
++				"/usr/bin/opkg list-installed": [
++					"exec"
++				],
++				"/usr/libexec/package-manager-call list-installed": [
++					"exec"
++				],
++				"/usr/libexec/opkg-list installed": [
++					"exec"
++				],
++				"/usr/libexec/opkg-call list-installed": [
++					"exec"
++				],
++				"/etc/sms_manager": [
++					"read"
++				],
++				"/tmp/mysms_manager.txt": [
++					"read"
++				],
++				"/tmp/smsmgr_ussdcodes.tar.gz": [
++					"read"
++				],
++				"/tmp/smsmgr_ussdcodes_upload.tar.gz": [
++					"read"
++				],
++				"/tmp/smsmgr_atcmmds.tar.gz": [
++					"read"
++				],
++				"/tmp/smsmgr_atcmmds_upload.tar.gz": [
++					"read"
++				],
++				"/etc/modem/sms_manager_phonebook.user": [
++					"read"
++				],
++				"/etc/modem/sms_manager_atcmmds.user": [
++					"read"
++				],
++				"/etc/modem/sms_manager_ussdcodes.user": [
++					"read"
++				],
++				"/etc/modem/sms_manager_atcmmds": [
++					"list"
++				],
++				"/etc/modem/sms_manager_atcmmds/*": [
++					"read"
++				],
++				"/etc/modem/sms_manager_ussdcodes": [
++					"list"
++				],
++				"/etc/modem/sms_manager_ussdcodes/*": [
++					"read"
++				],
++				"/usr/bin/mmcli -m [0-9]": [
++					"exec"
++				],
++				"/usr/bin/mmcli -m [0-9] -J": [
++					"exec"
++				],
++				"/usr/bin/mmcli -m [0-9] --messaging-list-sms": [
++					"exec"
++				],
++				"/usr/bin/mmcli -s [0-9]": [
++					"exec"
++				],
++				"/usr/bin/mmcli -m [0-9][0-9]": [
++					"exec"
++				],
++				"/usr/bin/mmcli -m [0-9][0-9] -J": [
++					"exec"
++				],
++				"/usr/bin/mmcli -m [0-9][0-9] --messaging-list-sms": [
++					"exec"
++				],
++				"/usr/bin/mmcli -s [0-9][0-9]": [
++					"exec"
++				],
++				"/usr/bin/mmcli -m [0-9][0-9][0-9]": [
++					"exec"
++				],
++				"/usr/bin/mmcli -m [0-9][0-9][0-9] -J": [
++					"exec"
++				],
++				"/usr/bin/mmcli -m [0-9][0-9][0-9] --messaging-list-sms": [
++					"exec"
++				],
++				"/usr/bin/mmcli -s [0-9][0-9][0-9]": [
++					"exec"
++				],
++				"/usr/bin/mmcli -m [0-9][0-9][0-9][0-9]": [
++					"exec"
++				],
++				"/usr/bin/mmcli -m [0-9][0-9][0-9][0-9] -J": [
++					"exec"
++				],
++				"/usr/bin/mmcli -m [0-9][0-9][0-9][0-9] --messaging-list-sms": [
++					"exec"
++				],
++				"/usr/bin/mmcli -s [0-9][0-9][0-9][0-9]": [
++					"exec"
++				],
++				"/usr/bin/mmcli -m [0-9][0-9][0-9][0-9][0-9]": [
++					"exec"
++				],
++				"/usr/bin/mmcli -m [0-9][0-9][0-9][0-9][0-9] -J": [
++					"exec"
++				],
++				"/usr/bin/mmcli -m [0-9][0-9][0-9][0-9][0-9] --messaging-list-sms": [
++					"exec"
++				],
++				"/usr/bin/mmcli -s [0-9][0-9][0-9][0-9][0-9]": [
++					"exec"
++				]
+ 			},
+-			"uci": [ "sms_manager", "luci-app-sms-manager" ],
++			"uci": [
++				"sms_manager",
++				"luci-app-sms-manager"
++			],
+ 			"ubus": {
+-				"file": [ "read" ],
+-				"sms_manager_sms_forward": [ "forward" ]
++				"file": [
++					"read"
++				]
+ 			}
+ 		},
+ 		"write": {
+-			"cgi-io": [ "upload" ],
++			"cgi-io": [
++				"upload",
++				"exec"
++			],
+ 			"file": {
+-				"/etc/sms_manager": [ "write" ],
+-				"/etc/crontabs/root": [ "write" ],
+-				"/etc/init.d/cron restart": [ "exec" ],
+-				"/bin/chmod": [ "exec" ],
+-				"/bin/rm": [ "exec" ],
+-				"/bin/tar": [ "exec" ],
+-				"/bin/sh": [ "exec" ],
+-				"/sys/class/leds/*/brightness": [ "write" ],
+-				"/tmp/mysms_manager.txt": [ "write" ],
+-				"/tmp/smsmgr_ussdcodes.tar.gz": [ "write" ],
+-				"/tmp/smsmgr_ussdcodes_upload.tar.gz": [ "write" ],
+-				"/tmp/smsmgr_atcmmds.tar.gz": [ "write" ],
+-				"/tmp/smsmgr_atcmmds_upload.tar.gz": [ "write" ],
+-				"/etc/modem/sms_manager_phonebook.user": [ "write" ],
+-				"/etc/modem/sms_manager_atcmmds.user": [ "write" ],
+-				"/etc/modem/sms_manager_atcmmds/*.user": [ "write" ],
+-				"/etc/modem/sms_manager_atcmmds/*": [ "write" ],
+-				"/etc/modem/sms_manager_ussdcodes.user": [ "write" ],
+-				"/etc/modem/sms_manager_ussdcodes/*.user": [ "write" ],
+-				"/etc/modem/sms_manager_ussdcodes/*": [ "write" ]
++				"/etc/sms_manager": [
++					"write"
++				],
++				"/tmp/mysms_manager.txt": [
++					"write"
++				],
++				"/etc/init.d/led restart": [
++					"exec"
++				],
++				"/bin/sh": [
++					"exec"
++				],
++				"/bin/tar": [
++					"exec"
++				],
++				"/bin/chmod": [
++					"exec"
++				],
++				"/bin/rm": [
++					"exec"
++				],
++				"/sys/class/leds/*/brightness": [
++					"write"
++				],
++				"/tmp/smsmgr_ussdcodes.tar.gz": [
++					"write"
++				],
++				"/tmp/smsmgr_ussdcodes_upload.tar.gz": [
++					"write"
++				],
++				"/tmp/smsmgr_atcmmds.tar.gz": [
++					"write"
++				],
++				"/tmp/smsmgr_atcmmds_upload.tar.gz": [
++					"write"
++				],
++				"/etc/modem/sms_manager_phonebook.user": [
++					"write"
++				],
++				"/etc/modem/sms_manager_atcmmds.user": [
++					"write"
++				],
++				"/etc/modem/sms_manager_ussdcodes.user": [
++					"write"
++				],
++				"/etc/modem/sms_manager_atcmmds/*": [
++					"write"
++				],
++				"/etc/modem/sms_manager_ussdcodes/*": [
++					"write"
++				],
++				"/usr/bin/mmcli -m [0-9] --messaging-delete-sms=[0-9]": [
++					"exec"
++				],
++				"/usr/bin/mmcli -m [0-9] --messaging-delete-sms=[0-9][0-9]": [
++					"exec"
++				],
++				"/usr/bin/mmcli -m [0-9] --messaging-delete-sms=[0-9][0-9][0-9]": [
++					"exec"
++				],
++				"/usr/bin/mmcli -m [0-9] --messaging-delete-sms=[0-9][0-9][0-9][0-9]": [
++					"exec"
++				],
++				"/usr/bin/mmcli -m [0-9] --messaging-delete-sms=[0-9][0-9][0-9][0-9][0-9]": [
++					"exec"
++				],
++				"/usr/bin/mmcli -m [0-9] --3gpp-ussd-initiate=*": [
++					"exec"
++				],
++				"/usr/bin/mmcli -m [0-9] --3gpp-ussd-respond=*": [
++					"exec"
++				],
++				"/usr/bin/mmcli -m [0-9] --3gpp-ussd-cancel": [
++					"exec"
++				],
++				"/usr/bin/mmcli -m [0-9] --command=*": [
++					"exec"
++				],
++				"/usr/bin/mmcli -m [0-9][0-9] --messaging-delete-sms=[0-9]": [
++					"exec"
++				],
++				"/usr/bin/mmcli -m [0-9][0-9] --messaging-delete-sms=[0-9][0-9]": [
++					"exec"
++				],
++				"/usr/bin/mmcli -m [0-9][0-9] --messaging-delete-sms=[0-9][0-9][0-9]": [
++					"exec"
++				],
++				"/usr/bin/mmcli -m [0-9][0-9] --messaging-delete-sms=[0-9][0-9][0-9][0-9]": [
++					"exec"
++				],
++				"/usr/bin/mmcli -m [0-9][0-9] --messaging-delete-sms=[0-9][0-9][0-9][0-9][0-9]": [
++					"exec"
++				],
++				"/usr/bin/mmcli -m [0-9][0-9] --3gpp-ussd-initiate=*": [
++					"exec"
++				],
++				"/usr/bin/mmcli -m [0-9][0-9] --3gpp-ussd-respond=*": [
++					"exec"
++				],
++				"/usr/bin/mmcli -m [0-9][0-9] --3gpp-ussd-cancel": [
++					"exec"
++				],
++				"/usr/bin/mmcli -m [0-9][0-9] --command=*": [
++					"exec"
++				],
++				"/usr/bin/mmcli -m [0-9][0-9][0-9] --messaging-delete-sms=[0-9]": [
++					"exec"
++				],
++				"/usr/bin/mmcli -m [0-9][0-9][0-9] --messaging-delete-sms=[0-9][0-9]": [
++					"exec"
++				],
++				"/usr/bin/mmcli -m [0-9][0-9][0-9] --messaging-delete-sms=[0-9][0-9][0-9]": [
++					"exec"
++				],
++				"/usr/bin/mmcli -m [0-9][0-9][0-9] --messaging-delete-sms=[0-9][0-9][0-9][0-9]": [
++					"exec"
++				],
++				"/usr/bin/mmcli -m [0-9][0-9][0-9] --messaging-delete-sms=[0-9][0-9][0-9][0-9][0-9]": [
++					"exec"
++				],
++				"/usr/bin/mmcli -m [0-9][0-9][0-9] --3gpp-ussd-initiate=*": [
++					"exec"
++				],
++				"/usr/bin/mmcli -m [0-9][0-9][0-9] --3gpp-ussd-respond=*": [
++					"exec"
++				],
++				"/usr/bin/mmcli -m [0-9][0-9][0-9] --3gpp-ussd-cancel": [
++					"exec"
++				],
++				"/usr/bin/mmcli -m [0-9][0-9][0-9] --command=*": [
++					"exec"
++				],
++				"/usr/bin/mmcli -m [0-9][0-9][0-9][0-9] --messaging-delete-sms=[0-9]": [
++					"exec"
++				],
++				"/usr/bin/mmcli -m [0-9][0-9][0-9][0-9] --messaging-delete-sms=[0-9][0-9]": [
++					"exec"
++				],
++				"/usr/bin/mmcli -m [0-9][0-9][0-9][0-9] --messaging-delete-sms=[0-9][0-9][0-9]": [
++					"exec"
++				],
++				"/usr/bin/mmcli -m [0-9][0-9][0-9][0-9] --messaging-delete-sms=[0-9][0-9][0-9][0-9]": [
++					"exec"
++				],
++				"/usr/bin/mmcli -m [0-9][0-9][0-9][0-9] --messaging-delete-sms=[0-9][0-9][0-9][0-9][0-9]": [
++					"exec"
++				],
++				"/usr/bin/mmcli -m [0-9][0-9][0-9][0-9] --3gpp-ussd-initiate=*": [
++					"exec"
++				],
++				"/usr/bin/mmcli -m [0-9][0-9][0-9][0-9] --3gpp-ussd-respond=*": [
++					"exec"
++				],
++				"/usr/bin/mmcli -m [0-9][0-9][0-9][0-9] --3gpp-ussd-cancel": [
++					"exec"
++				],
++				"/usr/bin/mmcli -m [0-9][0-9][0-9][0-9] --command=*": [
++					"exec"
++				],
++				"/usr/bin/mmcli -m [0-9][0-9][0-9][0-9][0-9] --messaging-delete-sms=[0-9]": [
++					"exec"
++				],
++				"/usr/bin/mmcli -m [0-9][0-9][0-9][0-9][0-9] --messaging-delete-sms=[0-9][0-9]": [
++					"exec"
++				],
++				"/usr/bin/mmcli -m [0-9][0-9][0-9][0-9][0-9] --messaging-delete-sms=[0-9][0-9][0-9]": [
++					"exec"
++				],
++				"/usr/bin/mmcli -m [0-9][0-9][0-9][0-9][0-9] --messaging-delete-sms=[0-9][0-9][0-9][0-9]": [
++					"exec"
++				],
++				"/usr/bin/mmcli -m [0-9][0-9][0-9][0-9][0-9] --messaging-delete-sms=[0-9][0-9][0-9][0-9][0-9]": [
++					"exec"
++				],
++				"/usr/bin/mmcli -m [0-9][0-9][0-9][0-9][0-9] --3gpp-ussd-initiate=*": [
++					"exec"
++				],
++				"/usr/bin/mmcli -m [0-9][0-9][0-9][0-9][0-9] --3gpp-ussd-respond=*": [
++					"exec"
++				],
++				"/usr/bin/mmcli -m [0-9][0-9][0-9][0-9][0-9] --3gpp-ussd-cancel": [
++					"exec"
++				],
++				"/usr/bin/mmcli -m [0-9][0-9][0-9][0-9][0-9] --command=*": [
++					"exec"
++				]
+ 			},
++			"uci": [
++				"sms_manager",
++				"luci-app-sms-manager"
++			],
+ 			"ubus": {
+-				"file": [ "read", "write", "remove" ]
+-			},
+-			"uci": [ "sms_manager", "luci-app-sms-manager" ]
++				"file": [
++					"read",
++					"write",
++					"remove"
++				],
++				"sms_manager_sms_forward": [
++					"forward"
++				],
++				"sms_manager_send": [
++					"send"
++				]
++			}
+ 		}
+ 	}
+ }
+diff --git a/luci-app-sms-manager/root/usr/libexec/rpcd/sms_manager_send b/luci-app-sms-manager/root/usr/libexec/rpcd/sms_manager_send
+new file mode 100755
+index 0000000..d6c24d4
+--- /dev/null
++++ b/luci-app-sms-manager/root/usr/libexec/rpcd/sms_manager_send
+@@ -0,0 +1,39 @@
++#!/bin/sh
++# MM's key=value parser cannot escape both kinds of quotes. Pass UTF-8 text
++# through a private temporary file using the supported MM 1.22 CLI option.
++. "${JSHN_LIB:-/usr/share/libubox/jshn.sh}"
++
++reply() {
++	json_init
++	json_add_boolean success "$1"
++	json_add_string message "$2"
++	json_dump
++}
++
++case "$1:$2" in
++	list:*) echo '{"send":{"modem":"str","number":"str","text":"str"}}' ;;
++	call:send)
++		IFS= read -r request
++		json_load "$request" || { reply 0 'Invalid request'; exit 0; }
++		json_get_var modem modem
++		json_get_var number number
++		json_get_var message text
++		case "$modem" in ''|*[!0-9]*) reply 0 'Invalid modem index'; exit 0 ;; esac
++		[ "${#modem}" -le 5 ] || { reply 0 'Invalid modem index'; exit 0; }
++		digits=${number#+}
++		case "$digits" in ''|*[!0-9]*) reply 0 'Invalid phone number'; exit 0 ;; esac
++		[ "${#digits}" -le 32 ] && [ -n "$message" ] || { reply 0 'Invalid SMS'; exit 0; }
++		umask 077
++		text_file=$(mktemp /tmp/sms-manager-text.XXXXXX) || { reply 0 'Cannot create message file'; exit 0; }
++		trap 'rm -f "$text_file"' EXIT
++		trap 'exit 1' HUP INT TERM
++		printf '%s' "$message" > "$text_file"
++		result=$(mmcli -m "$modem" --messaging-create-sms="number=$number" \
++			--messaging-create-sms-with-text="$text_file" 2>&1)
++		if [ "$?" -ne 0 ]; then reply 0 "$result"; exit 0; fi
++		index=$(printf '%s\n' "$result" | sed -n 's|.*/SMS/\([0-9][0-9]*\).*|\1|p')
++		case "$index" in ''|*[!0-9]*) reply 0 'ModemManager did not return an SMS object'; exit 0 ;; esac
++		result=$(mmcli -s "$index" --send 2>&1)
++		if [ "$?" -eq 0 ]; then reply 1 "$result"; else reply 0 "$result"; fi
++		;;
++esac
+diff --git a/tests/test-sms-manager.py b/tests/test-sms-manager.py
+new file mode 100644
+index 0000000..ebfad85
+--- /dev/null
++++ b/tests/test-sms-manager.py
+@@ -0,0 +1,96 @@
++#!/usr/bin/env python3
++"""Mock MM calls; never sends a real SMS or opens a modem device."""
++import fnmatch
++import json
++import os
++from pathlib import Path
++import subprocess
++import tempfile
++import unittest
++
++ROOT = Path(__file__).resolve().parents[1] / 'luci-app-sms-manager'
++
++
++class SMSTest(unittest.TestCase):
++    def setUp(self):
++        self.tmp = tempfile.TemporaryDirectory()
++        self.addCleanup(self.tmp.cleanup)
++        self.path = Path(self.tmp.name)
++        self.env = dict(os.environ, PATH=str(self.path) + os.pathsep + os.environ['PATH'],
++                        MM_TEST_DIR=str(self.path))
++        mock = self.path / 'mmcli'
++        mock.write_text('''#!/usr/bin/env python3
++import json, os, pathlib, sys
++root = pathlib.Path(os.environ['MM_TEST_DIR'])
++with (root / 'calls').open('a') as f: f.write(json.dumps(sys.argv[1:]) + '\\n')
++for arg in sys.argv[1:]:
++    if arg.startswith('--messaging-create-sms-with-text='):
++        p = pathlib.Path(arg.split('=', 1)[1])
++        assert p.stat().st_mode & 0o777 == 0o600
++        (root / 'text').write_bytes(p.read_bytes())
++        (root / 'filename').write_text(str(p))
++        print('Successfully created SMS: /org/freedesktop/ModemManager1/SMS/9')
++        sys.exit(0)
++if '--send' in sys.argv:
++    if os.environ.get('MM_TEST_FAIL'): print('mock send failure'); sys.exit(1)
++    print('successfully sent the SMS')
++else: sys.exit(2)
++''')
++        mock.chmod(0o755)
++        jshn = self.path / 'jshn.sh'
++        jshn.write_text('''json_load() { MM_TEST_INPUT="$1"; }
++json_get_var() {
++    value=$(printf '%s' "$MM_TEST_INPUT" | python3 -c 'import json,sys; print(json.load(sys.stdin).get(sys.argv[1], ""), end="")' "$2")
++    case "$1" in modem) modem="$value" ;; number) number="$value" ;; message) message="$value" ;; esac
++}
++json_init() { MM_TEST_SUCCESS=0; MM_TEST_MESSAGE=''; }
++json_add_boolean() { MM_TEST_SUCCESS="$2"; }
++json_add_string() { MM_TEST_MESSAGE="$2"; }
++json_dump() {
++    export MM_TEST_SUCCESS MM_TEST_MESSAGE
++    python3 -c 'import json,os; print(json.dumps({"success": bool(int(os.environ["MM_TEST_SUCCESS"])), "message": os.environ["MM_TEST_MESSAGE"]}))'
++}
++''')
++        self.env['JSHN_LIB'] = str(jshn)
++
++    def send(self, **changes):
++        request = dict(modem='0', number='+8613800000000', text='test')
++        request.update(changes)
++        result = subprocess.run(['sh', str(ROOT / 'root/usr/libexec/rpcd/sms_manager_send'), 'call', 'send'],
++                                input=json.dumps(request) + '\n', text=True, capture_output=True, env=self.env)
++        self.assertEqual(result.returncode, 0, result.stderr)
++        return json.loads(result.stdout)
++
++    def test_exact_unicode_punctuation_and_private_file(self):
++        message = "中文, spaces 'single' \"double\" \\ slash\nsecond line $(do-not-run)"
++        self.assertTrue(self.send(text=message)['success'])
++        self.assertEqual((self.path / 'text').read_text(), message)
++        calls = [json.loads(line) for line in (self.path / 'calls').read_text().splitlines()]
++        self.assertEqual(len(calls), 2)
++        self.assertEqual(calls[1], ['-s', '9', '--send'])
++        self.assertFalse(Path((self.path / 'filename').read_text()).exists())
++
++    def test_invalid_input_never_calls_mm(self):
++        for changes in ({'modem': '0 --reset'}, {'number': '+123,text=bad'}, {'text': ''}):
++            self.assertFalse(self.send(**changes)['success'])
++        self.assertFalse((self.path / 'calls').exists())
++
++    def test_send_failure_reported_and_file_removed(self):
++        self.env['MM_TEST_FAIL'] = '1'
++        response = self.send()
++        self.assertFalse(response['success'])
++        self.assertIn('mock send failure', response['message'])
++        self.assertFalse(Path((self.path / 'filename').read_text()).exists())
++
++    def test_read_acl_cannot_send_or_execute_shell(self):
++        acl = json.loads((ROOT / 'root/usr/share/rpcd/acl.d/luci-app-sms-manager.json').read_text())['luci-app-sms-manager']
++        patterns = [p for p, rights in acl['read']['file'].items() if 'exec' in rights]
++        for cmd in ('/bin/sh', '/usr/bin/mmcli -m 0 --reset', '/usr/bin/mmcli -s 1 --send',
++                    '/usr/bin/mmcli -m 0 --command=ATZ'):
++            self.assertFalse(any(fnmatch.fnmatchcase(cmd, p) for p in patterns), cmd)
++        self.assertNotIn('sms_manager_send', acl['read']['ubus'])
++        self.assertIn('send', acl['write']['ubus']['sms_manager_send'])
++
++
++if __name__ == '__main__':
++    unittest.main()

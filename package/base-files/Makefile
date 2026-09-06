@@ -167,6 +167,9 @@ endif
 
 
 define Package/base-files/install
+	# PortalWRT build metadata
+	$(INSTALL_DIR) $(1)/etc
+	date -u +%Y-%m-%d > $(1)/etc/portalwrt-build-date
 	$(CP) ./files/* $(1)/
 	$(Package/base-files/install-key)
 	$(Package/base-files/nand-support)

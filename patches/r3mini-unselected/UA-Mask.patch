@@ -1,0 +1,16 @@
+diff --git a/openwrt/package/Makefile b/openwrt/package/Makefile
+index 0917e06..111cdc3 100644
+--- a/openwrt/package/Makefile
++++ b/openwrt/package/Makefile
+@@ -1,6 +1,10 @@
++UAMASK_PACKAGE_MAKEFILE:=$(lastword $(MAKEFILE_LIST))
+ include $(TOPDIR)/rules.mk
+ 
+-PACKAGE_DIR:=$(abspath $(dir $(lastword $(MAKEFILE_LIST))))
++# Capture this file before rules.mk appends its own include files to
++# MAKEFILE_LIST.  Using the last entry after that include resolves to the
++# build system's include directory instead of the UA-Mask checkout.
++PACKAGE_DIR:=$(abspath $(dir $(UAMASK_PACKAGE_MAKEFILE)))
+ OPENWRT_DIR:=$(abspath $(PACKAGE_DIR)/..)
+ REPO_ROOT:=$(abspath $(OPENWRT_DIR)/..)
+ UAMASK_SOURCE_DIR?=$(REPO_ROOT)

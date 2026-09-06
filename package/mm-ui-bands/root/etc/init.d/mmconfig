@@ -1,0 +1,23 @@
+#!/bin/sh /etc/rc.common
+
+START=99
+USE_PROCD=1
+
+MM_UI_BANDS=/usr/libexec/mm-ui-bands
+
+start_service() {
+	# Discovery is intentionally the only boot-time action.  It records
+	# ModemManager devices which appeared before LuCI was opened, but it never
+	# changes a modem's bands or radio mode.
+	[ -x "$MM_UI_BANDS" ] && "$MM_UI_BANDS" discover
+}
+
+reload_service() {
+	# UCI reloads apply only the explicit choices in mmconfig.  The helper
+	# reconnects a matching modemmanager interface, if one exists.
+	[ -x "$MM_UI_BANDS" ] && "$MM_UI_BANDS" apply
+}
+
+service_triggers() {
+	procd_add_reload_trigger mmconfig
+}

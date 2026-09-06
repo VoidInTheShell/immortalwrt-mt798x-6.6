@@ -1,0 +1,12 @@
+#!/bin/sh
+# 排在各主题自己的初始化脚本后，避免默认主题被 Argon 覆盖。
+[ -r /usr/share/ucode/luci/template/themes/kucat/header.ut ] || exit 1
+. /usr/lib/portalwrt/defaults.sh
+if [ "$(uci -q get system.portalwrt.theme_initialized)" != 1 ]; then
+    portal_theme || exit 1
+    uci -q get system.portalwrt >/dev/null || uci set system.portalwrt=portalwrt || exit 1
+    uci set system.portalwrt.theme_initialized=1 || exit 1
+    uci commit system || exit 1
+fi
+rm -f /tmp/luci-indexcache /tmp/luci-indexcache.*
+exit 0

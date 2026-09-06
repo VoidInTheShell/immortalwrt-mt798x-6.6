@@ -1,0 +1,5 @@
+# Frozen tables retain empty final fields and the CSV writer's CRLF records.
+# Captured logs retain their original output; do not rewrite audit evidence.
+*.tsv whitespace=-blank-at-eol,cr-at-eol
+*.csv whitespace=cr-at-eol
+*.log whitespace=-blank-at-eol

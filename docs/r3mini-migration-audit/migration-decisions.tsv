@@ -1,0 +1,1130 @@
+package	x86_selection	action	target	reason
+6in4	y	migrate	6in4	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+6to4	y	migrate	6to4	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+UAmask	y	exclude		用户暂缓 UA-Mask
+acme	y	migrate	acme	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+acme-acmesh	y	migrate	acme-acmesh	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+acme-common	y	migrate	acme-common	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+adb	y	migrate	adb	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+adb-enablemodem	y	exclude		用户统一使用 ModemManager；其 mmcli/QMI/MBIM 工具覆盖此功能
+adguardhome	y	migrate	adguardhome	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+aircrack-ng	y	migrate	aircrack-ng	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+amd64-microcode	y	exclude		x86/其他外设驱动和固件，不属于本机硬件基线
+amdgpu-firmware	y	exclude		x86/其他外设驱动和固件，不属于本机硬件基线
+arp-scan	y	migrate	arp-scan	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+arp-scan-database	y	migrate	arp-scan-database	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+atftp	y	migrate	atftp	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+atftpd	y	migrate	atftpd	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+atop	y	migrate	atop	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+attendedsysupgrade-common	y	migrate	attendedsysupgrade-common	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+attr	y	migrate	attr	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+autocore	y	exclude		保留 R3 autocore-arm，不移入 x86 初始化
+automount	y	migrate	automount	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+autosamba	y	migrate	autosamba	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+avahi-dbus-daemon	y	migrate	avahi-dbus-daemon	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+badblocks	y	migrate	badblocks	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+banip	y	migrate	banip	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+base-files	y	migrate	base-files	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+bash	y	migrate	bash	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+bc	y	migrate	bc	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+blkid	y	migrate	blkid	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+block-mount	y	migrate	block-mount	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+blockd	y	migrate	blockd	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+bnx2-firmware	y	exclude		x86/其他外设驱动和固件，不属于本机硬件基线
+bnx2x-firmware	y	exclude		x86/其他外设驱动和固件，不属于本机硬件基线
+boost	y	migrate	boost	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+boost-date_time	y	migrate	boost-date_time	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+boost-program_options	y	migrate	boost-program_options	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+boost-system	y	migrate	boost-system	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+bridge	y	migrate	bridge	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+bridger	y	exclude		用户同意不移植缺失的主线桥卸载组件
+broadcom-43224-sprom	y	exclude		x86/其他外设驱动和固件，不属于本机硬件基线
+btop	y	migrate	btop	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+btrfs-progs	y	migrate	btrfs-progs	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+busybox	y	migrate	busybox	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+ca-bundle	y	migrate	ca-bundle	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+ca-certificates	y	migrate	ca-certificates	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+cfdisk	y	migrate	cfdisk	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+cgdisk	y	migrate	cgdisk	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+cgi-io	y	migrate	cgi-io	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+chat	y	migrate	chat	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+chinadns-ng	y	migrate	chinadns-ng	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+cifsmount	y	migrate	cifsmount	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+cloudflared	y	migrate	cloudflared	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+collectd	y	migrate	collectd	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+collectd-mod-cpu	y	migrate	collectd-mod-cpu	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+collectd-mod-interface	y	migrate	collectd-mod-interface	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+collectd-mod-iwinfo	y	migrate	collectd-mod-iwinfo	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+collectd-mod-load	y	migrate	collectd-mod-load	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+collectd-mod-memory	y	migrate	collectd-mod-memory	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+collectd-mod-network	y	migrate	collectd-mod-network	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+collectd-mod-rrdtool	y	migrate	collectd-mod-rrdtool	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+comgt	y	exclude		用户统一使用 ModemManager；其 mmcli/QMI/MBIM 工具覆盖此功能
+comgt-directip	y	exclude		用户统一使用 ModemManager；其 mmcli/QMI/MBIM 工具覆盖此功能
+comgt-ncm	y	exclude		用户统一使用 ModemManager；其 mmcli/QMI/MBIM 工具覆盖此功能
+conntrack	y	migrate	conntrack	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+conntrackd	y	migrate	conntrackd	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+coremark	y	migrate	coremark	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+coreutils	y	migrate	coreutils	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+coreutils-base64	y	migrate	coreutils-base64	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+coreutils-cat	y	migrate	coreutils-cat	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+coreutils-cp	y	migrate	coreutils-cp	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+coreutils-date	y	migrate	coreutils-date	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+coreutils-dd	y	migrate	coreutils-dd	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+coreutils-echo	y	migrate	coreutils-echo	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+coreutils-kill	y	migrate	coreutils-kill	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+coreutils-ln	y	migrate	coreutils-ln	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+coreutils-ls	y	migrate	coreutils-ls	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+coreutils-mkdir	y	migrate	coreutils-mkdir	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+coreutils-mv	y	migrate	coreutils-mv	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+coreutils-nohup	y	migrate	coreutils-nohup	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+coreutils-pwd	y	migrate	coreutils-pwd	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+coreutils-rm	y	migrate	coreutils-rm	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+coreutils-sleep	y	migrate	coreutils-sleep	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+coreutils-stat	y	migrate	coreutils-stat	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+coreutils-tail	y	migrate	coreutils-tail	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+coreutils-timeout	y	migrate	coreutils-timeout	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+coreutils-touch	y	migrate	coreutils-touch	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+coreutils-uname	y	migrate	coreutils-uname	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+cpulimit	y	migrate	cpulimit	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+cpusage	y	migrate	cpusage	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+cups	y	migrate	cups	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+cups-bjnp	y	migrate	cups-bjnp	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+cups-bsd	y	migrate	cups-bsd	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+cups-client	y	migrate	cups-client	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+cups-filters	y	migrate	cups-filters	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+cups-ppdc	y	migrate	cups-ppdc	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+curl	y	migrate	curl	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+dbus	y	migrate	dbus	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+ddns-go	y	migrate	ddns-go	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+default-settings	y	migrate	default-settings	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+default-settings-chn	y	migrate	default-settings-chn	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+dejavu-fonts-ttf-DejaVuSans-Bold	y	migrate	dejavu-fonts-ttf-DejaVuSans-Bold	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+dhcp-forwarder	y	migrate	dhcp-forwarder	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+dhcpcd	y	migrate	dhcpcd	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+dmesg	y	migrate	dmesg	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+dns-over-https	y	exclude		doh-client 默认先于 dnsmasq 占用 53；用户要求取消
+dns2socks	y	migrate	dns2socks	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+dns2tcp	y	migrate	dns2tcp	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+dnsforwarder	y	migrate	dnsforwarder	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+dnsmasq-full	y	migrate	dnsmasq-full	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+dos2unix	y	migrate	dos2unix	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+dosfstools	y	migrate	dosfstools	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+dropbear	y	migrate	dropbear	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+e100-firmware	y	exclude		x86/其他外设驱动和固件，不属于本机硬件基线
+e2fsprogs	y	migrate	e2fsprogs	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+eapol-test	y	replace-hardware		无线管理由 MTK 私有驱动及工具完整配套
+eapol-test-mbedtls	m	replace-hardware		无线管理由 MTK 私有驱动及工具完整配套
+eapol-test-openssl	m	replace-hardware		无线管理由 MTK 私有驱动及工具完整配套
+eapol-test-wolfssl	m	replace-hardware		无线管理由 MTK 私有驱动及工具完整配套
+eject	y	migrate	eject	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+etherwake	y	migrate	etherwake	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+etherwake-nfqueue	y	migrate	etherwake-nfqueue	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+ethtool	m	replace	ethtool-full	使用已选目标实现，避免互斥构建变体；通用运行组件编入固件（x86 原为仅编译）
+ethtool-full	y	migrate	ethtool-full	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+exfat-fsck	y	migrate	exfat-fsck	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+exfat-mkfs	y	migrate	exfat-mkfs	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+fdisk	y	migrate	fdisk	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+filebrowser	y	migrate	filebrowser	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+firewall4	y	migrate	firewall4	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+fontconfig	y	migrate	fontconfig	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+frpc	y	migrate	frpc	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+fstools	y	migrate	fstools	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+fuse3-utils	y	migrate	fuse3-utils	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+fwtool	y	migrate	fwtool	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+geoip-shell	y	migrate	geoip-shell	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+geoipupdate	y	migrate	geoipupdate	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+geoview	y	migrate	geoview	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+getrandom	y	migrate	getrandom	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+git	y	migrate	git	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+glib2	y	migrate	glib2	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+go-nats	y	migrate	go-nats	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+grep	y	migrate	grep	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+grub2	y	exclude		x86/其他外设驱动和固件，不属于本机硬件基线
+grub2-bios-setup	y	exclude		x86/其他外设驱动和固件，不属于本机硬件基线
+grub2-efi	y	exclude		x86/其他外设驱动和固件，不属于本机硬件基线
+gzip	y	migrate	gzip	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+haproxy	y	migrate	haproxy	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+hostapd	y	replace-hardware		无线管理由 MTK 私有驱动及工具完整配套
+hostapd-basic	m	replace-hardware		无线管理由 MTK 私有驱动及工具完整配套
+hostapd-basic-mbedtls	m	replace-hardware		无线管理由 MTK 私有驱动及工具完整配套
+hostapd-basic-openssl	m	replace-hardware		无线管理由 MTK 私有驱动及工具完整配套
+hostapd-basic-wolfssl	m	replace-hardware		无线管理由 MTK 私有驱动及工具完整配套
+hostapd-common	y	migrate	hostapd-common	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+hostapd-utils	y	replace-hardware		无线管理由 MTK 私有驱动及工具完整配套
+hs20-client	m	build-only	hs20-client	维持 x86 的仅生成 IPK 状态；HS20 实验套件的示例 Web 页面与主站证书修改不自动部署
+hs20-common	m	build-only	hs20-common	维持 x86 的仅生成 IPK 状态；HS20 实验套件的示例 Web 页面与主站证书修改不自动部署
+hs20-server	m	build-only	hs20-server	维持 x86 的仅生成 IPK 状态；HS20 实验套件的示例 Web 页面与主站证书修改不自动部署
+htop	y	migrate	htop	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+httping	y	migrate	httping	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+hwinfo	y	migrate	hwinfo	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+hysteria	y	migrate	hysteria	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+i915-firmware	y	exclude		x86/其他外设驱动和固件，不属于本机硬件基线
+i915-firmware-dmc	y	exclude		x86/其他外设驱动和固件，不属于本机硬件基线
+i915-firmware-gsc	y	exclude		x86/其他外设驱动和固件，不属于本机硬件基线
+i915-firmware-guc	y	exclude		x86/其他外设驱动和固件，不属于本机硬件基线
+i915-firmware-huc	y	exclude		x86/其他外设驱动和固件，不属于本机硬件基线
+ibt-firmware	y	exclude		x86/其他外设驱动和固件，不属于本机硬件基线
+igmpproxy	y	migrate	igmpproxy	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+intel-microcode	y	exclude		x86/其他外设驱动和固件，不属于本机硬件基线
+ip-bridge	y	migrate	ip-bridge	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+ip-full	y	migrate	ip-full	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+ip6tables-extra	y	migrate	ip6tables-extra	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+ip6tables-mod-fullconenat	y	migrate	ip6tables-mod-fullconenat	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+ip6tables-mod-nat	y	migrate	ip6tables-mod-nat	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+ip6tables-nft	y	migrate	ip6tables-nft	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+iperf3	y	migrate	iperf3	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+ipset	y	migrate	ipset	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+ipset-dns	y	migrate	ipset-dns	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+ipt2socks	y	migrate	ipt2socks	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+iptables-mod-conntrack-extra	y	migrate	iptables-mod-conntrack-extra	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+iptables-mod-extra	y	migrate	iptables-mod-extra	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+iptables-mod-filter	y	migrate	iptables-mod-filter	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+iptables-mod-fullconenat	y	migrate	iptables-mod-fullconenat	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+iptables-mod-geoip	y	migrate	iptables-mod-geoip	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+iptables-mod-ipopt	y	migrate	iptables-mod-ipopt	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+iptables-mod-nat-extra	y	migrate	iptables-mod-nat-extra	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+iptables-mod-nfqueue	y	migrate	iptables-mod-nfqueue	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+iptables-mod-tproxy	y	migrate	iptables-mod-tproxy	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+iptables-nft	y	migrate	iptables-nft	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+iptgeoip	y	migrate	iptgeoip	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+irqbalance	y	migrate	irqbalance	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+iw	y	migrate	iw	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+iwinfo	y	migrate	iwinfo	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+iwlwifi-firmware-ax101	y	exclude		x86/其他外设驱动和固件，不属于本机硬件基线
+iwlwifi-firmware-ax200	y	exclude		x86/其他外设驱动和固件，不属于本机硬件基线
+iwlwifi-firmware-ax201	y	exclude		x86/其他外设驱动和固件，不属于本机硬件基线
+iwlwifi-firmware-ax210	y	exclude		x86/其他外设驱动和固件，不属于本机硬件基线
+iwlwifi-firmware-ax411	y	exclude		x86/其他外设驱动和固件，不属于本机硬件基线
+iwlwifi-firmware-be200	y	exclude		x86/其他外设驱动和固件，不属于本机硬件基线
+iwlwifi-firmware-iwl100	y	exclude		x86/其他外设驱动和固件，不属于本机硬件基线
+iwlwifi-firmware-iwl1000	y	exclude		x86/其他外设驱动和固件，不属于本机硬件基线
+iwlwifi-firmware-iwl105	y	exclude		x86/其他外设驱动和固件，不属于本机硬件基线
+iwlwifi-firmware-iwl135	y	exclude		x86/其他外设驱动和固件，不属于本机硬件基线
+iwlwifi-firmware-iwl2000	y	exclude		x86/其他外设驱动和固件，不属于本机硬件基线
+iwlwifi-firmware-iwl2030	y	exclude		x86/其他外设驱动和固件，不属于本机硬件基线
+iwlwifi-firmware-iwl3160	y	exclude		x86/其他外设驱动和固件，不属于本机硬件基线
+iwlwifi-firmware-iwl3168	y	exclude		x86/其他外设驱动和固件，不属于本机硬件基线
+iwlwifi-firmware-iwl5000	y	exclude		x86/其他外设驱动和固件，不属于本机硬件基线
+iwlwifi-firmware-iwl5150	y	exclude		x86/其他外设驱动和固件，不属于本机硬件基线
+iwlwifi-firmware-iwl6000g2	y	exclude		x86/其他外设驱动和固件，不属于本机硬件基线
+iwlwifi-firmware-iwl6000g2a	y	exclude		x86/其他外设驱动和固件，不属于本机硬件基线
+iwlwifi-firmware-iwl6000g2b	y	exclude		x86/其他外设驱动和固件，不属于本机硬件基线
+iwlwifi-firmware-iwl6050	y	exclude		x86/其他外设驱动和固件，不属于本机硬件基线
+iwlwifi-firmware-iwl7260	y	exclude		x86/其他外设驱动和固件，不属于本机硬件基线
+iwlwifi-firmware-iwl7265	y	exclude		x86/其他外设驱动和固件，不属于本机硬件基线
+iwlwifi-firmware-iwl7265d	y	exclude		x86/其他外设驱动和固件，不属于本机硬件基线
+iwlwifi-firmware-iwl8260c	y	exclude		x86/其他外设驱动和固件，不属于本机硬件基线
+iwlwifi-firmware-iwl8265	y	exclude		x86/其他外设驱动和固件，不属于本机硬件基线
+iwlwifi-firmware-iwl9000	y	exclude		x86/其他外设驱动和固件，不属于本机硬件基线
+iwlwifi-firmware-iwl9260	y	exclude		x86/其他外设驱动和固件，不属于本机硬件基线
+jansson	y	migrate	jansson	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+jq	y	migrate	jq	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+jshn	y	migrate	jshn	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+jsonfilter	y	migrate	jsonfilter	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+kmod-8139cp	y	exclude		x86/其他外设驱动和固件，不属于本机硬件基线
+kmod-8139too	y	exclude		x86/其他外设驱动和固件，不属于本机硬件基线
+kmod-acpi-video	y	exclude		x86/其他外设驱动和固件，不属于本机硬件基线
+kmod-amazon-ena	y	exclude		x86/其他外设驱动和固件，不属于本机硬件基线
+kmod-amd-xgbe	y	exclude		x86/其他外设驱动和固件，不属于本机硬件基线
+kmod-asn1-decoder	y	migrate	kmod-asn1-decoder	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+kmod-asn1-encoder	y	migrate	kmod-asn1-encoder	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+kmod-ata-ahci	y	exclude		x86/其他外设驱动和固件，不属于本机硬件基线
+kmod-ata-core	y	exclude		x86/其他外设驱动和固件，不属于本机硬件基线
+kmod-b43	y	exclude		x86/其他外设驱动和固件，不属于本机硬件基线
+kmod-backlight	y	exclude		x86/其他外设驱动和固件，不属于本机硬件基线
+kmod-bcma	y	exclude		x86/其他外设驱动和固件，不属于本机硬件基线
+kmod-be2net	y	exclude		x86/其他外设驱动和固件，不属于本机硬件基线
+kmod-bluetooth	y	exclude		x86/其他外设驱动和固件，不属于本机硬件基线
+kmod-bnx2x	y	exclude		x86/其他外设驱动和固件，不属于本机硬件基线
+kmod-bnxt-en	y	exclude		x86/其他外设驱动和固件，不属于本机硬件基线
+kmod-bonding	y	migrate	kmod-bonding	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+kmod-br-netfilter	y	migrate	kmod-br-netfilter	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+kmod-brcmsmac	y	exclude		x86/其他外设驱动和固件，不属于本机硬件基线
+kmod-brcmutil	y	exclude		x86/其他外设驱动和固件，不属于本机硬件基线
+kmod-button-hotplug	y	exclude		x86/其他外设驱动和固件，不属于本机硬件基线
+kmod-cfg80211	y	dependency-only		仅允许目标软件依赖解析器按需选择的通用基础组件
+kmod-crypto-acompress	y	migrate	kmod-crypto-acompress	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+kmod-crypto-aead	y	migrate	kmod-crypto-aead	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+kmod-crypto-arc4	y	migrate	kmod-crypto-arc4	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+kmod-crypto-blake2b	y	migrate	kmod-crypto-blake2b	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+kmod-crypto-cbc	y	migrate	kmod-crypto-cbc	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+kmod-crypto-ccm	y	migrate	kmod-crypto-ccm	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+kmod-crypto-cmac	y	migrate	kmod-crypto-cmac	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+kmod-crypto-crc32	y	migrate	kmod-crypto-crc32	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+kmod-crypto-crc32c	y	migrate	kmod-crypto-crc32c	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+kmod-crypto-ctr	y	migrate	kmod-crypto-ctr	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+kmod-crypto-cts	y	migrate	kmod-crypto-cts	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+kmod-crypto-des	y	migrate	kmod-crypto-des	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+kmod-crypto-ecb	y	migrate	kmod-crypto-ecb	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+kmod-crypto-ecdh	y	migrate	kmod-crypto-ecdh	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+kmod-crypto-gcm	y	migrate	kmod-crypto-gcm	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+kmod-crypto-geniv	y	migrate	kmod-crypto-geniv	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+kmod-crypto-gf128	y	migrate	kmod-crypto-gf128	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+kmod-crypto-ghash	y	migrate	kmod-crypto-ghash	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+kmod-crypto-hash	y	migrate	kmod-crypto-hash	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+kmod-crypto-hmac	y	migrate	kmod-crypto-hmac	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+kmod-crypto-kpp	y	migrate	kmod-crypto-kpp	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+kmod-crypto-lib-chacha20	y	migrate	kmod-crypto-lib-chacha20	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+kmod-crypto-lib-chacha20poly1305	y	migrate	kmod-crypto-lib-chacha20poly1305	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+kmod-crypto-lib-curve25519	y	migrate	kmod-crypto-lib-curve25519	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+kmod-crypto-lib-poly1305	y	migrate	kmod-crypto-lib-poly1305	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+kmod-crypto-manager	y	migrate	kmod-crypto-manager	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+kmod-crypto-md5	y	migrate	kmod-crypto-md5	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+kmod-crypto-null	y	migrate	kmod-crypto-null	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+kmod-crypto-rng	y	migrate	kmod-crypto-rng	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+kmod-crypto-seqiv	y	migrate	kmod-crypto-seqiv	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+kmod-crypto-sha1	y	migrate	kmod-crypto-sha1	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+kmod-crypto-sha256	y	migrate	kmod-crypto-sha256	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+kmod-crypto-sha3	y	migrate	kmod-crypto-sha3	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+kmod-crypto-sha512	y	migrate	kmod-crypto-sha512	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+kmod-crypto-user	y	migrate	kmod-crypto-user	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+kmod-crypto-xxhash	y	migrate	kmod-crypto-xxhash	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+kmod-dax	y	dependency-only		仅允许目标软件依赖解析器按需选择的通用基础组件
+kmod-dm	y	migrate	kmod-dm	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+kmod-dma-buf	y	exclude		x86/其他外设驱动和固件，不属于本机硬件基线
+kmod-dnsresolver	y	migrate	kmod-dnsresolver	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+kmod-drm	y	exclude		x86/其他外设驱动和固件，不属于本机硬件基线
+kmod-drm-amdgpu	y	exclude		x86/其他外设驱动和固件，不属于本机硬件基线
+kmod-drm-buddy	y	exclude		x86/其他外设驱动和固件，不属于本机硬件基线
+kmod-drm-display-helper	y	exclude		x86/其他外设驱动和固件，不属于本机硬件基线
+kmod-drm-exec	y	exclude		x86/其他外设驱动和固件，不属于本机硬件基线
+kmod-drm-i915	y	exclude		x86/其他外设驱动和固件，不属于本机硬件基线
+kmod-drm-kms-helper	y	exclude		x86/其他外设驱动和固件，不属于本机硬件基线
+kmod-drm-suballoc-helper	y	exclude		x86/其他外设驱动和固件，不属于本机硬件基线
+kmod-drm-ttm	y	exclude		x86/其他外设驱动和固件，不属于本机硬件基线
+kmod-drm-ttm-helper	y	exclude		x86/其他外设驱动和固件，不属于本机硬件基线
+kmod-dsa	y	exclude		x86/其他外设驱动和固件，不属于本机硬件基线
+kmod-dsa-b53	y	exclude		x86/其他外设驱动和固件，不属于本机硬件基线
+kmod-dsa-b53-mdio	y	exclude		x86/其他外设驱动和固件，不属于本机硬件基线
+kmod-dummy	y	migrate	kmod-dummy	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+kmod-dwmac-intel	y	exclude		x86/其他外设驱动和固件，不属于本机硬件基线
+kmod-e1000	y	exclude		x86/其他外设驱动和固件，不属于本机硬件基线
+kmod-e1000e	y	exclude		x86/其他外设驱动和固件，不属于本机硬件基线
+kmod-ebtables	y	migrate	kmod-ebtables	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+kmod-ebtables-ipv4	y	migrate	kmod-ebtables-ipv4	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+kmod-ebtables-ipv6	y	migrate	kmod-ebtables-ipv6	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+kmod-fb	y	exclude		x86/其他外设驱动和固件，不属于本机硬件基线
+kmod-fb-cfb-copyarea	y	exclude		x86/其他外设驱动和固件，不属于本机硬件基线
+kmod-fb-cfb-fillrect	y	exclude		x86/其他外设驱动和固件，不属于本机硬件基线
+kmod-fb-cfb-imgblt	y	exclude		x86/其他外设驱动和固件，不属于本机硬件基线
+kmod-fb-sys-fops	y	exclude		x86/其他外设驱动和固件，不属于本机硬件基线
+kmod-fb-sys-ram	y	exclude		x86/其他外设驱动和固件，不属于本机硬件基线
+kmod-fixed-phy	y	exclude		x86/其他外设驱动和固件，不属于本机硬件基线
+kmod-forcedeth	y	exclude		x86/其他外设驱动和固件，不属于本机硬件基线
+kmod-fs-autofs4	y	migrate	kmod-fs-autofs4	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+kmod-fs-btrfs	y	migrate	kmod-fs-btrfs	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+kmod-fs-cifs	y	migrate	kmod-fs-cifs	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+kmod-fs-configfs	y	migrate	kmod-fs-configfs	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+kmod-fs-exfat	y	migrate	kmod-fs-exfat	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+kmod-fs-exportfs	y	migrate	kmod-fs-exportfs	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+kmod-fs-ext4	y	migrate	kmod-fs-ext4	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+kmod-fs-f2fs	y	migrate	kmod-fs-f2fs	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+kmod-fs-msdos	y	migrate	kmod-fs-msdos	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+kmod-fs-netfs	y	migrate	kmod-fs-netfs	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+kmod-fs-nfs	y	migrate	kmod-fs-nfs	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+kmod-fs-nfs-common	y	migrate	kmod-fs-nfs-common	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+kmod-fs-nfs-common-rpcsec	y	migrate	kmod-fs-nfs-common-rpcsec	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+kmod-fs-nfs-v3	y	migrate	kmod-fs-nfs-v3	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+kmod-fs-nfs-v4	y	migrate	kmod-fs-nfs-v4	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+kmod-fs-nfsd	y	migrate	kmod-fs-nfsd	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+kmod-fs-ntfs	y	migrate	kmod-fs-ntfs	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+kmod-fs-ntfs3	y	migrate	kmod-fs-ntfs3	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+kmod-fs-reiserfs	y	migrate	kmod-fs-reiserfs	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+kmod-fs-smbfs-common	y	migrate	kmod-fs-smbfs-common	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+kmod-fs-squashfs	y	migrate	kmod-fs-squashfs	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+kmod-fs-vfat	y	migrate	kmod-fs-vfat	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+kmod-fuse	y	migrate	kmod-fuse	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+kmod-hid	y	exclude		x86/其他外设驱动和固件，不属于本机硬件基线
+kmod-hid-generic	y	exclude		x86/其他外设驱动和固件，不属于本机硬件基线
+kmod-hwmon-core	y	migrate	kmod-hwmon-core	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+kmod-i2c-algo-bit	y	exclude		x86/其他外设驱动和固件，不属于本机硬件基线
+kmod-i2c-core	y	exclude		x86/其他外设驱动和固件，不属于本机硬件基线
+kmod-i40e	y	exclude		x86/其他外设驱动和固件，不属于本机硬件基线
+kmod-iavf	y	exclude		x86/其他外设驱动和固件，不属于本机硬件基线
+kmod-ice	y	exclude		x86/其他外设驱动和固件，不属于本机硬件基线
+kmod-ifb	y	migrate	kmod-ifb	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+kmod-igb	y	exclude		x86/其他外设驱动和固件，不属于本机硬件基线
+kmod-igbvf	y	exclude		x86/其他外设驱动和固件，不属于本机硬件基线
+kmod-igc	y	exclude		x86/其他外设驱动和固件，不属于本机硬件基线
+kmod-inet-diag	y	migrate	kmod-inet-diag	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+kmod-input-core	y	migrate-modem-driver	kmod-input-core	按最新要求补齐经 R3 Mini 总线、MM 协议和内核核对的蜂窝模块驱动
+kmod-input-evdev	y	exclude		x86/其他外设驱动和固件，不属于本机硬件基线
+kmod-ip6-tunnel	y	migrate	kmod-ip6-tunnel	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+kmod-ip6tables	y	migrate	kmod-ip6tables	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+kmod-ip6tables-extra	y	migrate	kmod-ip6tables-extra	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+kmod-ipt-compat-xtables	y	migrate	kmod-ipt-compat-xtables	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+kmod-ipt-conntrack	y	migrate	kmod-ipt-conntrack	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+kmod-ipt-conntrack-extra	y	migrate	kmod-ipt-conntrack-extra	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+kmod-ipt-core	y	migrate	kmod-ipt-core	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+kmod-ipt-extra	y	migrate	kmod-ipt-extra	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+kmod-ipt-filter	y	migrate	kmod-ipt-filter	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+kmod-ipt-fullconenat	y	migrate	kmod-ipt-fullconenat	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+kmod-ipt-geoip	y	migrate	kmod-ipt-geoip	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+kmod-ipt-ipmark	y	migrate	kmod-ipt-ipmark	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+kmod-ipt-ipopt	y	migrate	kmod-ipt-ipopt	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+kmod-ipt-ipset	y	migrate	kmod-ipt-ipset	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+kmod-ipt-nat	y	migrate	kmod-ipt-nat	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+kmod-ipt-nat-extra	y	migrate	kmod-ipt-nat-extra	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+kmod-ipt-nat6	y	migrate	kmod-ipt-nat6	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+kmod-ipt-nfqueue	y	migrate	kmod-ipt-nfqueue	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+kmod-ipt-offload	y	exclude		本机卸载控制使用私有 MTK HNAT，不增加 legacy FLOWOFFLOAD 路径
+kmod-ipt-proto	y	migrate	kmod-ipt-proto	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+kmod-ipt-raw	y	migrate	kmod-ipt-raw	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+kmod-ipt-tproxy	y	migrate	kmod-ipt-tproxy	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+kmod-iptunnel	y	migrate	kmod-iptunnel	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+kmod-iptunnel4	y	migrate	kmod-iptunnel4	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+kmod-iptunnel6	y	migrate	kmod-iptunnel6	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+kmod-ipvlan	y	migrate	kmod-ipvlan	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+kmod-ixgbe	y	exclude		x86/其他外设驱动和固件，不属于本机硬件基线
+kmod-ixgbevf	y	exclude		x86/其他外设驱动和固件，不属于本机硬件基线
+kmod-keys-encrypted	y	migrate	kmod-keys-encrypted	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+kmod-keys-trusted	y	migrate	kmod-keys-trusted	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+kmod-lib-cordic	y	exclude		x86/其他外设驱动和固件，不属于本机硬件基线
+kmod-lib-crc-ccitt	y	migrate	kmod-lib-crc-ccitt	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+kmod-lib-crc16	y	migrate	kmod-lib-crc16	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+kmod-lib-crc32c	y	migrate	kmod-lib-crc32c	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+kmod-lib-crc8	y	exclude		x86/其他外设驱动和固件，不属于本机硬件基线
+kmod-lib-lzo	y	migrate	kmod-lib-lzo	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+kmod-lib-objagg	y	exclude		x86/其他外设驱动和固件，不属于本机硬件基线
+kmod-lib-parman	y	exclude		x86/其他外设驱动和固件，不属于本机硬件基线
+kmod-lib-raid6	y	migrate	kmod-lib-raid6	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+kmod-lib-textsearch	y	migrate	kmod-lib-textsearch	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+kmod-lib-xor	y	migrate	kmod-lib-xor	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+kmod-lib-xxhash	y	migrate	kmod-lib-xxhash	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+kmod-lib-zlib-deflate	y	migrate	kmod-lib-zlib-deflate	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+kmod-lib-zlib-inflate	y	migrate	kmod-lib-zlib-inflate	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+kmod-lib-zstd	y	migrate	kmod-lib-zstd	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+kmod-libphy	y	migrate	kmod-libphy	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+kmod-mac80211	y	exclude		x86/其他外设驱动和固件，不属于本机硬件基线
+kmod-macremapper	y	migrate	kmod-macremapper	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+kmod-macvlan	y	migrate	kmod-macvlan	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+kmod-md-linear	y	migrate	kmod-md-linear	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+kmod-md-mod	y	migrate	kmod-md-mod	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+kmod-md-raid0	y	migrate	kmod-md-raid0	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+kmod-md-raid1	y	migrate	kmod-md-raid1	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+kmod-md-raid10	y	migrate	kmod-md-raid10	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+kmod-md-raid456	y	migrate	kmod-md-raid456	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+kmod-mdio	y	exclude		x86/其他外设驱动和固件，不属于本机硬件基线
+kmod-mdio-devres	y	exclude		x86/其他外设驱动和固件，不属于本机硬件基线
+kmod-mhi-bus	y	migrate-modem-driver	kmod-mhi-bus	按最新要求补齐经 R3 Mini 总线、MM 协议和内核核对的蜂窝模块驱动
+kmod-mhi-net	y	migrate-modem-driver	kmod-mhi-net	按最新要求补齐经 R3 Mini 总线、MM 协议和内核核对的蜂窝模块驱动
+kmod-mhi-pci-generic	y	migrate-modem-driver	kmod-mhi-pci-generic	按最新要求补齐经 R3 Mini 总线、MM 协议和内核核对的蜂窝模块驱动
+kmod-mhi-wwan-ctrl	y	migrate-modem-driver	kmod-mhi-wwan-ctrl	按最新要求补齐经 R3 Mini 总线、MM 协议和内核核对的蜂窝模块驱动
+kmod-mhi-wwan-mbim	y	migrate-modem-driver	kmod-mhi-wwan-mbim	按最新要求补齐经 R3 Mini 总线、MM 协议和内核核对的蜂窝模块驱动
+kmod-mii	y	migrate	kmod-mii	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+kmod-mlx4-core	y	exclude		x86/其他外设驱动和固件，不属于本机硬件基线
+kmod-mlx5-core	y	exclude		x86/其他外设驱动和固件，不属于本机硬件基线
+kmod-mlxfw	y	exclude		x86/其他外设驱动和固件，不属于本机硬件基线
+kmod-mlxsw-core	y	exclude		x86/其他外设驱动和固件，不属于本机硬件基线
+kmod-mlxsw-i2c	y	exclude		x86/其他外设驱动和固件，不属于本机硬件基线
+kmod-mlxsw-minimal	y	exclude		x86/其他外设驱动和固件，不属于本机硬件基线
+kmod-mlxsw-pci	y	exclude		x86/其他外设驱动和固件，不属于本机硬件基线
+kmod-mlxsw-spectrum	y	exclude		x86/其他外设驱动和固件，不属于本机硬件基线
+kmod-mmc	y	exclude		x86/其他外设驱动和固件，不属于本机硬件基线
+kmod-mppe	y	migrate	kmod-mppe	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+kmod-mtk-t7xx	y	migrate-modem-driver	kmod-mtk-t7xx	按最新要求补齐经 R3 Mini 总线、MM 协议和内核核对的蜂窝模块驱动
+kmod-net-selftests	y	migrate	kmod-net-selftests	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+kmod-netem	y	migrate	kmod-netem	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+kmod-netlink-diag	y	migrate	kmod-netlink-diag	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+kmod-nf-conncount	y	migrate	kmod-nf-conncount	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+kmod-nf-conntrack	y	migrate	kmod-nf-conntrack	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+kmod-nf-conntrack-netlink	y	migrate	kmod-nf-conntrack-netlink	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+kmod-nf-conntrack6	y	migrate	kmod-nf-conntrack6	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+kmod-nf-flow	y	migrate	kmod-nf-flow	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+kmod-nf-ipt	y	migrate	kmod-nf-ipt	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+kmod-nf-ipt6	y	migrate	kmod-nf-ipt6	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+kmod-nf-log	y	migrate	kmod-nf-log	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+kmod-nf-log6	y	migrate	kmod-nf-log6	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+kmod-nf-nat	y	migrate	kmod-nf-nat	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+kmod-nf-nat6	y	migrate	kmod-nf-nat6	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+kmod-nf-nathelper	y	migrate	kmod-nf-nathelper	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+kmod-nf-nathelper-extra	y	migrate	kmod-nf-nathelper-extra	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+kmod-nf-reject	y	migrate	kmod-nf-reject	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+kmod-nf-reject6	y	migrate	kmod-nf-reject6	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+kmod-nf-socket	y	migrate	kmod-nf-socket	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+kmod-nf-tproxy	y	migrate	kmod-nf-tproxy	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+kmod-nfnetlink	y	migrate	kmod-nfnetlink	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+kmod-nfnetlink-queue	y	migrate	kmod-nfnetlink-queue	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+kmod-nft-bridge	y	migrate	kmod-nft-bridge	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+kmod-nft-compat	y	migrate	kmod-nft-compat	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+kmod-nft-core	y	migrate	kmod-nft-core	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+kmod-nft-fib	y	migrate	kmod-nft-fib	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+kmod-nft-fullcone	y	exclude		用户同意不移植；使用目标 Full Cone/HNAT 配套
+kmod-nft-nat	y	migrate	kmod-nft-nat	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+kmod-nft-netdev	y	migrate	kmod-nft-netdev	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+kmod-nft-offload	y	migrate	kmod-nft-offload	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+kmod-nft-queue	y	migrate	kmod-nft-queue	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+kmod-nft-socket	y	migrate	kmod-nft-socket	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+kmod-nft-tproxy	y	migrate	kmod-nft-tproxy	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+kmod-nls-base	y	migrate	kmod-nls-base	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+kmod-nls-cp437	y	migrate	kmod-nls-cp437	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+kmod-nls-cp932	y	migrate	kmod-nls-cp932	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+kmod-nls-cp936	y	migrate	kmod-nls-cp936	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+kmod-nls-cp950	y	migrate	kmod-nls-cp950	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+kmod-nls-iso8859-1	y	migrate	kmod-nls-iso8859-1	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+kmod-nls-ucs2-utils	y	migrate	kmod-nls-ucs2-utils	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+kmod-nls-utf8	y	migrate	kmod-nls-utf8	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+kmod-oid-registry	y	migrate	kmod-oid-registry	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+kmod-pcie_mhi	y	exclude		用户统一使用 ModemManager；其 mmcli/QMI/MBIM 工具覆盖此功能
+kmod-pcnet32	y	exclude		x86/其他外设驱动和固件，不属于本机硬件基线
+kmod-pcs-xpcs	y	exclude		x86/其他外设驱动和固件，不属于本机硬件基线
+kmod-phy-ax88796b	y	exclude		x86/其他外设驱动和固件，不属于本机硬件基线
+kmod-phy-broadcom	y	exclude		x86/其他外设驱动和固件，不属于本机硬件基线
+kmod-phy-marvell	y	exclude		x86/其他外设驱动和固件，不属于本机硬件基线
+kmod-phy-marvell-10g	y	exclude		x86/其他外设驱动和固件，不属于本机硬件基线
+kmod-phy-microchip	y	exclude		x86/其他外设驱动和固件，不属于本机硬件基线
+kmod-phy-realtek	y	exclude		x86/其他外设驱动和固件，不属于本机硬件基线
+kmod-phylib-broadcom	y	exclude		x86/其他外设驱动和固件，不属于本机硬件基线
+kmod-phylink	y	exclude		x86/其他外设驱动和固件，不属于本机硬件基线
+kmod-ppp	y	migrate	kmod-ppp	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+kmod-pppoe	y	migrate	kmod-pppoe	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+kmod-pppox	y	migrate	kmod-pppox	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+kmod-pps	y	exclude		x86/其他外设驱动和固件，不属于本机硬件基线
+kmod-ptp	y	exclude		x86/其他外设驱动和固件，不属于本机硬件基线
+kmod-qrtr	y	migrate-modem-driver	kmod-qrtr	按最新要求补齐经 R3 Mini 总线、MM 协议和内核核对的蜂窝模块驱动
+kmod-qrtr-mhi	y	migrate-modem-driver	kmod-qrtr-mhi	按最新要求补齐经 R3 Mini 总线、MM 协议和内核核对的蜂窝模块驱动
+kmod-r8101	y	exclude		x86/其他外设驱动和固件，不属于本机硬件基线
+kmod-r8125	y	exclude		x86/其他外设驱动和固件，不属于本机硬件基线
+kmod-r8126	y	exclude		x86/其他外设驱动和固件，不属于本机硬件基线
+kmod-r8168	y	exclude		x86/其他外设驱动和固件，不属于本机硬件基线
+kmod-r8169	y	exclude		x86/其他外设驱动和固件，不属于本机硬件基线
+kmod-random-core	y	dependency-only		仅允许目标软件依赖解析器按需选择的通用基础组件
+kmod-regmap-core	y	exclude		x86/其他外设驱动和固件，不属于本机硬件基线
+kmod-sched	y	migrate	kmod-sched	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+kmod-sched-act-sample	y	migrate	kmod-sched-act-sample	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+kmod-sched-act-vlan	y	migrate	kmod-sched-act-vlan	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+kmod-sched-bpf	y	migrate	kmod-sched-bpf	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+kmod-sched-cake	y	migrate	kmod-sched-cake	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+kmod-sched-connmark	y	migrate	kmod-sched-connmark	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+kmod-sched-core	y	migrate	kmod-sched-core	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+kmod-sched-ctinfo	y	migrate	kmod-sched-ctinfo	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+kmod-sched-flower	y	migrate	kmod-sched-flower	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+kmod-sched-fq-pie	y	migrate	kmod-sched-fq-pie	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+kmod-sched-ipset	y	migrate	kmod-sched-ipset	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+kmod-sched-pie	y	migrate	kmod-sched-pie	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+kmod-sched-red	y	migrate	kmod-sched-red	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+kmod-scsi-core	y	migrate	kmod-scsi-core	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+kmod-sfp	y	exclude		x86/其他外设驱动和固件，不属于本机硬件基线
+kmod-sit	y	migrate	kmod-sit	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+kmod-slhc	y	migrate	kmod-slhc	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+kmod-ssb	y	exclude		x86/其他外设驱动和固件，不属于本机硬件基线
+kmod-stmmac-core	y	exclude		x86/其他外设驱动和固件，不属于本机硬件基线
+kmod-tcp-bbr	y	migrate	kmod-tcp-bbr	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+kmod-tg3	y	exclude		x86/其他外设驱动和固件，不属于本机硬件基线
+kmod-tls	y	migrate	kmod-tls	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+kmod-tpm	y	dependency-only		仅允许目标软件依赖解析器按需选择的通用基础组件
+kmod-tulip	y	exclude		x86/其他外设驱动和固件，不属于本机硬件基线
+kmod-tun	y	migrate	kmod-tun	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+kmod-udptunnel4	y	migrate	kmod-udptunnel4	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+kmod-udptunnel6	y	migrate	kmod-udptunnel6	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+kmod-usb-acm	y	migrate	kmod-usb-acm	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+kmod-usb-core	y	migrate	kmod-usb-core	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+kmod-usb-ehci	y	migrate	kmod-usb-ehci	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+kmod-usb-hid	y	exclude		x86/其他外设驱动和固件，不属于本机硬件基线
+kmod-usb-net	y	migrate	kmod-usb-net	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+kmod-usb-net-aqc111	y	exclude		不复制 x86 为外接网卡选的额外驱动；本机 MM 驱动已保留
+kmod-usb-net-asix	y	exclude		不复制 x86 为外接网卡选的额外驱动；本机 MM 驱动已保留
+kmod-usb-net-asix-ax88179	y	exclude		不复制 x86 为外接网卡选的额外驱动；本机 MM 驱动已保留
+kmod-usb-net-cdc-eem	y	exclude		不复制 x86 为外接网卡选的额外驱动；本机 MM 驱动已保留
+kmod-usb-net-cdc-ether	y	migrate	kmod-usb-net-cdc-ether	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+kmod-usb-net-cdc-mbim	y	migrate	kmod-usb-net-cdc-mbim	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+kmod-usb-net-cdc-ncm	y	migrate	kmod-usb-net-cdc-ncm	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+kmod-usb-net-cdc-subset	y	exclude		不复制 x86 为外接网卡选的额外驱动；本机 MM 驱动已保留
+kmod-usb-net-dm9601-ether	y	exclude		不复制 x86 为外接网卡选的额外驱动；本机 MM 驱动已保留
+kmod-usb-net-hso	y	migrate-modem-driver	kmod-usb-net-hso	按最新要求补齐经 R3 Mini 总线、MM 协议和内核核对的蜂窝模块驱动
+kmod-usb-net-huawei-cdc-ncm	y	migrate	kmod-usb-net-huawei-cdc-ncm	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+kmod-usb-net-ipheth	y	exclude		不复制 x86 为外接网卡选的额外驱动；本机 MM 驱动已保留
+kmod-usb-net-kalmia	y	migrate-modem-driver	kmod-usb-net-kalmia	按最新要求补齐经 R3 Mini 总线、MM 协议和内核核对的蜂窝模块驱动
+kmod-usb-net-kaweth	y	exclude		不复制 x86 为外接网卡选的额外驱动；本机 MM 驱动已保留
+kmod-usb-net-lan78xx	y	exclude		不复制 x86 为外接网卡选的额外驱动；本机 MM 驱动已保留
+kmod-usb-net-mcs7830	y	exclude		不复制 x86 为外接网卡选的额外驱动；本机 MM 驱动已保留
+kmod-usb-net-pegasus	y	exclude		不复制 x86 为外接网卡选的额外驱动；本机 MM 驱动已保留
+kmod-usb-net-pl	y	exclude		不复制 x86 为外接网卡选的额外驱动；本机 MM 驱动已保留
+kmod-usb-net-qmi-wwan	y	migrate	kmod-usb-net-qmi-wwan	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+kmod-usb-net-qmi-wwan-fibocom	y	exclude		避免覆盖/抢占现有通用 QMI 驱动
+kmod-usb-net-qmi-wwan-quectel	y	exclude		避免覆盖/抢占现有通用 QMI 驱动
+kmod-usb-net-rndis	y	migrate	kmod-usb-net-rndis	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+kmod-usb-net-rtl8150	y	exclude		不复制 x86 为外接网卡选的额外驱动；本机 MM 驱动已保留
+kmod-usb-net-rtl8152	y	exclude		不复制 x86 为外接网卡选的额外驱动；本机 MM 驱动已保留
+kmod-usb-net-sierrawireless	y	migrate	kmod-usb-net-sierrawireless	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+kmod-usb-printer	y	migrate	kmod-usb-printer	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+kmod-usb-serial	y	migrate	kmod-usb-serial	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+kmod-usb-serial-option	y	migrate	kmod-usb-serial-option	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+kmod-usb-serial-qualcomm	y	migrate	kmod-usb-serial-qualcomm	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+kmod-usb-serial-sierrawireless	y	migrate	kmod-usb-serial-sierrawireless	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+kmod-usb-serial-wwan	y	migrate	kmod-usb-serial-wwan	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+kmod-usb-storage	y	migrate	kmod-usb-storage	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+kmod-usb-storage-extras	y	migrate	kmod-usb-storage-extras	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+kmod-usb-storage-uas	y	migrate	kmod-usb-storage-uas	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+kmod-usb-wdm	y	migrate	kmod-usb-wdm	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+kmod-usb-xhci-hcd	y	migrate	kmod-usb-xhci-hcd	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+kmod-usb2	y	migrate	kmod-usb2	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+kmod-usb3	y	migrate	kmod-usb3	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+kmod-usbip	y	migrate	kmod-usbip	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+kmod-usbip-client	y	migrate	kmod-usbip-client	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+kmod-usbip-server	y	migrate	kmod-usbip-server	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+kmod-usbmon	y	migrate	kmod-usbmon	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+kmod-veth	y	migrate	kmod-veth	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+kmod-vmxnet3	y	exclude		x86/其他外设驱动和固件，不属于本机硬件基线
+kmod-vxlan	y	migrate	kmod-vxlan	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+kmod-wireguard	y	migrate	kmod-wireguard	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+kmod-wwan	y	migrate-modem-driver	kmod-wwan	按最新要求补齐经 R3 Mini 总线、MM 协议和内核核对的蜂窝模块驱动
+kmod-zram	y	migrate	kmod-zram	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+libacl	y	migrate	libacl	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+libatomic	y	migrate	libatomic	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+libattr	y	migrate	libattr	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+libavahi-client	y	migrate	libavahi-client	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+libavahi-dbus-support	y	migrate	libavahi-dbus-support	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+libblkid	y	migrate	libblkid	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+libblobmsg-json	y	migrate	libblobmsg-json	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+libbpf	y	migrate	libbpf	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+libbz2	y	migrate	libbz2	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+libc	y	migrate	libc	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+libcap	y	migrate	libcap	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+libcap-ng	y	migrate	libcap-ng	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+libcares	y	migrate	libcares	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+libcbor	y	migrate	libcbor	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+libcomerr	y	migrate	libcomerr	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+libcups	y	migrate	libcups	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+libcupsimage	y	migrate	libcupsimage	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+libcurl	y	migrate	libcurl	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+libdaemon	y	migrate	libdaemon	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+libdbus	y	migrate	libdbus	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+libdcwproto	y	migrate	libdcwproto	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+libdcwsocket	y	migrate	libdcwsocket	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+libdevmapper	y	migrate	libdevmapper	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+libe2p	y	migrate	libe2p	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+libedit	m	migrate	libedit	迁移功能；使用目标源码和依赖，服务默认状态单独适配；通用运行组件编入固件（x86 原为仅编译）
+libelf	y	migrate	libelf	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+libev	y	migrate	libev	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+libevdev	y	migrate	libevdev	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+libevent2	y	migrate	libevent2	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+libevent2-core	y	migrate	libevent2-core	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+libevent2-pthreads	y	migrate	libevent2-pthreads	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+libexpat	y	migrate	libexpat	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+libext2fs	y	migrate	libext2fs	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+libf2fs	y	migrate	libf2fs	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+libfdisk	y	migrate	libfdisk	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+libffi	y	migrate	libffi	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+libfido2	y	migrate	libfido2	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+libfreetype	y	migrate	libfreetype	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+libfuse	y	migrate	libfuse	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+libfuse3	y	migrate	libfuse3	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+libgcc	y	migrate	libgcc	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+libgcrypt	y	migrate	libgcrypt	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+libgdbm	y	migrate	libgdbm	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+libgmp	y	migrate	libgmp	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+libgnutls	y	migrate	libgnutls	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+libgpg-error	y	migrate	libgpg-error	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+libhwloc	y	migrate	libhwloc	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+libiconv-full	y	migrate	libiconv-full	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+libinih	y	migrate	libinih	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+libip4tc	m	migrate	libip4tc	迁移功能；使用目标源码和依赖，服务默认状态单独适配；通用运行组件编入固件（x86 原为仅编译）
+libip6tc	m	migrate	libip6tc	迁移功能；使用目标源码和依赖，服务默认状态单独适配；通用运行组件编入固件（x86 原为仅编译）
+libiperf3	y	migrate	libiperf3	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+libipset	y	migrate	libipset	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+libiptext	y	migrate	libiptext	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+libiptext-nft	y	migrate	libiptext-nft	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+libiptext6	y	migrate	libiptext6	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+libiwinfo	y	migrate	libiwinfo	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+libiwinfo-data	y	migrate	libiwinfo-data	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+libjpeg-turbo	y	migrate	libjpeg-turbo	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+libjson-c	y	migrate	libjson-c	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+libjson-script	y	migrate	libjson-script	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+libkeyutils	y	migrate	libkeyutils	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+libkmod	y	migrate	libkmod	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+libltdl	y	migrate	libltdl	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+liblua	y	migrate	liblua	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+liblua5.3	y	migrate	liblua5.3	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+liblucihttp	y	migrate	liblucihttp	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+liblucihttp-lua	y	migrate	liblucihttp-lua	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+liblucihttp-ucode	y	migrate	liblucihttp-ucode	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+liblz4	y	migrate	liblz4	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+liblzma	y	migrate	liblzma	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+liblzo	y	migrate	liblzo	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+libmbedtls	y	migrate	libmbedtls	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+libmbim	y	migrate	libmbim	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+libminiupnpc	y	migrate	libminiupnpc	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+libmnl	y	migrate	libmnl	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+libmount	y	migrate	libmount	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+libnatpmp	y	migrate	libnatpmp	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+libncurses	y	migrate	libncurses	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+libnetfilter-conntrack	y	migrate	libnetfilter-conntrack	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+libnetfilter-cthelper	y	migrate	libnetfilter-cthelper	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+libnetfilter-cttimeout	y	migrate	libnetfilter-cttimeout	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+libnetfilter-queue	y	migrate	libnetfilter-queue	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+libnettle	y	migrate	libnettle	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+libnfnetlink	y	migrate	libnfnetlink	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+libnftnl	y	migrate	libnftnl	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+libnghttp2	y	migrate	libnghttp2	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+libnl-core	y	migrate	libnl-core	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+libnl-genl	y	migrate	libnl-genl	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+libnl-tiny	y	migrate	libnl-tiny	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+libnvme	y	migrate	libnvme	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+libopenssl	y	migrate	libopenssl	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+libopenssl-conf	y	migrate	libopenssl-conf	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+libopenssl-legacy	m	migrate	libopenssl-legacy	迁移功能；使用目标源码和依赖，服务默认状态单独适配；通用运行组件编入固件（x86 原为仅编译）
+libpam	y	migrate	libpam	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+libparted	y	migrate	libparted	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+libpcap	y	migrate	libpcap	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+libpci	y	migrate	libpci	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+libpciaccess	y	migrate	libpciaccess	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+libpcre2	y	migrate	libpcre2	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+libpng	y	migrate	libpng	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+libpopt	y	migrate	libpopt	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+libpthread	y	migrate	libpthread	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+libpython3	y	migrate	libpython3	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+libqmi	y	migrate	libqmi	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+libqrtr-glib	y	migrate	libqrtr-glib	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+libreadline	y	migrate	libreadline	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+librrd1	y	migrate	librrd1	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+librt	y	migrate	librt	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+libsensors	y	migrate	libsensors	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+libsmartcols	y	migrate	libsmartcols	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+libsodium	y	migrate	libsodium	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+libsqlite3	y	migrate	libsqlite3	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+libss	y	migrate	libss	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+libssh	y	migrate	libssh	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+libstdcpp	y	migrate	libstdcpp	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+libsysfs	y	migrate	libsysfs	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+libtasn1	y	migrate	libtasn1	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+libtirpc	y	migrate	libtirpc	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+libubox	y	migrate	libubox	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+libubus	y	migrate	libubus	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+libubus-lua	y	migrate	libubus-lua	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+libuci	y	migrate	libuci	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+libuci-lua	y	migrate	libuci-lua	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+libuclient	y	migrate	libuclient	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+libucode	y	migrate	libucode	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+libudebug	y	migrate	libudebug	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+libudev-zero	y	migrate	libudev-zero	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+liburcu	y	migrate	liburcu	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+liburing	y	migrate	liburing	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+libusb-1.0	y	migrate	libusb-1.0	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+libustream-mbedtls	y	replace	libustream-openssl	使用已选目标实现，避免互斥构建变体
+libuuid	y	migrate	libuuid	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+libuv	y	migrate	libuv	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+libwebsockets-full	y	migrate	libwebsockets-full	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+libwolfssl	m	migrate	libwolfssl	迁移功能；使用目标源码和依赖，服务默认状态单独适配；通用运行组件编入固件（x86 原为仅编译）
+libwrap	y	migrate	libwrap	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+libxml2	m	migrate	libxml2	迁移功能；使用目标源码和依赖，服务默认状态单独适配；通用运行组件编入固件（x86 原为仅编译）
+libxtables	y	migrate	libxtables	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+libzstd	y	migrate	libzstd	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+lm-sensors	y	migrate	lm-sensors	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+logd	y	migrate	logd	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+losetup	y	migrate	losetup	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+lsblk	y	migrate	lsblk	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+lscpu	y	migrate	lscpu	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+lua	y	migrate	lua	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+lua-cjson	y	migrate	lua-cjson	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+luci	y	migrate	luci	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+luci-app-acme	y	migrate	luci-app-acme	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+luci-app-adguardhome	y	migrate	luci-app-adguardhome	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+luci-app-advancedplus	y	migrate	luci-app-advancedplus	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+luci-app-arpbind	y	migrate	luci-app-arpbind	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+luci-app-banip	y	migrate	luci-app-banip	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+luci-app-cifs-mount	y	migrate	luci-app-cifs-mount	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+luci-app-cloudflared	y	migrate	luci-app-cloudflared	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+luci-app-cpulimit	y	migrate	luci-app-cpulimit	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+luci-app-ddns-go	y	migrate	luci-app-ddns-go	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+luci-app-diskman	y	migrate	luci-app-diskman	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+luci-app-filemanager	y	migrate	luci-app-filemanager	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+luci-app-firewall	y	migrate	luci-app-firewall	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+luci-app-frpc	y	migrate	luci-app-frpc	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+luci-app-modem	y	exclude		用户统一使用 ModemManager；其 mmcli/QMI/MBIM 工具覆盖此功能
+luci-app-natmap	y	migrate	luci-app-natmap	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+luci-app-netdata	y	migrate	luci-app-netdata	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+luci-app-nfs	y	migrate	luci-app-nfs	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+luci-app-nikki	y	migrate	luci-app-nikki	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+luci-app-nps	y	migrate	luci-app-nps	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+luci-app-omcproxy	y	migrate	luci-app-omcproxy	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+luci-app-p910nd	y	migrate	luci-app-p910nd	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+luci-app-package-manager	y	migrate	luci-app-package-manager	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+luci-app-passwall	y	migrate	luci-app-passwall	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+luci-app-poweroffdevice	y	migrate	luci-app-poweroffdevice	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+luci-app-qosmate	y	migrate	luci-app-qosmate	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+luci-app-samba4	y	migrate	luci-app-samba4	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+luci-app-smartdns	y	migrate	luci-app-smartdns	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+luci-app-softether	y	migrate	luci-app-softether	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+luci-app-softethervpn	y	migrate	luci-app-softethervpn	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+luci-app-statistics	y	migrate	luci-app-statistics	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+luci-app-taskplan	y	migrate	luci-app-taskplan	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+luci-app-ttyd	y	migrate	luci-app-ttyd	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+luci-app-udpxy	y	migrate	luci-app-udpxy	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+luci-app-uhttpd	y	migrate	luci-app-uhttpd	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+luci-app-upnp	y	migrate	luci-app-upnp	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+luci-app-usb-printer	y	migrate	luci-app-usb-printer	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+luci-app-vlmcsd	y	migrate	luci-app-vlmcsd	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+luci-app-vsftpd	y	migrate	luci-app-vsftpd	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+luci-app-wol	y	migrate	luci-app-wol	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+luci-app-zerotier	y	migrate	luci-app-zerotier	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+luci-base	y	migrate	luci-base	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+luci-compat	y	migrate	luci-compat	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+luci-i18n-acme-zh-cn	y	migrate	luci-i18n-acme-zh-cn	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+luci-i18n-adguardhome-zh-cn	y	migrate	luci-i18n-adguardhome-zh-cn	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+luci-i18n-advancedplus-zh-cn	y	migrate	luci-i18n-advancedplus-zh-cn	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+luci-i18n-arpbind-zh-cn	y	migrate	luci-i18n-arpbind-zh-cn	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+luci-i18n-banip-zh-cn	y	migrate	luci-i18n-banip-zh-cn	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+luci-i18n-base-zh-cn	y	migrate	luci-i18n-base-zh-cn	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+luci-i18n-cifs-mount-zh-cn	y	migrate	luci-i18n-cifs-mount-zh-cn	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+luci-i18n-cloudflared-zh-cn	y	migrate	luci-i18n-cloudflared-zh-cn	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+luci-i18n-cpulimit-zh-cn	y	migrate	luci-i18n-cpulimit-zh-cn	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+luci-i18n-dashboard-zh-cn	y	migrate	luci-i18n-dashboard-zh-cn	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+luci-i18n-ddns-go-zh-cn	y	migrate	luci-i18n-ddns-go-zh-cn	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+luci-i18n-diskman-zh-cn	y	migrate	luci-i18n-diskman-zh-cn	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+luci-i18n-filemanager-zh-cn	y	migrate	luci-i18n-filemanager-zh-cn	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+luci-i18n-firewall-zh-cn	y	migrate	luci-i18n-firewall-zh-cn	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+luci-i18n-frpc-zh-cn	y	migrate	luci-i18n-frpc-zh-cn	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+luci-i18n-minieap-zh-cn	y	migrate	luci-i18n-minieap-zh-cn	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+luci-i18n-modem-zh-cn	y	exclude		用户统一使用 ModemManager；其 mmcli/QMI/MBIM 工具覆盖此功能
+luci-i18n-natmap-zh-cn	y	migrate	luci-i18n-natmap-zh-cn	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+luci-i18n-netdata-zh-cn	y	migrate	luci-i18n-netdata-zh-cn	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+luci-i18n-nfs-zh-cn	y	migrate	luci-i18n-nfs-zh-cn	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+luci-i18n-nikki-zh-cn	y	migrate	luci-i18n-nikki-zh-cn	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+luci-i18n-nps-zh-cn	y	migrate	luci-i18n-nps-zh-cn	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+luci-i18n-omcproxy-zh-cn	y	migrate	luci-i18n-omcproxy-zh-cn	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+luci-i18n-p910nd-zh-cn	y	migrate	luci-i18n-p910nd-zh-cn	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+luci-i18n-package-manager-zh-cn	y	migrate	luci-i18n-package-manager-zh-cn	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+luci-i18n-passwall-zh-cn	y	migrate	luci-i18n-passwall-zh-cn	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+luci-i18n-poweroffdevice-zh-cn	y	migrate	luci-i18n-poweroffdevice-zh-cn	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+luci-i18n-qosmate-zh-cn	y	migrate	luci-i18n-qosmate-zh-cn	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+luci-i18n-samba4-zh-cn	y	migrate	luci-i18n-samba4-zh-cn	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+luci-i18n-smartdns-zh-cn	y	migrate	luci-i18n-smartdns-zh-cn	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+luci-i18n-softethervpn-zh-cn	y	migrate	luci-i18n-softethervpn-zh-cn	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+luci-i18n-statistics-zh-cn	y	migrate	luci-i18n-statistics-zh-cn	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+luci-i18n-taskplan-zh-cn	y	migrate	luci-i18n-taskplan-zh-cn	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+luci-i18n-ttyd-zh-cn	y	migrate	luci-i18n-ttyd-zh-cn	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+luci-i18n-udpxy-zh-cn	y	migrate	luci-i18n-udpxy-zh-cn	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+luci-i18n-uhttpd-zh-cn	y	migrate	luci-i18n-uhttpd-zh-cn	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+luci-i18n-upnp-zh-cn	y	migrate	luci-i18n-upnp-zh-cn	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+luci-i18n-usb-printer-zh-cn	y	migrate	luci-i18n-usb-printer-zh-cn	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+luci-i18n-vlmcsd-zh-cn	y	migrate	luci-i18n-vlmcsd-zh-cn	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+luci-i18n-vsftpd-zh-cn	y	migrate	luci-i18n-vsftpd-zh-cn	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+luci-i18n-wol-zh-cn	y	migrate	luci-i18n-wol-zh-cn	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+luci-i18n-zerotier-zh-cn	y	migrate	luci-i18n-zerotier-zh-cn	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+luci-lib-base	y	migrate	luci-lib-base	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+luci-lib-ip	y	migrate	luci-lib-ip	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+luci-lib-ipkg	y	migrate	luci-lib-ipkg	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+luci-lib-json	y	migrate	luci-lib-json	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+luci-lib-jsonc	y	migrate	luci-lib-jsonc	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+luci-lib-nixio	y	migrate	luci-lib-nixio	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+luci-lib-uqr	y	migrate	luci-lib-uqr	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+luci-light	y	migrate	luci-light	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+luci-lua-runtime	y	migrate	luci-lua-runtime	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+luci-mod-admin-full	y	migrate	luci-mod-admin-full	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+luci-mod-dashboard	y	migrate	luci-mod-dashboard	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+luci-mod-network	y	migrate	luci-mod-network	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+luci-mod-rpc	y	migrate	luci-mod-rpc	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+luci-mod-status	y	migrate	luci-mod-status	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+luci-mod-system	y	migrate	luci-mod-system	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+luci-proto-3g	y	exclude		用户统一使用 ModemManager；其 mmcli/QMI/MBIM 工具覆盖此功能
+luci-proto-ipv6	y	migrate	luci-proto-ipv6	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+luci-proto-mbim	y	exclude		用户统一使用 ModemManager；其 mmcli/QMI/MBIM 工具覆盖此功能
+luci-proto-minieap	y	migrate	luci-proto-minieap	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+luci-proto-modemmanager	y	migrate	luci-proto-modemmanager	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+luci-proto-ncm	y	exclude		用户统一使用 ModemManager；其 mmcli/QMI/MBIM 工具覆盖此功能
+luci-proto-ppp	y	migrate	luci-proto-ppp	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+luci-proto-qmi	y	exclude		用户统一使用 ModemManager；其 mmcli/QMI/MBIM 工具覆盖此功能
+luci-proto-quectel	y	exclude		依赖旧 quectel-cm 驱动集合；拨号功能由现有 MM 提供
+luci-proto-vxlan	y	migrate	luci-proto-vxlan	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+luci-proto-wireguard	y	migrate	luci-proto-wireguard	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+luci-ssl	y	replace	luci-ssl-openssl	使用已选目标实现，避免互斥构建变体
+luci-theme-argon	y	migrate	luci-theme-argon	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+luci-theme-bootstrap	y	migrate	luci-theme-bootstrap	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+luci-theme-kucat	y	migrate	luci-theme-kucat	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+mdadm	y	migrate	mdadm	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+mdns-utils	y	migrate	mdns-utils	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+mdnsd	y	migrate	mdnsd	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+mdnsresponder	y	migrate	mdnsresponder	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+memcached	y	migrate	memcached	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+microsocks	y	migrate	microsocks	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+mihomo-meta	y	migrate	mihomo-meta	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+minieap	y	migrate	minieap	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+miniupnpc	y	migrate	miniupnpc	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+miniupnpd-iptables	m	replace	miniupnpd-nftables	使用已选目标实现，避免互斥构建变体；通用运行组件编入固件（x86 原为仅编译）
+miniupnpd-nftables	y	migrate	miniupnpd-nftables	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+mkf2fs	y	migrate	mkf2fs	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+mlxsw_spectrum-firmware	y	exclude		x86/其他外设驱动和固件，不属于本机硬件基线
+mlxsw_spectrum2-firmware	y	exclude		x86/其他外设驱动和固件，不属于本机硬件基线
+mlxsw_spectrum3-firmware	y	exclude		x86/其他外设驱动和固件，不属于本机硬件基线
+mlxsw_spectrum4-firmware	y	exclude		x86/其他外设驱动和固件，不属于本机硬件基线
+modemband	y	exclude		用户统一使用 ModemManager；其 mmcli/QMI/MBIM 工具覆盖此功能
+modemmanager	y	migrate	modemmanager	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+modemmanager-rpcd	y	migrate	modemmanager-rpcd	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+mount-utils	y	migrate	mount-utils	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+msgpack-c	y	migrate	msgpack-c	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+mtd	y	migrate	mtd	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+naiveproxy	y	migrate	naiveproxy	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+natmap	y	migrate	natmap	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+ndisc6	y	migrate	ndisc6	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+netdata	y	migrate	netdata	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+netifd	y	migrate	netifd	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+nexttrace	y	migrate	nexttrace	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+nfs-kernel-server	y	migrate	nfs-kernel-server	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+nfs-kernel-server-utils	y	migrate	nfs-kernel-server-utils	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+nfs-utils	y	migrate	nfs-utils	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+nfs-utils-libs	y	migrate	nfs-utils-libs	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+nftables-json	y	migrate	nftables-json	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+nikki	y	migrate	nikki	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+nmap	y	migrate	nmap	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+node	y	exclude		用户暂缓设备 Node.js
+node-bufferutil	y	exclude		用户暂缓设备 Node.js
+node-clean-modules	y	exclude		用户暂缓设备 Node.js
+node-javascript-obfuscator	y	exclude		用户暂缓设备 Node.js
+node-jsonfile	y	exclude		用户暂缓设备 Node.js
+node-nconf	y	exclude		用户暂缓设备 Node.js
+node-net-ping	y	exclude		用户暂缓设备 Node.js
+node-npm	y	exclude		用户暂缓设备 Node.js
+node-npm-check-updates	y	exclude		用户暂缓设备 Node.js
+node-npm-run-all2	y	exclude		用户暂缓设备 Node.js
+node-raw-socket	y	exclude		用户暂缓设备 Node.js
+node-sleep	y	exclude		用户暂缓设备 Node.js
+node-sqlite3	y	exclude		用户暂缓设备 Node.js
+node-static	y	exclude		用户暂缓设备 Node.js
+node-usb	y	exclude		用户暂缓设备 Node.js
+node-utf-8-validate	y	exclude		用户暂缓设备 Node.js
+node-websocket	y	exclude		用户暂缓设备 Node.js
+node-ws	y	exclude		用户暂缓设备 Node.js
+node-yarn	y	exclude		用户暂缓设备 Node.js
+npc	y	migrate	npc	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+ntfs-3g	y	replace	ntfs3-mount	使用已选目标实现，避免互斥构建变体
+ntfs3-mount	y	migrate	ntfs3-mount	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+ntp-utils	y	migrate	ntp-utils	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+ntpd	y	migrate	ntpd	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+ntpdate	y	migrate	ntpdate	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+nvme-cli	y	migrate	nvme-cli	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+odhcp6c	y	migrate	odhcp6c	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+odhcpd-ipv6only	y	migrate	odhcpd-ipv6only	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+omcproxy	y	migrate	omcproxy	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+openssh-client	y	migrate	openssh-client	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+openssh-client-utils	y	migrate	openssh-client-utils	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+openssh-keygen	y	migrate	openssh-keygen	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+openssh-moduli	y	migrate	openssh-moduli	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+openssh-server	y	migrate	openssh-server	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+openssh-sftp-avahi-service	y	migrate	openssh-sftp-avahi-service	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+openssh-sftp-client	y	migrate	openssh-sftp-client	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+openssh-sftp-server	y	migrate	openssh-sftp-server	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+openssl-util	y	migrate	openssl-util	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+openwrt-keyring	y	migrate	openwrt-keyring	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+opkg	y	migrate	opkg	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+p910nd	y	migrate	p910nd	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+parted	y	migrate	parted	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+partx-utils	y	migrate	partx-utils	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+pciids	y	migrate	pciids	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+pciutils	y	migrate	pciutils	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+perl	y	migrate	perl	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+perl-net-cidr-lite	y	migrate	perl-net-cidr-lite	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+perl-text-csv_xs	y	migrate	perl-text-csv_xs	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+perlbase-base	y	migrate	perlbase-base	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+perlbase-bytes	y	migrate	perlbase-bytes	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+perlbase-class	y	migrate	perlbase-class	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+perlbase-config	y	migrate	perlbase-config	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+perlbase-dynaloader	y	migrate	perlbase-dynaloader	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+perlbase-errno	y	migrate	perlbase-errno	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+perlbase-essential	y	migrate	perlbase-essential	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+perlbase-fcntl	y	migrate	perlbase-fcntl	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+perlbase-filehandle	y	migrate	perlbase-filehandle	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+perlbase-getopt	y	migrate	perlbase-getopt	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+perlbase-io	y	migrate	perlbase-io	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+perlbase-list	y	migrate	perlbase-list	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+perlbase-net	y	migrate	perlbase-net	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+perlbase-posix	y	migrate	perlbase-posix	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+perlbase-scalar	y	migrate	perlbase-scalar	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+perlbase-selectsaver	y	migrate	perlbase-selectsaver	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+perlbase-socket	y	migrate	perlbase-socket	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+perlbase-symbol	y	migrate	perlbase-symbol	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+perlbase-tie	y	migrate	perlbase-tie	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+perlbase-time	y	migrate	perlbase-time	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+perlbase-xsloader	y	migrate	perlbase-xsloader	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+php8	m	migrate	php8	迁移功能；使用目标源码和依赖，服务默认状态单独适配；通用运行组件编入固件（x86 原为仅编译）
+php8-cgi	m	migrate	php8-cgi	迁移功能；使用目标源码和依赖，服务默认状态单独适配；通用运行组件编入固件（x86 原为仅编译）
+php8-mod-pdo	m	migrate	php8-mod-pdo	迁移功能；使用目标源码和依赖，服务默认状态单独适配；通用运行组件编入固件（x86 原为仅编译）
+php8-mod-pdo-sqlite	m	migrate	php8-mod-pdo-sqlite	迁移功能；使用目标源码和依赖，服务默认状态单独适配；通用运行组件编入固件（x86 原为仅编译）
+php8-mod-xml	m	migrate	php8-mod-xml	迁移功能；使用目标源码和依赖，服务默认状态单独适配；通用运行组件编入固件（x86 原为仅编译）
+pipx	y	migrate	pipx	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+ppp	y	migrate	ppp	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+ppp-mod-pppoe	y	migrate	ppp-mod-pppoe	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+procd	y	migrate	procd	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+procd-seccomp	y	migrate	procd-seccomp	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+procd-ujail	y	migrate	procd-ujail	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+proto-bonding	y	migrate	proto-bonding	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+protobuf	y	migrate	protobuf	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+protobuf-lite	y	migrate	protobuf-lite	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+px5g-mbedtls	y	replace	openssl-util	使用已选目标实现，避免互斥构建变体
+python3	y	migrate	python3	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+python3-argcomplete	y	migrate	python3-argcomplete	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+python3-asyncio	y	migrate	python3-asyncio	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+python3-base	y	migrate	python3-base	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+python3-cgi	y	migrate	python3-cgi	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+python3-cgitb	y	migrate	python3-cgitb	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+python3-click	y	migrate	python3-click	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+python3-codecs	y	migrate	python3-codecs	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+python3-ctypes	y	migrate	python3-ctypes	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+python3-dbm	y	migrate	python3-dbm	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+python3-decimal	y	migrate	python3-decimal	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+python3-distutils	y	migrate	python3-distutils	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+python3-email	y	migrate	python3-email	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+python3-light	y	migrate	python3-light	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+python3-logging	y	migrate	python3-logging	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+python3-lzma	y	migrate	python3-lzma	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+python3-multiprocessing	y	migrate	python3-multiprocessing	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+python3-ncurses	y	migrate	python3-ncurses	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+python3-openssl	y	migrate	python3-openssl	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+python3-packaging	y	migrate	python3-packaging	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+python3-pkg-resources	y	migrate	python3-pkg-resources	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+python3-platformdirs	y	migrate	python3-platformdirs	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+python3-psutil	y	migrate	python3-psutil	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+python3-pydoc	y	migrate	python3-pydoc	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+python3-readline	y	migrate	python3-readline	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+python3-sqlite3	y	migrate	python3-sqlite3	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+python3-unittest	y	migrate	python3-unittest	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+python3-urllib	y	migrate	python3-urllib	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+python3-userpath	y	migrate	python3-userpath	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+python3-uuid	y	migrate	python3-uuid	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+python3-venv	y	migrate	python3-venv	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+python3-xml	y	migrate	python3-xml	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+qmi-utils	y	migrate	qmi-utils	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+qosmate	y	migrate	qosmate	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+quectel-CM-5G-M	y	exclude		用户统一使用 ModemManager；其 mmcli/QMI/MBIM 工具覆盖此功能
+quectel-cm	y	exclude		用户统一使用 ModemManager，不安装重叠拨号管理器
+quectel-timesync	y	exclude		用户统一使用 ModemManager；其 mmcli/QMI/MBIM 工具覆盖此功能
+r8152-firmware	y	exclude		x86/其他外设驱动和固件，不属于本机硬件基线
+r8169-firmware	y	exclude		x86/其他外设驱动和固件，不属于本机硬件基线
+rclone	y	migrate	rclone	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+rclone-config	y	migrate	rclone-config	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+rdisc6	y	migrate	rdisc6	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+rdnssd	y	migrate	rdnssd	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+resize2fs	y	migrate	resize2fs	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+resolveip	y	migrate	resolveip	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+rpcbind	y	migrate	rpcbind	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+rpcd	y	migrate	rpcd	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+rpcd-mod-file	y	migrate	rpcd-mod-file	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+rpcd-mod-iwinfo	y	migrate	rpcd-mod-iwinfo	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+rpcd-mod-luci	y	migrate	rpcd-mod-luci	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+rpcd-mod-rpcsys	y	migrate	rpcd-mod-rpcsys	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+rpcd-mod-rrdns	y	migrate	rpcd-mod-rrdns	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+rpcd-mod-ucode	y	migrate	rpcd-mod-ucode	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+rrdtool1	y	migrate	rrdtool1	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+rsync	y	migrate	rsync	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+rsyncd	y	migrate	rsyncd	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+samba4-libs	y	migrate	samba4-libs	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+samba4-server	y	migrate	samba4-server	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+scapy	y	migrate	scapy	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+scapy-src	y	migrate	scapy-src	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+sed	y	migrate	sed	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+sendat	y	exclude		用户统一使用 ModemManager；其 mmcli/QMI/MBIM 工具覆盖此功能
+sgdisk	y	migrate	sgdisk	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+shadow-tls	y	migrate	shadow-tls	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+shadowsocks-rust-sslocal	y	migrate	shadowsocks-rust-sslocal	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+shadowsocks-rust-ssserver	y	migrate	shadowsocks-rust-ssserver	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+shellsync	y	migrate	shellsync	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+simple-obfs-client	y	migrate	simple-obfs-client	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+sing-box	y	migrate	sing-box	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+smartdns	y	migrate	smartdns	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+smartdns-ui	y	migrate	smartdns-ui	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+smartmontools	y	migrate	smartmontools	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+smbinfo	y	migrate	smbinfo	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+sms-tool	y	exclude		用户统一使用 ModemManager；其 mmcli/QMI/MBIM 工具覆盖此功能
+socat	y	migrate	socat	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+softethervpn5-bridge	y	migrate	softethervpn5-bridge	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+softethervpn5-client	y	migrate	softethervpn5-client	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+softethervpn5-libs	y	migrate	softethervpn5-libs	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+softethervpn5-server	y	migrate	softethervpn5-server	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+speedtest-cli	y	migrate	speedtest-cli	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+sqlite3-cli	m	migrate	sqlite3-cli	迁移功能；使用目标源码和依赖，服务默认状态单独适配；通用运行组件编入固件（x86 原为仅编译）
+sshtunnel	y	migrate	sshtunnel	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+sudo	y	migrate	sudo	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+swap-utils	y	migrate	swap-utils	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+sysfsutils	y	migrate	sysfsutils	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+tailscale	y	migrate	tailscale	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+tc-full	y	migrate	tc-full	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+tc-tiny	y	replace	tc-full	使用已选目标实现，避免互斥构建变体
+tcpdump	y	migrate	tcpdump	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+tcping	y	migrate	tcping	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+terminfo	y	migrate	terminfo	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+tmate	y	migrate	tmate	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+traceroute6	y	migrate	traceroute6	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+trojan	y	migrate	trojan	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+trojan-plus	y	migrate	trojan-plus	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+ts-node	y	exclude		用户暂缓设备 Node.js
+ttyd	y	migrate	ttyd	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+ua3f	y	exclude		用户暂缓 UA3F
+ubox	y	migrate	ubox	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+ubus	y	migrate	ubus	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+ubusd	y	migrate	ubusd	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+uci	y	migrate	uci	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+uclient-fetch	y	migrate	uclient-fetch	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+ucode	y	migrate	ucode	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+ucode-mod-fs	y	migrate	ucode-mod-fs	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+ucode-mod-html	y	migrate	ucode-mod-html	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+ucode-mod-lua	y	migrate	ucode-mod-lua	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+ucode-mod-math	y	migrate	ucode-mod-math	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+ucode-mod-nl80211	y	migrate	ucode-mod-nl80211	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+ucode-mod-rtnl	y	migrate	ucode-mod-rtnl	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+ucode-mod-ubus	y	migrate	ucode-mod-ubus	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+ucode-mod-uci	y	migrate	ucode-mod-uci	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+ucode-mod-uloop	y	migrate	ucode-mod-uloop	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+udpxy	y	migrate	udpxy	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+uhttpd	y	migrate	uhttpd	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+uhttpd-mod-lua	y	migrate	uhttpd-mod-lua	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+uhttpd-mod-ubus	y	migrate	uhttpd-mod-ubus	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+umbim	y	exclude		用户统一使用 ModemManager；其 mmcli/QMI/MBIM 工具覆盖此功能
+umdns	y	migrate	umdns	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+unzip	y	migrate	unzip	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+uqmi	y	exclude		用户统一使用 ModemManager；其 mmcli/QMI/MBIM 工具覆盖此功能
+urandom-seed	y	migrate	urandom-seed	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+urngd	y	migrate	urngd	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+usbids	y	migrate	usbids	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+usbutils	y	migrate	usbutils	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+usign	y	migrate	usign	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+v2ray-geoip	y	migrate	v2ray-geoip	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+v2ray-geosite	y	migrate	v2ray-geosite	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+v2ray-plugin	y	migrate	v2ray-plugin	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+vlmcsd	y	migrate	vlmcsd	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+vsftpd	y	migrate	vsftpd	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+vxlan	y	migrate	vxlan	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+wakeonlan	y	migrate	wakeonlan	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+wget-ssl	y	migrate	wget-ssl	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+whois	y	migrate	whois	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+wifi-scripts	y	dependency-only		仅允许目标软件依赖解析器按需选择的通用基础组件
+wifischedule	y	migrate	wifischedule	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+wireguard-tools	y	migrate	wireguard-tools	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+wireless-regdb	y	dependency-only		仅允许目标软件依赖解析器按需选择的通用基础组件
+wpa-cli	y	replace-hardware		无线管理由 MTK 私有驱动及工具完整配套
+wpa-supplicant	y	replace-hardware		无线管理由 MTK 私有驱动及工具完整配套
+wpa-supplicant-basic	m	replace-hardware		无线管理由 MTK 私有驱动及工具完整配套
+wpa-supplicant-mbedtls	m	replace-hardware		无线管理由 MTK 私有驱动及工具完整配套
+wpa-supplicant-mesh-mbedtls	m	replace-hardware		无线管理由 MTK 私有驱动及工具完整配套
+wpa-supplicant-mesh-openssl	m	replace-hardware		无线管理由 MTK 私有驱动及工具完整配套
+wpa-supplicant-mesh-wolfssl	m	replace-hardware		无线管理由 MTK 私有驱动及工具完整配套
+wpa-supplicant-mini	m	replace-hardware		无线管理由 MTK 私有驱动及工具完整配套
+wpa-supplicant-openssl	m	replace-hardware		无线管理由 MTK 私有驱动及工具完整配套
+wpa-supplicant-p2p	m	replace-hardware		无线管理由 MTK 私有驱动及工具完整配套
+wpa-supplicant-wolfssl	m	replace-hardware		无线管理由 MTK 私有驱动及工具完整配套
+wpad	m	replace-hardware		无线管理由 MTK 私有驱动及工具完整配套
+wpad-basic	m	replace-hardware		无线管理由 MTK 私有驱动及工具完整配套
+wpad-basic-mbedtls	m	replace-hardware		无线管理由 MTK 私有驱动及工具完整配套
+wpad-basic-openssl	m	replace-hardware		无线管理由 MTK 私有驱动及工具完整配套
+wpad-basic-wolfssl	m	replace-hardware		无线管理由 MTK 私有驱动及工具完整配套
+wpad-mbedtls	m	replace-hardware		无线管理由 MTK 私有驱动及工具完整配套
+wpad-mesh-mbedtls	m	replace-hardware		无线管理由 MTK 私有驱动及工具完整配套
+wpad-mesh-openssl	m	replace-hardware		无线管理由 MTK 私有驱动及工具完整配套
+wpad-mesh-wolfssl	m	replace-hardware		无线管理由 MTK 私有驱动及工具完整配套
+wpad-mini	m	replace-hardware		无线管理由 MTK 私有驱动及工具完整配套
+wpad-openssl	m	migrate	wpad-openssl	迁移功能；使用目标源码和依赖，服务默认状态单独适配；通用运行组件编入固件（x86 原为仅编译）
+wpad-wolfssl	m	replace-hardware		无线管理由 MTK 私有驱动及工具完整配套
+wsdd2	y	migrate	wsdd2	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+wwan	y	dependency-only		仅允许目标软件依赖解析器按需选择的通用基础组件
+xfs-mkfs	y	migrate	xfs-mkfs	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+xray-core	y	migrate	xray-core	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+xray-plugin	y	migrate	xray-plugin	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+xtables-nft	y	migrate	xtables-nft	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+xxd	m	migrate	xxd	迁移功能；使用目标源码和依赖，服务默认状态单独适配；通用运行组件编入固件（x86 原为仅编译）
+yq	y	migrate	yq	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+zerotier	y	migrate	zerotier	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+zlib	y	migrate	zlib	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+zoneinfo-core	m	migrate	zoneinfo-core	迁移功能；使用目标源码和依赖，服务默认状态单独适配；通用运行组件编入固件（x86 原为仅编译）
+zram-swap	y	migrate	zram-swap	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+zsh	y	migrate	zsh	迁移功能；使用目标源码和依赖，服务默认状态单独适配
+ztdns	y	migrate	ztdns	迁移功能；使用目标源码和依赖，服务默认状态单独适配

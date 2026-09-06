@@ -1,0 +1,393 @@
+diff --git a/lang/golang/golang-values.mk b/lang/golang/golang-values.mk
+index 727739e2..75b863c6 100644
+--- a/lang/golang/golang-values.mk
++++ b/lang/golang/golang-values.mk
+@@ -270,3 +270,10 @@ define Go/CacheCleanup
+ 	$(GO_GENERAL_BUILD_CONFIG_VARS) \
+ 	$(SHELL) $(GO_INCLUDE_DIR)/golang-build.sh cache_cleanup
+ endef
++
++# Opt-in limits supplied by scripts/r3mini-build.py. The framework deliberately
++# unexports these variables above; re-export only for the controlled build.
++ifneq ($(R3MINI_BUILD_JOBS),)
++  export GOMAXPROCS := $(R3MINI_BUILD_JOBS)
++  export GOFLAGS := -p=$(R3MINI_BUILD_JOBS)
++endif
+diff --git a/net/daed/Makefile b/net/daed/Makefile
+index 0eba7d9e..f50da4a3 100644
+--- a/net/daed/Makefile
++++ b/net/daed/Makefile
+@@ -5,13 +5,13 @@
+ include $(TOPDIR)/rules.mk
+ 
+ PKG_NAME:=daed
+-PKG_VERSION:=1.24.0
++PKG_VERSION:=1.27.0
+ PKG_RELEASE:=1
+ 
+ PKG_SOURCE_PROTO:=git
+ PKG_SOURCE_URL:=https://github.com/daeuniverse/daed.git
+ PKG_SOURCE_VERSION:=v$(PKG_VERSION)
+-PKG_MIRROR_HASH:=7ad5835df49e64338a66349fdba69c90b6eddcdbf4b5b93623cc9e7cbe0920e0
++PKG_MIRROR_HASH:=f848f70c6f1fb4fb43d6bfe14de81a5653ff6fa5e65ba0fd1f5970af97ed8739
+ 
+ PKG_LICENSE:=AGPL-3.0-only MIT
+ PKG_LICENSE_FILES:=LICENSE wing/LICENSE
+@@ -81,7 +81,7 @@ define Download/daed-web
+ 	URL:=https://github.com/daeuniverse/daed/releases/download/v$(PKG_VERSION)
+ 	URL_FILE:=web.zip
+ 	FILE:=$(WEB_FILE)
+-	HASH:=30378e7a988b842b5d174af5cb6475ff2074ad948d7d99dbcf2213e1d6e1f277
++	HASH:=da8755fb2cabfab392854e807e385b12d9e9842d6c8b5e347284d1ae0e582bfc
+ endef
+ 
+ define Build/Prepare
+diff --git a/net/daed/files/daed.config b/net/daed/files/daed.config
+index ff61f363..a5f2f49d 100644
+--- a/net/daed/files/daed.config
++++ b/net/daed/files/daed.config
+@@ -4,4 +4,4 @@ config daed 'config'
+ 	option listen_addr '0.0.0.0:2023'
+ 	option log_maxbackups '1'
+ 	option log_maxsize '5'
+-
++	option hotplug '0'
+diff --git a/net/daed/files/daed.init b/net/daed/files/daed.init
+index baa72884..f13a5abe 100644
+--- a/net/daed/files/daed.init
++++ b/net/daed/files/daed.init
+@@ -3,17 +3,43 @@
+ 
+ USE_PROCD=1
+ START=99
++STOP=10
+ 
+ CONF="daed"
+ PROG="/usr/bin/daed"
+ LOG="/var/log/daed/daed.log"
+ 
++service_name() {
++	basename "${basescript:-$initscript}"
++}
++
++add_interface_trigger() {
++	local network="$1"
++
++	[ -n "$network" ] || return 0
++	procd_add_interface_trigger "interface.*" "$network" "/etc/init.d/$(service_name)" reload
++}
++
+ start_service() {
+ 	config_load "$CONF"
+ 
+ 	local enabled
+ 	config_get_bool enabled "config" "enabled" "0"
+-	[ "$enabled" -eq "1" ] || return 1
++	[ "$enabled" = "1" ] || return 0
++	if [ "$(uci -q get qosmate.global.enabled)" = "1" ]; then
++		logger -t daed "cannot start while QoSmate owns the ingress queues; disable QoSmate first"
++		return 1
++	fi
++
++	[ -x "$PROG" ] || {
++		logger -t daed "cannot start: $PROG is missing or not executable"
++		return 1
++	}
++
++	mkdir -p "${LOG%/*}" || {
++		logger -t daed "cannot start: unable to create log directory"
++		return 1
++	}
+ 
+ 	local listen_addr log_maxbackups log_maxsize
+ 	config_get listen_addr "config" "listen_addr" "0.0.0.0:2023"
+@@ -37,10 +63,30 @@ start_service() {
+ 	procd_close_instance
+ }
+ 
++reload_service() {
++	config_load "$CONF"
++
++	# daed has no separate reload command. Always remove the old procd
++	# instance before rebuilding it so changing enabled=0 cannot leave a
++	# running daemon behind.
++	stop_service
++	procd_kill "$(service_name)" "$CONF"
++	rc_procd start_service
++}
++
+ stop_service() {
+-	rm -f "$LOG"
++	# procd terminates this service's instance. Keep its log for diagnostics.
++	:
+ }
+ 
+ service_triggers() {
++	config_load "$CONF"
+ 	procd_add_reload_trigger "$CONF"
++
++	local enabled hotplug
++	config_get_bool enabled "config" "enabled" "0"
++	config_get_bool hotplug "config" "hotplug" "0"
++	[ "$enabled" = "1" ] && [ "$hotplug" = "1" ] || return 0
++
++	config_list_foreach "config" "hotplug_network" add_interface_trigger
+ }
+diff --git a/net/modemmanager/Makefile b/net/modemmanager/Makefile
+index fb4bcef9..71644738 100644
+--- a/net/modemmanager/Makefile
++++ b/net/modemmanager/Makefile
+@@ -9,7 +9,7 @@ include $(TOPDIR)/rules.mk
+ 
+ PKG_NAME:=modemmanager
+ PKG_VERSION:=1.22.0
+-PKG_RELEASE:=20
++PKG_RELEASE:=21
+ 
+ PKG_SOURCE_PROTO:=git
+ PKG_SOURCE_URL:=https://gitlab.freedesktop.org/mobile-broadband/ModemManager.git
+@@ -22,6 +22,8 @@ PKG_LICENSE_FILES:=COPYING
+ 
+ PKG_BUILD_DEPENDS:=glib2/host libxslt/host
+ PKG_BUILD_FLAGS:=gc-sections
++PKG_CONFIG_DEPENDS:=CONFIG_MODEMMANAGER_WITH_MBIM CONFIG_MODEMMANAGER_WITH_QMI \
++	CONFIG_MODEMMANAGER_WITH_QRTR CONFIG_MODEMMANAGER_WITH_AT_COMMAND_VIA_DBUS
+ 
+ include $(INCLUDE_DIR)/package.mk
+ include $(INCLUDE_DIR)/nls.mk
+@@ -60,8 +62,8 @@ define Package/modemmanager-rpcd
+   TITLE:=RPC interface for ModemManager for rpcd
+   URL:=https://www.freedesktop.org/wiki/Software/ModemManager
+   DEPENDS:= \
+-	modemmanager \
+-	+lua-cjson
++		+modemmanager \
++		+lua +lua-cjson +rpcd
+ endef
+ 
+ define Package/modemmanager-rpcd/description
+@@ -135,7 +137,10 @@ define Package/modemmanager/install
+ 		$(1)/usr/share/ModemManager
+ 
+ 	$(INSTALL_DIR) $(1)/usr/share/ModemManager/fcc-unlock.available.d
+-	$(INSTALL_DATA) $(PKG_INSTALL_DIR)/usr/share/ModemManager/fcc-unlock.available.d/* $(1)/usr/share/ModemManager/fcc-unlock.available.d
++	# Preserve upstream executable modes and VID:PID symlinks. These helpers
++	# remain available only; no module-specific unlock is enabled implicitly.
++	$(CP) $(PKG_INSTALL_DIR)/usr/share/ModemManager/fcc-unlock.available.d/* $(1)/usr/share/ModemManager/fcc-unlock.available.d/
++	$(INSTALL_DIR) $(1)/etc/ModemManager/fcc-unlock.d $(1)/usr/lib/ModemManager/fcc-unlock.d
+ 
+ 	$(INSTALL_DIR) $(1)/etc/init.d
+ 	$(INSTALL_BIN) ./files/etc/init.d/modemmanager \
+diff --git a/net/modemmanager/files/lib/netifd/proto/modemmanager.sh b/net/modemmanager/files/lib/netifd/proto/modemmanager.sh
+index 715178f7..7c4e2fb8 100644
+--- a/net/modemmanager/files/lib/netifd/proto/modemmanager.sh
++++ b/net/modemmanager/files/lib/netifd/proto/modemmanager.sh
+@@ -623,6 +623,16 @@ proto_modemmanager_setup() {
+ 		return 1
+ 	}
+ 
++	# Apply only explicitly saved bands for this exact MM device, after it is
++	# enabled and before a bearer is created. This also covers reboot/hotplug.
++	# The optional helper never changes modes or calls ifup in prepare mode.
++	if [ -x /usr/libexec/mm-ui-bands ]; then
++		/usr/libexec/mm-ui-bands prepare "${device}" || {
++			proto_notify_error "${interface}" MM_BANDS_FAILED
++			return 1
++		}
++	fi
++
+ 	# set initial eps bearer settings
+ 	[ -z "${init_epsbearer}" ] || {
+ 		case "$init_epsbearer" in
+diff --git a/net/modemmanager/files/usr/libexec/rpcd/modemmanager b/net/modemmanager/files/usr/libexec/rpcd/modemmanager
+index 0f0d24a4..da99b3a3 100644
+--- a/net/modemmanager/files/usr/libexec/rpcd/modemmanager
++++ b/net/modemmanager/files/usr/libexec/rpcd/modemmanager
+@@ -10,7 +10,14 @@ local location = {}
+ 
+ local info = {}
+ 
++local function valid_object(value, kind)
++	if type(value) ~= "string" then return false end
++	return value:match("^%d+$") ~= nil or
++		value:match("^/org/freedesktop/ModemManager1/" .. kind .. "/%d+$") ~= nil
++end
++
+ function mm_get_modem_bearer(index)
++	if not valid_object(index, "Bearer") then return end
+ 
+ 	local command = string.format("/usr/bin/mmcli --bearer=%s --output-json 2>/dev/null", index)
+ 
+@@ -19,10 +26,10 @@ function mm_get_modem_bearer(index)
+ 	handle:close()
+ 
+ 	local ok, status = pcall(function()
+-		return json.decode(string.format(output))
++		return json.decode(output)
+ 	end)
+ 
+-	if not ok then
++	if not ok or type(status) ~= "table" then
+ 		return
+ 	end
+ 
+@@ -30,6 +37,7 @@ function mm_get_modem_bearer(index)
+ end
+ 
+ function mm_get_modem_sim(index)
++	if not valid_object(index, "SIM") then return end
+ 
+ 	local command = string.format("/usr/bin/mmcli --sim=%s --output-json 2>/dev/null", index)
+ 
+@@ -38,14 +46,14 @@ function mm_get_modem_sim(index)
+ 	handle:close()
+ 
+ 	local ok, status = pcall(function()
+-		return json.decode(string.format(output))
++		return json.decode(output)
+ 	end)
+ 
+-	if not ok then
++	if not ok or type(status) ~= "table" then
+ 		return
+ 	end
+ 
+-	sim = status["sim"]
++	sim = type(status["sim"]) == "table" and status["sim"] or {}
+ end
+ 
+ function mm_get_modem_signal(modem)
+@@ -57,14 +65,15 @@ function mm_get_modem_signal(modem)
+ 	handle:close()
+ 
+ 	local ok, status = pcall(function()
+-		return json.decode(string.format(output))
++		return json.decode(output)
+ 	end)
+ 
+-	if ok == false then
++	if not ok or type(status) ~= "table" then
+ 		return
+ 	end
+ 
+-	signal = status["modem"]["signal"]
++	signal = type(status["modem"]) == "table" and status["modem"]["signal"] or {}
++	if type(signal) ~= "table" then signal = {} end
+ end
+ 
+ function mm_get_modem_location(modem)
+@@ -76,17 +85,19 @@ function mm_get_modem_location(modem)
+ 	handle:close()
+ 
+ 	local ok, status = pcall(function()
+-		return json.decode(string.format(output))
++		return json.decode(output)
+ 	end)
+ 
+-	if ok == false then
++	if not ok or type(status) ~= "table" then
+ 		return
+ 	end
+ 
+-	location = status["modem"]["location"]
++	location = type(status["modem"]) == "table" and status["modem"]["location"] or {}
++	if type(location) ~= "table" then location = {} end
+ end
+ 
+ function mm_get_modem_status(modem)
++	if not valid_object(modem, "Modem") then return end
+ 
+ 	local command = string.format("/usr/bin/mmcli --modem=%s --output-json 2>/dev/null", modem)
+ 
+@@ -95,14 +106,15 @@ function mm_get_modem_status(modem)
+ 	handle:close()
+ 
+ 	local ok, mstatus = pcall(function()
+-		return json.decode(string.format(output))
++		return json.decode(output)
+ 	end)
+ 
+-	if ok == false then
++	if not ok or type(mstatus) ~= "table" or type(mstatus.modem) ~= "table"
++		or type(mstatus.modem.generic) ~= "table" then
+ 		return
+ 	end
+ 
+-	if mstatus["modem"]["generic"]["bearers"] ~= nil then
++	if type(mstatus["modem"]["generic"]["bearers"]) == "table" then
+ 		bearers = {}
+ 		for k, v in ipairs(mstatus["modem"]["generic"]["bearers"]) do
+ 			mm_get_modem_bearer(v)
+@@ -155,14 +167,14 @@ function aquire_data_modemmanager()
+ 		return json.decode(output)
+ 	end)
+ 
+-	if not ok then
++	if not ok or type(modems) ~= "table" then
+ 		return
+ 	end
+ 
+ 	entry_cache = {}
+ 	status = {}
+ 	status["modem"] = {}
+-	for k, v in ipairs(modems["modem-list"]) do
++	for k, v in ipairs(type(modems["modem-list"]) == "table" and modems["modem-list"] or {}) do
+ 		mm_get_modem_status(modems["modem-list"][k])
+ 	end
+ end
+@@ -179,16 +191,21 @@ function aquire_data_info()
+ 
+ 	for k, v in ipairs(status['modem']) do
+ 		local element = {}
+-
+-		element['imei'] = status['modem'][k]['3gpp']['imei']
+-		element['signal'] = status['modem'][k]['generic']['signal-quality']['value']
+-		element['technology'] = status['modem'][k]['generic']['access-technologies'][1]
+-		if status['modem'][k]['3gpp']['operator-name'] ~= '--' then
+-			element['operator'] = status['modem'][k]['3gpp']['operator-name']
++		local cellular = type(v['3gpp']) == 'table' and v['3gpp'] or {}
++		local generic = type(v.generic) == 'table' and v.generic or {}
++		local quality = type(generic['signal-quality']) == 'table' and generic['signal-quality'] or {}
++		local technologies = type(generic['access-technologies']) == 'table' and generic['access-technologies'] or {}
++		local siminfo = type(generic.sim) == 'table' and generic.sim or {}
++
++		element['imei'] = cellular.imei
++		element['signal'] = quality.value
++		element['technology'] = technologies[1]
++		if cellular['operator-name'] ~= '--' then
++			element['operator'] = cellular['operator-name']
+ 		end
+-		if status['modem'][k]['generic']['sim']['properties'] ~= nil then
+-			element['iccid'] = status['modem'][k]['generic']['sim']['properties']['iccid']
+-			element['imsi'] = status['modem'][k]['generic']['sim']['properties']['imsi']
++		if type(siminfo.properties) == 'table' then
++			element['iccid'] = siminfo.properties.iccid
++			element['imsi'] = siminfo.properties.imsi
+ 		end
+ 		element['device'] = status['modem'][k]['device']
+ 
+diff --git a/utils/filebrowser/Makefile b/utils/filebrowser/Makefile
+index 9c848e93..9dd25ec1 100644
+--- a/utils/filebrowser/Makefile
++++ b/utils/filebrowser/Makefile
+@@ -16,7 +16,7 @@ PKG_LICENSE:=Apache-2.0
+ PKG_LICENSE_FILES:=LICENSE
+ PKG_MAINTAINER:=Tianling Shen <cnsztl@immortalwrt.org>
+ 
+-PKG_BUILD_DEPENDS:=golang/host node/host node-pnpm/host
++PKG_BUILD_DEPENDS:=golang-host-compat/host node/host node-pnpm/host
+ PKG_BUILD_PARALLEL:=1
+ PKG_BUILD_FLAGS:=no-mips16
+ 
+@@ -28,6 +28,11 @@ GO_PKG_LDFLAGS_X:= \
+ include $(INCLUDE_DIR)/package.mk
+ include ../../lang/golang/golang-package.mk
+ 
++# filebrowser 2.43.0 declares go 1.24.  Keep the feed's default Go SDK for
++# other packages and select the pinned host SDK only for this build.
++GO_PKG_BUILD_VARS += \
++	PATH="$(STAGING_DIR_HOSTPKG)/lib/go-1.26.8/bin:$$$$PATH"
++
+ define Package/filebrowser
+   SECTION:=utils
+   CATEGORY:=Utilities

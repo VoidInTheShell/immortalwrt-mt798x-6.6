@@ -4,6 +4,8 @@ config WARP_VERSION
 	int "WARP Driver HW Version Support"
 	range 1 3
 	default 1 if TARGET_mediatek_mt7622
+	default 2 if TARGET_mediatek_filogic_DEVICE_bananapi_bpi-r3-mini
+	default 2 if MTK_CHIP_MT7986
 	default 2 if TARGET_mediatek_mt7986
 	default 3 if TARGET_mediatek_mt7988
 
@@ -34,6 +36,8 @@ config WARP_MEMORY_LEAK_DBG
 
 config WARP_CHIPSET
 	string "WARP target chipset"
+	default mt7986 if TARGET_mediatek_filogic_DEVICE_bananapi_bpi-r3-mini
+	default mt7986 if MTK_CHIP_MT7986
 	default mt7988
 	help
 	For colgin: colgin, for panther: mt7986, for jaguar: mt7988

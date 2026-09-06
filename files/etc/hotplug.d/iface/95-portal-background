@@ -1,0 +1,4 @@
+#!/bin/sh
+case "$ACTION" in
+    ifup|ifupdate) /usr/libexec/portal-background >/dev/null 2>&1 & ;;
+esac

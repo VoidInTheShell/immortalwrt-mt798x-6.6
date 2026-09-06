@@ -6,7 +6,7 @@ include $(TOPDIR)/rules.mk
 
 PKG_NAME:=mtkhqos_util
 PKG_VERSION:=1
-PKG_RELEASE:=1
+PKG_RELEASE:=2
 
 PKG_BUILD_DIR:=$(BUILD_DIR)/$(PKG_NAME)
 PKG_CONFIG_DEPENDS:=
@@ -19,6 +19,8 @@ define Package/mtkhqos_util
   TITLE:=mtk hqos utility
   VERSION:=$(PKG_RELEASE)-$(REVISION)
   SUBMENU:=Applications
+  DEPENDS:=+kmod-mediatek_hnat +uci +tc-full +nftables-json
+  PKGARCH:=all
 endef
 
 define Package/mtkhqos_util/description

@@ -1,0 +1,66 @@
+{
+	"luci-app-mmconfig": {
+		"description": "Read MM bands and explicitly apply modem configuration",
+		"read": {
+			"cgi-io": [
+				"exec"
+			],
+			"file": {
+				"/usr/bin/mmcli -L -J": [
+					"exec"
+				],
+				"/usr/bin/mmcli -m [0-9] -J": [
+					"exec"
+				],
+				"/usr/bin/mmcli --modem=[0-9] -J": [
+					"exec"
+				],
+				"/usr/bin/mmcli -m [0-9][0-9] -J": [
+					"exec"
+				],
+				"/usr/bin/mmcli --modem=[0-9][0-9] -J": [
+					"exec"
+				],
+				"/usr/bin/mmcli -m [0-9][0-9][0-9] -J": [
+					"exec"
+				],
+				"/usr/bin/mmcli --modem=[0-9][0-9][0-9] -J": [
+					"exec"
+				],
+				"/usr/bin/mmcli -m [0-9][0-9][0-9][0-9] -J": [
+					"exec"
+				],
+				"/usr/bin/mmcli --modem=[0-9][0-9][0-9][0-9] -J": [
+					"exec"
+				],
+				"/usr/bin/mmcli -m [0-9][0-9][0-9][0-9][0-9] -J": [
+					"exec"
+				],
+				"/usr/bin/mmcli --modem=[0-9][0-9][0-9][0-9][0-9] -J": [
+					"exec"
+				]
+			},
+			"uci": [
+				"mmconfig",
+				"network"
+			]
+		},
+		"write": {
+			"cgi-io": [
+				"exec"
+			],
+			"file": {
+				"/usr/libexec/mm-ui-bands discover": [
+					"exec"
+				],
+				"/usr/libexec/mm-ui-bands apply": [
+					"exec"
+				]
+			},
+			"uci": [
+				"mmconfig",
+				"network"
+			]
+		}
+	}
+}

@@ -1,0 +1,60 @@
+current recipe
+exit=0
+cat: /home/beihai/VERSION: No such file or directory
+Build-Depends: golang/host
+
+Package: UAmask
+Submenu: Web Servers/Proxies
+Version: 1
+Depends: +libc @(aarch64||arm||i386||i686||loongarch64||mips||mips64||mips64el||mipsel||riscv64||x86_64) +luci-compat +libubox
+Conflicts: ua3f-tproxy ua3f-tproxy-ipt UAmask-ipt
+Menu-Depends: 
+Provides: 
+Section: net
+Category: Network
+Repository: base
+Title: A transparent proxy for changing User-Agent (nftables)
+Maintainer: Zesuy <hongri580@gmail.com>
+Source: 
+License: GPL-3.0-only
+LicenseFiles: LICENSE
+URL: https://github.com/Zesuy/UA-Mask
+Type: ipkg
+Description: 	A transparent proxy (TPROXY) for modifying HTTP User-Agent.
+	This is the default version using nftables (firewall4).
+@@
+
+AUDIT_PACKAGE_DIR=/home/beihai/immortalwrt-mt798x-6.6/include
+AUDIT_REPO_ROOT=/home/beihai
+AUDIT_UAMASK_SOURCE_DIR=/home/beihai
+AUDIT_PKG_VERSION=
+
+command-line source directory control
+exit=0
+Build-Depends: golang/host
+
+Package: UAmask
+Submenu: Web Servers/Proxies
+Version: 0.4.3-r1
+Depends: +libc @(aarch64||arm||i386||i686||loongarch64||mips||mips64||mips64el||mipsel||riscv64||x86_64) +luci-compat +libubox
+Conflicts: ua3f-tproxy ua3f-tproxy-ipt UAmask-ipt
+Menu-Depends: 
+Provides: 
+Section: net
+Category: Network
+Repository: base
+Title: A transparent proxy for changing User-Agent (nftables)
+Maintainer: Zesuy <hongri580@gmail.com>
+Source: 
+License: GPL-3.0-only
+LicenseFiles: LICENSE
+URL: https://github.com/Zesuy/UA-Mask
+Type: ipkg
+Description: 	A transparent proxy (TPROXY) for modifying HTTP User-Agent.
+	This is the default version using nftables (firewall4).
+@@
+
+AUDIT_PACKAGE_DIR=/home/beihai/immortalwrt-mt798x-6.6/include
+AUDIT_REPO_ROOT=/home/beihai
+AUDIT_UAMASK_SOURCE_DIR=/home/beihai/immortalwrt-mt798x-6.6/package/UA-Mask
+AUDIT_PKG_VERSION=0.4.3

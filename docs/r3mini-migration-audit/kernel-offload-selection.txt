@@ -1,0 +1,6 @@
+Generated using scripts/package-metadata.pl kconfig tmp/.packageinfo .config 6.6
+# CONFIG_NET_MEDIATEK_HNAT is not set
+CONFIG_NFT_FLOW_OFFLOAD=m
+CONFIG_NF_FLOW_TABLE=m
+CONFIG_NF_FLOW_TABLE_HW=m
+CONFIG_NF_FLOW_TABLE_INET=m

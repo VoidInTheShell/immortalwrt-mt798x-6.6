@@ -392,8 +392,8 @@ define Device/bananapi_bpi-r3-mini
   DEVICE_DTS_CONFIG := config-mt7986a-bananapi-bpi-r3-mini
   DEVICE_DTS_DIR := ../dts
   DEVICE_DTS_LOADADDR := 0x43f00000
-  DEVICE_PACKAGES := kmod-hwmon-pwmfan kmod-mt7915e kmod-mt7986-firmware kmod-phy-airoha-en8811h \
-		     kmod-usb3 f2fsck mkf2fs mt7986-wo-firmware automount
+  DEVICE_PACKAGES := kmod-hwmon-pwmfan kmod-conninfra kmod-mt_wifi kmod-warp wifi-dats mtwifi-cfg \
+		     kmod-phy-airoha-en8811h kmod-usb3 f2fsck mkf2fs automount
   KERNEL_LOADADDR := 0x44000000
   KERNEL := kernel-bin | gzip
   KERNEL_INITRAMFS := kernel-bin | lzma | \
@@ -403,16 +403,17 @@ define Device/bananapi_bpi-r3-mini
   PAGESIZE := 2048
   KERNEL_IN_UBI := 1
   UBOOTENV_IN_UBI := 1
-  IMAGES := snand-factory.bin sysupgrade.itb
+  # The full eMMC profile exceeds the NAND/recovery layout by design.
+  IMAGES := $(if $(CONFIG_R3MINI_FULL_EMMC),sysupgrade.itb,snand-factory.bin sysupgrade.itb)
 ifeq ($(DUMP),)
-  IMAGE_SIZE := $$(shell expr 64 + $$(CONFIG_TARGET_ROOTFS_PARTSIZE))m
+  IMAGE_SIZE := $(if $(CONFIG_R3MINI_FULL_EMMC),$$(CONFIG_TARGET_ROOTFS_PARTSIZE)m,$$(shell expr 64 + $$(CONFIG_TARGET_ROOTFS_PARTSIZE))m)
 endif
   IMAGE/sysupgrade.itb := append-kernel | \
     fit gzip $$(KDIR)/image-$$(firstword $$(DEVICE_DTS)).dtb external-static-with-rootfs | \
-    pad-rootfs | append-metadata
+    pad-rootfs | append-metadata $(if $(CONFIG_R3MINI_FULL_EMMC),| check-size)
   ARTIFACTS := \
        emmc-gpt.bin emmc-preloader.bin emmc-bl31-uboot.fip \
-       snand-factory.bin snand-preloader.bin snand-bl31-uboot.fip
+       $(if $(CONFIG_R3MINI_FULL_EMMC),,snand-factory.bin snand-preloader.bin snand-bl31-uboot.fip)
   ARTIFACT/emmc-gpt.bin := mt798x-gpt emmc
   ARTIFACT/emmc-preloader.bin := mt7986-bl2 emmc-ddr4
   ARTIFACT/emmc-bl31-uboot.fip := mt7986-bl31-uboot bananapi_bpi-r3-mini-emmc

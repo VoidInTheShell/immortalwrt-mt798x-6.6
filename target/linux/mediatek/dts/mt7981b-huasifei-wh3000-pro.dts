@@ -112,6 +112,7 @@
 &fan {
 	interrupt-parent = <&pio>;
 	interrupts = <13 IRQ_TYPE_EDGE_FALLING>;
+	mediatek,initial-pwm-zero;
 	pwms = <&pwm 1 40000 0>;
 	status = "okay";
 };

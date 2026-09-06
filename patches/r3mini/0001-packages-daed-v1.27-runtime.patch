@@ -1,0 +1,131 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: R3 Mini migration <r3mini@localhost>
+Date: Sun, 6 Sep 2026 17:00:00 +0800
+Subject: [PATCH] daed: update to 1.27.0 and guard runtime reloads
+
+This patch is applied inside the feeds/packages checkout:
+
+    git -C feeds/packages apply ../../patches/r3mini/0001-packages-daed-v1.27-runtime.patch
+
+---
+ net/daed/Makefile           |  6 +++---
+ net/daed/files/daed.config  |  2 +-
+ net/daed/files/daed.init    | 43 ++++++++++++++++++++++++++++++++++++++++++-
+ 3 files changed, 46 insertions(+), 5 deletions(-)
+
+diff --git a/net/daed/Makefile b/net/daed/Makefile
+index 0eba7d9e..f50da4a3 100644
+--- a/net/daed/Makefile
++++ b/net/daed/Makefile
+@@ -5,13 +5,13 @@
+ include $(TOPDIR)/rules.mk
+ 
+ PKG_NAME:=daed
+-PKG_VERSION:=1.24.0
++PKG_VERSION:=1.27.0
+ PKG_RELEASE:=1
+ 
+ PKG_SOURCE_PROTO:=git
+ PKG_SOURCE_URL:=https://github.com/daeuniverse/daed.git
+ PKG_SOURCE_VERSION:=v$(PKG_VERSION)
+-PKG_MIRROR_HASH:=7ad5835df49e64338a66349fdba69c90b6eddcdbf4b5b93623cc9e7cbe0920e0
++PKG_MIRROR_HASH:=f848f70c6f1fb4fb43d6bfe14de81a5653ff6fa5e65ba0fd1f5970af97ed8739
+ 
+ PKG_LICENSE:=AGPL-3.0-only MIT
+ PKG_LICENSE_FILES:=LICENSE wing/LICENSE
+@@ -81,7 +81,7 @@ define Download/daed-web
+ 	URL:=https://github.com/daeuniverse/daed/releases/download/v$(PKG_VERSION)
+ 	URL_FILE:=web.zip
+ 	FILE:=$(WEB_FILE)
+-	HASH:=30378e7a988b842b5d174af5cb6475ff2074ad948d7d99dbcf2213e1d6e1f277
++	HASH:=da8755fb2cabfab392854e807e385b12d9e9842d6c8b5e347284d1ae0e582bfc
+ endef
+ 
+ define Build/Prepare
+diff --git a/net/daed/files/daed.config b/net/daed/files/daed.config
+index ff61f363..a5f2f49d 100644
+--- a/net/daed/files/daed.config
++++ b/net/daed/files/daed.config
+@@ -4,4 +4,4 @@ config daed 'config'
+ 	option listen_addr '0.0.0.0:2023'
+ 	option log_maxbackups '1'
+ 	option log_maxsize '5'
+-
++	option hotplug '0'
+diff --git a/net/daed/files/daed.init b/net/daed/files/daed.init
+index baa72884..33c83ed6 100644
+--- a/net/daed/files/daed.init
++++ b/net/daed/files/daed.init
+@@ -3,17 +3,39 @@
+ 
+ USE_PROCD=1
+ START=99
++STOP=10
+ 
+ CONF="daed"
+ PROG="/usr/bin/daed"
+ LOG="/var/log/daed/daed.log"
+ 
++service_name() {
++	basename "${basescript:-$initscript}"
++}
++
++add_interface_trigger() {
++	local network="$1"
++
++	[ -n "$network" ] || return 0
++	procd_add_interface_trigger "interface.*" "$network" "/etc/init.d/$(service_name)" reload
++}
++
+ start_service() {
+ 	config_load "$CONF"
+ 
+ 	local enabled
+ 	config_get_bool enabled "config" "enabled" "0"
+-	[ "$enabled" -eq "1" ] || return 1
++	[ "$enabled" = "1" ] || return 0
++
++	[ -x "$PROG" ] || {
++		logger -t daed "cannot start: $PROG is missing or not executable"
++		return 1
++	}
++
++	mkdir -p "${LOG%/*}" || {
++		logger -t daed "cannot start: unable to create log directory"
++		return 1
++	}
+ 
+ 	local listen_addr log_maxbackups log_maxsize
+ 	config_get listen_addr "config" "listen_addr" "0.0.0.0:2023"
+@@ -37,10 +59,29 @@ start_service() {
+ 	procd_close_instance
+ }
+ 
++reload_service() {
++	config_load "$CONF"
++
++	# daed has no separate reload command. Always remove the old procd
++	# instance before rebuilding it so changing enabled=0 cannot leave a
++	# running daemon behind.
++	stop_service
++	procd_kill "$(service_name)" "$CONF"
++	rc_procd start_service
++}
++
+ stop_service() {
+ 	rm -f "$LOG"
+ }
+ 
+ service_triggers() {
++	config_load "$CONF"
+ 	procd_add_reload_trigger "$CONF"
++
++	local enabled hotplug
++	config_get_bool enabled "config" "enabled" "0"
++	config_get_bool hotplug "config" "hotplug" "0"
++	[ "$enabled" = "1" ] && [ "$hotplug" = "1" ] || return 0
++
++	config_list_foreach "config" "hotplug_network" add_interface_trigger
+ }
+-- 
+2.43.0

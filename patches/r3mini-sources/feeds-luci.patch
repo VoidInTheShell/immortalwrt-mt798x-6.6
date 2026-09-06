@@ -1,0 +1,169 @@
+diff --git a/applications/luci-app-daed/htdocs/luci-static/resources/view/daed/config.js b/applications/luci-app-daed/htdocs/luci-static/resources/view/daed/config.js
+index edecbf8..215a17a 100644
+--- a/applications/luci-app-daed/htdocs/luci-static/resources/view/daed/config.js
++++ b/applications/luci-app-daed/htdocs/luci-static/resources/view/daed/config.js
+@@ -47,7 +47,7 @@ return view.extend({
+ 
+ 	render: function(data) {
+ 		let m, s, o;
+-		let webport = (uci.get(data[0], 'config', 'address') || '0.0.0.0:2023').split(':').slice(-1)[0];
++		let webport = (uci.get(data[0], 'config', 'listen_addr') || '0.0.0.0:2023').split(':').slice(-1)[0];
+ 
+ 		m = new form.Map('daed', _('daed'),
+ 			_('A modern dashboard for dae.'));
+@@ -88,6 +88,18 @@ return view.extend({
+ 		o.datatype = 'uinteger';
+ 		o.default = '5';
+ 
++		o = s.option(form.Flag, 'hotplug', _('Restart on network changes'),
++			_('Restart daed when a selected logical network changes. Leave disabled when dae can rebind interfaces itself.'));
++		o.default = o.disabled;
++		o.rmempty = false;
++
++		o = s.option(form.DynamicList, 'hotplug_network', _('Networks to watch'),
++			_('Optional netifd logical network names, such as wan, wan6 or wwan.'));
++		o.placeholder = 'wan';
++		o.depends('hotplug', '1');
++		o.optional = true;
++		o.rmempty = true;
++
+ 		return m.render();
+ 	}
+ });
+diff --git a/protocols/luci-proto-modemmanager/htdocs/luci-static/resources/modemmanager_helper.js b/protocols/luci-proto-modemmanager/htdocs/luci-static/resources/modemmanager_helper.js
+index b8558b8..ceb78f8 100644
+--- a/protocols/luci-proto-modemmanager/htdocs/luci-static/resources/modemmanager_helper.js
++++ b/protocols/luci-proto-modemmanager/htdocs/luci-static/resources/modemmanager_helper.js
+@@ -30,7 +30,7 @@ return baseclass.extend({
+ 			if (obj == this._emptyStringValue) {
+ 				obj = null;
+ 			}
+-		} else if (Array.isArray()) {
++		} else if (Array.isArray(obj)) {
+ 			obj = obj.map(L.bind(function (it) {
+ 				return this._removeEmptyStrings(it);
+ 			}, this));
+diff --git a/protocols/luci-proto-modemmanager/htdocs/luci-static/resources/protocol/modemmanager.js b/protocols/luci-proto-modemmanager/htdocs/luci-static/resources/protocol/modemmanager.js
+index 6db2563..6275a79 100644
+--- a/protocols/luci-proto-modemmanager/htdocs/luci-static/resources/protocol/modemmanager.js
++++ b/protocols/luci-proto-modemmanager/htdocs/luci-static/resources/protocol/modemmanager.js
+@@ -83,7 +83,7 @@ return network.registerProtocol('modemmanager', {
+ 		o.value('mschapv2', 'MSCHAPv2');
+ 		o.value('eap', 'EAP');
+ 		o.value('', _('None'));
+-		o.default = 'none';
++		o.default = '';
+ 
+ 		o = s.taboption('general', form.ListValue, 'allowedmode', _('Allowed network technology'),
+ 			_('Setting the allowed network technology.'));
+@@ -125,21 +125,25 @@ return network.registerProtocol('modemmanager', {
+ 		o.depends('allowedmode','5g|4g|3g|2g');
+ 
+ 		o = s.taboption('general', form.Value, 'username', _('PAP/CHAP username'));
+-		o.depends('auth', 'pap');
+-		o.depends('auth', 'chap');
+-		o.depends('auth', 'both');
++		o.depends({'allowedauth': 'pap', '!contains': true });
++		o.depends({'allowedauth': 'chap', '!contains': true });
++		o.depends({'allowedauth': 'mschap', '!contains': true });
++		o.depends({'allowedauth': 'mschapv2', '!contains': true });
++		o.depends({'allowedauth': 'eap', '!contains': true });
+ 
+ 		o = s.taboption('general', form.Value, 'password', _('PAP/CHAP password'));
+-		o.depends('auth', 'pap');
+-		o.depends('auth', 'chap');
+-		o.depends('auth', 'both');
++		o.depends({'allowedauth': 'pap', '!contains': true });
++		o.depends({'allowedauth': 'chap', '!contains': true });
++		o.depends({'allowedauth': 'mschap', '!contains': true });
++		o.depends({'allowedauth': 'mschapv2', '!contains': true });
++		o.depends({'allowedauth': 'eap', '!contains': true });
+ 		o.password = true;
+ 
+ 		o = s.taboption('general', form.ListValue, 'iptype', _('IP Type'));
+-		o.value('ipv4v6', _('IPv4/IPv6 (both - defaults to IPv4)'))
+ 		o.value('ipv4', _('IPv4 only'));
+ 		o.value('ipv6', _('IPv6 only'));
+-		o.default = 'ipv4v6';
++		o.value('ipv4v6', _('IPv4/IPv6 (both)'));
++		o.default = 'ipv4';
+ 
+ 		o = s.taboption('advanced', form.Value, 'mtu', _('Override MTU'));
+ 		o.placeholder = dev ? (dev.getMTU() || '1500') : '1500';
+@@ -183,27 +187,19 @@ return network.registerProtocol('modemmanager', {
+ 		o.default = '';
+ 
+ 		o = s.taboption('general', form.Value, 'init_username', _('Initial EPS Bearer Username'));
+-		o.depends('init_allowedauth', 'pap');
+-		o.depends('init_allowedauth', 'chap');
+-		o.depends('init_allowedauth', 'mschap');
+-		o.depends('init_allowedauth', 'mschapv2');
+-		o.depends('init_allowedauth', 'eap');
++		o.depends({'init_epsbearer': 'custom', 'init_allowedauth': '.+'});
+ 		o.default = '';
+ 
+ 		o = s.taboption('general', form.Value, 'init_password', _('Initial EPS Bearer Password'));
+-		o.depends('init_allowedauth', 'pap');
+-		o.depends('init_allowedauth', 'chap');
+-		o.depends('init_allowedauth', 'mschap');
+-		o.depends('init_allowedauth', 'mschapv2');
+-		o.depends('init_allowedauth', 'eap');
++		o.depends({'init_epsbearer': 'custom', 'init_allowedauth': '.+'});
+ 		o.default = '';
+ 		o.password = true;
+ 
+ 		o = s.taboption('general', form.ListValue, 'init_iptype', _('Initial EPS Bearer IP Type'));
+ 		o.depends('init_epsbearer', 'custom');
+-		o.value('ipv4v6', _('IPv4/IPv6 (both - defaults to IPv4)'))
+ 		o.value('ipv4', _('IPv4 only'));
+ 		o.value('ipv6', _('IPv6 only'));
+-		o.default = 'ipv4v6';
++		o.value('ipv4v6', _('IPv4/IPv6 (both)'));
++		o.default = 'ipv4';
+ 	}
+ });
+diff --git a/protocols/luci-proto-modemmanager/htdocs/luci-static/resources/view/modemmanager/status.js b/protocols/luci-proto-modemmanager/htdocs/luci-static/resources/view/modemmanager/status.js
+index 649ff83..5139419 100644
+--- a/protocols/luci-proto-modemmanager/htdocs/luci-static/resources/view/modemmanager/status.js
++++ b/protocols/luci-proto-modemmanager/htdocs/luci-static/resources/view/modemmanager/status.js
+@@ -95,7 +95,7 @@ return view.extend({
+ 			var accessTechnologiesStr = generic['access-technologies'].join(', ');
+ 			var signalQualityValue = parseInt(generic['signal-quality'].value);
+ 			var networkSection = this.renderSection(_('Network Registration'), [
+-				[_('Own Numbers'), ownNumbersStr],
++				[_('Mobile Number'), ownNumbersStr],
+ 				[_('Access Technologies'), accessTechnologiesStr],
+ 				[_('Operator') , modem3gpp['operator-name']],
+ 				[_('Operator Code'), modem3gpp['operator-code']],
+diff --git a/protocols/luci-proto-modemmanager/root/usr/share/rpcd/acl.d/luci-proto-modemmanager.json b/protocols/luci-proto-modemmanager/root/usr/share/rpcd/acl.d/luci-proto-modemmanager.json
+index cde3e9c..0063c45 100644
+--- a/protocols/luci-proto-modemmanager/root/usr/share/rpcd/acl.d/luci-proto-modemmanager.json
++++ b/protocols/luci-proto-modemmanager/root/usr/share/rpcd/acl.d/luci-proto-modemmanager.json
+@@ -5,9 +5,24 @@
+ 			"cgi-io": [ "exec" ],
+ 			"file": {
+ 				"/usr/bin/mmcli -L -J": [ "exec" ],
+-				"/usr/bin/mmcli -m [0-9]* -J": [ "exec" ],
+-				"/usr/bin/mmcli -i [0-9]* -J": [ "exec" ],
+-				"/usr/bin/mmcli -m [0-9]* --location-get -J": [ "exec" ]
++
++				"/usr/bin/mmcli -m [0-9] -J": [ "exec" ],
++				"/usr/bin/mmcli -m [0-9][0-9] -J": [ "exec" ],
++				"/usr/bin/mmcli -m [0-9][0-9][0-9] -J": [ "exec" ],
++				"/usr/bin/mmcli -m [0-9][0-9][0-9][0-9] -J": [ "exec" ],
++				"/usr/bin/mmcli -m [0-9][0-9][0-9][0-9][0-9] -J": [ "exec" ],
++
++				"/usr/bin/mmcli -i [0-9] -J": [ "exec" ],
++				"/usr/bin/mmcli -i [0-9][0-9] -J": [ "exec" ],
++				"/usr/bin/mmcli -i [0-9][0-9][0-9] -J": [ "exec" ],
++				"/usr/bin/mmcli -i [0-9][0-9][0-9][0-9] -J": [ "exec" ],
++				"/usr/bin/mmcli -i [0-9][0-9][0-9][0-9][0-9] -J": [ "exec" ],
++
++				"/usr/bin/mmcli -m [0-9] --location-get -J": [ "exec" ],
++				"/usr/bin/mmcli -m [0-9][0-9] --location-get -J": [ "exec" ],
++				"/usr/bin/mmcli -m [0-9][0-9][0-9] --location-get -J": [ "exec" ],
++				"/usr/bin/mmcli -m [0-9][0-9][0-9][0-9] --location-get -J": [ "exec" ],
++				"/usr/bin/mmcli -m [0-9][0-9][0-9][0-9][0-9] --location-get -J": [ "exec" ]
+ 			}
+ 		}
+ 	}

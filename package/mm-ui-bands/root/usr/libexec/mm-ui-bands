@@ -1,0 +1,601 @@
+#!/bin/sh
+# Apply the band choices from mmconfig through ModemManager.
+#
+# This helper deliberately uses ModemManager's JSON API and UCI's parsed
+# values.  It never scans raw device nodes and it never invokes a vendor dialler.  The
+# command is also kept as a separate, one-shot helper so that the LuCI page
+# can discover a modem without installing another long-running manager.
+
+MMCLI_BIN="${MMCLI_BIN:-/usr/bin/mmcli}"
+JSONFILTER_BIN="${JSONFILTER_BIN:-/usr/bin/jsonfilter}"
+UCI_BIN="${UCI_BIN:-/sbin/uci}"
+IFUP_BIN="${IFUP_BIN:-/sbin/ifup}"
+LOGGER_BIN="${LOGGER_BIN:-/usr/bin/logger}"
+
+log_msg() {
+	"$LOGGER_BIN" -t mm-ui-bands "$*" 2>/dev/null || :
+}
+
+valid_section_name() {
+	local value="$1"
+	local prefix index
+
+	[ -n "$value" ] || return 1
+	case "$value" in
+		@*\[*\])
+			prefix="${value%%[*}"
+			index="${value##*[}"
+			index="${index%]}"
+			[ "$prefix" != "@" ] || return 1
+			case "$prefix" in
+				*[!A-Za-z0-9_.@-]*) return 1 ;;
+			esac
+			[ -n "$index" ] || return 1
+			case "$index" in
+				*[!0-9]*) return 1 ;;
+			esac
+			return 0
+			;;
+	esac
+	case "$value" in
+		*[!A-Za-z0-9_.@-]*) return 1 ;;
+	esac
+	return 0
+}
+
+valid_device() {
+	local value="$1"
+
+	[ -n "$value" ] || return 1
+	# ModemManager accepts a numeric id, a DBus modem path, or the sysfs
+	# device path returned in modem.generic.device.  Keep the argument in a
+	# deliberately small alphabet so it can never become another shell or
+	# mmcli option.
+	case "$value" in
+		[A-Za-z0-9/]*) ;;
+		*) return 1 ;;
+	esac
+	case "$value" in
+		*[!A-Za-z0-9_./:+@=-]*) return 1 ;;
+	esac
+	return 0
+}
+
+valid_value_token() {
+	local value="$1"
+
+	[ -n "$value" ] || return 1
+	case "$value" in
+		[A-Za-z0-9]*) ;;
+		*) return 1 ;;
+	esac
+	case "$value" in
+		*[!A-Za-z0-9._:+-]*) return 1 ;;
+	esac
+	return 0
+}
+
+get_uci() {
+	local key="$1"
+
+	"$UCI_BIN" -q get "$key" 2>/dev/null
+}
+
+list_sections() {
+	local config="$1"
+	local type="$2"
+
+	# UCI emits one exact type declaration per section.  Section names cannot
+	# contain a dot, so this does not accidentally match an option value.
+	"$UCI_BIN" -q show "$config" 2>/dev/null |
+		sed -n "s/^${config}\\.\\([^.=][^.=]*\\)=${type}$/\\1/p"
+}
+
+json_get() {
+	local expression="$1"
+
+	"$JSONFILTER_BIN" -e "$expression" 2>/dev/null
+}
+
+contains_word() {
+	local wanted="$1"
+	local values="$2"
+	local value
+
+	for value in $values; do
+		[ "$value" = "$wanted" ] && return 0
+	done
+	return 1
+}
+
+normalize_mode_set() {
+	local raw="$1"
+	local allow_any="${2:-0}"
+	local token seen=""
+
+	mode_normalized=""
+	# MM prints comma-separated mode names while netifd stores the same set
+	# with '|'.  Parse both spellings and emit netifd's stable descending order.
+	raw=$(printf '%s\n' "$raw" | tr ',|' ' ')
+	for token in $raw; do
+		case "$token" in
+			2g|3g|4g|5g)
+				[ "$seen" = any ] && return 1
+				contains_word "$token" "$seen" && return 1
+				seen="${seen}${seen:+ }${token}"
+				;;
+			any)
+				[ "$allow_any" -eq 1 ] && [ -z "$seen" ] || return 1
+				seen=any
+				;;
+			*) return 1 ;;
+		esac
+	done
+
+	[ -n "$seen" ] || return 1
+	if [ "$seen" = any ]; then
+		mode_normalized=any
+		return 0
+	fi
+
+	for token in 5g 4g 3g 2g; do
+		contains_word "$token" "$seen" || continue
+		mode_normalized="${mode_normalized}${mode_normalized:+|}${token}"
+	done
+	[ -n "$mode_normalized" ]
+}
+
+normalize_preferred_mode() {
+	local raw="$1"
+
+	raw=$(printf '%s\n' "$raw" | tr -d '[:space:]')
+	case "$raw" in
+		''|none) mode_normalized=none ;;
+		2g|3g|4g|5g) mode_normalized="$raw" ;;
+		*) return 1 ;;
+	esac
+	return 0
+}
+
+parse_mode_record() {
+	local record="$1"
+	local allowed_raw preferred_raw
+
+	parsed_allowed=""
+	parsed_preferred=""
+	allowed_raw=$(printf '%s\n' "$record" |
+		sed -n 's/.*allowed:[[:space:]]*\([^;]*\);.*/\1/p')
+	preferred_raw=$(printf '%s\n' "$record" |
+		sed -n 's/.*preferred:[[:space:]]*\(.*\)/\1/p')
+	[ -n "$allowed_raw" ] || return 1
+	[ -n "$preferred_raw" ] || preferred_raw=none
+
+	normalize_mode_set "$allowed_raw" 1 || return 1
+	parsed_allowed="$mode_normalized"
+	normalize_preferred_mode "$preferred_raw" || return 1
+	parsed_preferred="$mode_normalized"
+	if [ "$parsed_allowed" = any ] && [ "$parsed_preferred" != none ]; then
+		return 1
+	fi
+	if [ "$parsed_preferred" != none ] &&
+		! contains_word "$parsed_preferred" "$(printf '%s\n' "$parsed_allowed" | tr '|' ' ')"; then
+		return 1
+	fi
+	return 0
+}
+
+validate_reported_modes() {
+	local values="$1"
+	local record pair
+
+	supported_pairs=""
+	# jsonfilter emits one supported MMModemModeCombination per line.  Keep
+	# each allowed/preferred pair intact so a token union cannot authorize a
+	# combination the modem did not advertise.
+	while IFS= read -r record || [ -n "$record" ]; do
+		[ -n "$record" ] || continue
+		parse_mode_record "$record" || return 1
+		pair="${parsed_allowed};${parsed_preferred}"
+		contains_word "$pair" "$supported_pairs" && return 1
+		supported_pairs="${supported_pairs}${supported_pairs:+ }${pair}"
+	done <<EOF
+$values
+EOF
+	[ -n "$supported_pairs" ]
+}
+
+validate_mode_pair() {
+	local allowed="$1"
+	local preferred="$2"
+	local supported="$3"
+	local enforce_netifd="${4:-1}"
+	local pair
+
+	# An omitted allowedmode is netifd's "any" default.  Callers that need to
+	# preserve that default may skip this function and avoid an MM write.
+	[ -n "$allowed" ] || allowed=any
+	normalize_mode_set "$allowed" 1 || return 1
+	validated_allowed="$mode_normalized"
+	normalize_preferred_mode "$preferred" || return 1
+	validated_preferred="$mode_normalized"
+	if [ "$enforce_netifd" -eq 1 ]; then
+		case "$validated_allowed" in
+			*'|'*)
+				[ "$validated_preferred" != none ] || return 1
+				contains_word "$validated_preferred" "$(printf '%s\n' "$validated_allowed" | tr '|' ' ')" || return 1
+				;;
+			*)
+				[ "$validated_preferred" = none ] || return 1
+				;;
+		esac
+	fi
+	pair="${validated_allowed};${validated_preferred}"
+	contains_word "$pair" "$supported"
+}
+
+parse_current_modes() {
+	local value="$1"
+
+	parse_mode_record "$value" || return 1
+	current_allowed="$parsed_allowed"
+	current_preferred="$parsed_preferred"
+	return 0
+}
+
+modes_equal() {
+	local wanted_allowed="$1"
+	local wanted_preferred="$2"
+	local actual_allowed="$3"
+	local actual_preferred="$4"
+
+	[ "$wanted_allowed" = "$actual_allowed" ] || return 1
+	[ "$wanted_preferred" = "$actual_preferred" ]
+}
+
+append_pipe_value() {
+	local value="$1"
+
+	if [ -n "$band_pipe" ]; then
+		band_pipe="${band_pipe}|${value}"
+	else
+		band_pipe="$value"
+	fi
+}
+
+validate_reported_bands() {
+	local values="$1"
+	local seen=""
+	local value
+	band_seen_any=0
+
+	for value in $values; do
+		valid_value_token "$value" || return 1
+		if [ "$value" = any ]; then
+			[ -z "$seen" ] || return 1
+			band_seen_any=1
+			seen=any
+			continue
+		fi
+		[ "$seen" = any ] && return 1
+		contains_word "$value" "$seen" && return 1
+		seen="${seen}${seen:+ }${value}"
+	done
+	return 0
+}
+
+validate_current_bands() {
+	local values="$1"
+	local supported="$2"
+	local value
+
+	validate_reported_bands "$values" || return 1
+	[ "$band_seen_any" -eq 1 ] && return 0
+	for value in $values; do
+		contains_word "$value" "$supported" || return 1
+	done
+	return 0
+}
+
+validate_requested_bands() {
+	local requested="$1"
+	local supported="$2"
+	local seen=""
+	local value
+
+	band_pipe=""
+	band_any=0
+	# An absent/empty list means that the modem's own default band policy is
+	# retained.  Do not turn it into a list of all supported bands.
+	[ -n "$requested" ] || return 0
+	if [ "$requested" = any ]; then
+		# ModemManager's MM_MODEM_BAND_ANY asks the modem to choose among all
+		# usable bands.  This is an explicit reset and differs from an omitted
+		# UCI option, which remains inert for first boot and hotplug.
+		band_pipe=any
+		band_any=1
+		return 0
+	fi
+
+	for value in $requested; do
+		valid_value_token "$value" || return 1
+		[ "$value" = any ] && return 1
+		contains_word "$value" "$supported" || return 1
+		contains_word "$value" "$seen" && return 1
+		seen="${seen}${seen:+ }${value}"
+		append_pipe_value "$value"
+	done
+	return 0
+}
+
+band_sets_equal() {
+	local left="$1"
+	local right="$2"
+	local value
+
+	for value in $left; do
+		contains_word "$value" "$right" || return 1
+	done
+	for value in $right; do
+		contains_word "$value" "$left" || return 1
+	done
+	return 0
+}
+
+find_network_for_device() {
+	target_device="$1"
+	network_count=0
+	network_section=""
+
+	for section in $(list_sections network interface); do
+		valid_section_name "$section" || continue
+		proto=$(get_uci "network.${section}.proto")
+		net_device=$(get_uci "network.${section}.device")
+		# Compare the complete UCI values.  A substring search could select an
+		# unrelated interface whose name happens to contain this device path.
+		if [ "$proto" = "modemmanager" ] && [ "$net_device" = "$target_device" ]; then
+			network_count=$((network_count + 1))
+			network_section="$section"
+		fi
+	done
+}
+
+apply_modes() {
+	local device="$1"
+	local supported_modes="$2"
+	local current_modes="$3"
+	local allowed preferred requested_allowed requested_preferred
+
+	find_network_for_device "$device"
+	[ "$network_count" -gt 0 ] || return 0
+	if [ "$network_count" -ne 1 ]; then
+		log_msg "refusing mode update for ${device}: ${network_count} matching ModemManager interfaces"
+		return 1
+	fi
+
+	allowed=$(get_uci "network.${network_section}.allowedmode")
+	preferred=$(get_uci "network.${network_section}.preferredmode")
+	# An omitted allowedmode is netifd's explicit default of any.  Keeping the
+	# option absent also avoids imposing an automatic radio restriction.
+	[ "$allowed" = any ] && allowed=""
+	[ -n "$allowed" ] || {
+		[ -z "$preferred" ] || log_msg "ignoring preferred mode without allowed mode on ${network_section}"
+		return 0
+	}
+
+	validate_mode_pair "$allowed" "$preferred" "$supported_modes" || {
+		log_msg "invalid network mode selection on ${network_section}; leaving modem unchanged"
+		return 1
+	}
+	requested_allowed="$validated_allowed"
+	requested_preferred="$validated_preferred"
+
+	parse_current_modes "$current_modes" || {
+		log_msg "invalid current-modes response for ${device}; leaving mode unchanged"
+		return 1
+	}
+	validate_mode_pair "$current_allowed" "$current_preferred" "$supported_modes" 0 || {
+		log_msg "invalid current-modes values for ${device}; leaving mode unchanged"
+		return 1
+	}
+
+	if modes_equal "$requested_allowed" "$requested_preferred" \
+		"$current_allowed" "$current_preferred"; then
+		return 0
+	fi
+	[ "${VALIDATE_ONLY:-0}" -eq 1 ] && return 0
+
+	if [ "$requested_preferred" != "none" ]; then
+		"$MMCLI_BIN" --modem="$device" \
+			--set-allowed-modes="$requested_allowed" \
+			--set-preferred-mode="$requested_preferred" >/dev/null 2>&1 || {
+			log_msg "failed to set radio modes for ${device}"
+			return 1
+		}
+	else
+		"$MMCLI_BIN" --modem="$device" \
+			--set-allowed-modes="$requested_allowed" >/dev/null 2>&1 || {
+			log_msg "failed to set allowed radio mode for ${device}"
+			return 1
+		}
+	fi
+	mode_changed=1
+	return 0
+}
+
+apply_section() {
+	local section="$1"
+	local device bands status_json supported_bands current_bands
+	local supported_modes current_modes changed=0
+	mode_changed=0
+
+	valid_section_name "$section" || return 1
+	device=$(get_uci "mmconfig.${section}.device")
+	[ -n "$device" ] || return 0
+	if [ -n "${PREPARE_DEVICE:-}" ]; then
+		[ "$device" = "$PREPARE_DEVICE" ] || return 0
+		# Empty/default configuration never adds an MM operation to netifd.
+		[ -n "$(get_uci "mmconfig.${section}.bands")" ] || return 0
+	fi
+	valid_device "$device" || {
+		log_msg "invalid ModemManager device in mmconfig.${section}"
+		return 1
+	}
+
+	status_json=$("$MMCLI_BIN" --modem="$device" -J 2>/dev/null) || {
+		log_msg "ModemManager did not return JSON for ${device}"
+		return 1
+	}
+	[ -n "$status_json" ] || return 1
+
+	supported_bands=$(printf '%s' "$status_json" |
+		json_get '@["modem"]["generic"]["supported-bands"].*')
+	current_bands=$(printf '%s' "$status_json" |
+		json_get '@["modem"]["generic"]["current-bands"].*')
+	bands=$(get_uci "mmconfig.${section}.bands")
+
+	# Reject an unsupported mode pair before making any band change. netifd
+	# prepare handles only bands; netifd remains the owner of radio modes.
+	if [ -z "${PREPARE_DEVICE:-}" ]; then
+		supported_modes=$(printf '%s' "$status_json" | json_get '@["modem"]["generic"]["supported-modes"].*')
+		current_modes=$(printf '%s' "$status_json" | json_get '@["modem"]["generic"]["current-modes"]')
+		if [ -n "$supported_modes" ] && [ -n "$current_modes" ] && validate_reported_modes "$supported_modes"; then
+			VALIDATE_ONLY=1 apply_modes "$device" "$supported_pairs" "$current_modes" || return 1
+		elif [ -n "$supported_modes" ] || [ -n "$current_modes" ]; then
+			log_msg "invalid mode data for ${device}; leaving modem unchanged"
+			return 1
+		fi
+	fi
+
+	if [ -n "$bands" ] && [ -z "$supported_bands" ]; then
+		log_msg "cannot validate configured bands for ${device}: ModemManager reported none"
+		return 1
+	fi
+	if [ -n "$supported_bands" ]; then
+		if validate_reported_bands "$supported_bands" &&
+			validate_current_bands "$current_bands" "$supported_bands" &&
+			validate_requested_bands "$bands" "$supported_bands"; then
+			if [ "$band_any" -eq 1 ]; then
+				# Explicit `any` resets a previous restriction.  The current
+				# property may contain the concrete bands selected by the modem,
+				# so only the literal `any` means the reset is already applied.
+				if [ "$current_bands" != any ]; then
+					"$MMCLI_BIN" --modem="$device" \
+						--set-current-bands="$band_pipe" >/dev/null 2>&1 || {
+						log_msg "failed to reset bands for ${device}"
+						return 1
+					}
+					changed=1
+				fi
+			elif [ -n "$bands" ] && ! band_sets_equal "$bands" "$current_bands"; then
+				"$MMCLI_BIN" --modem="$device" \
+					--set-current-bands="$band_pipe" >/dev/null 2>&1 || {
+					log_msg "failed to set bands for ${device}"
+					return 1
+				}
+				changed=1
+			fi
+		else
+			log_msg "invalid band data for ${device}; leaving bands unchanged"
+			return 1
+		fi
+	fi
+
+	# Called by netifd after enabling the exact device and before connecting.
+	# Never recurse into ifup, discover other devices, or override its modes.
+	[ -n "${PREPARE_DEVICE:-}" ] && return 0
+	if [ -n "$supported_modes" ] && [ -n "$current_modes" ] &&
+		validate_reported_modes "$supported_modes"; then
+		apply_modes "$device" "$supported_pairs" "$current_modes" || return 1
+		[ "$mode_changed" -eq 1 ] && changed=1
+	elif [ -n "$supported_modes" ] || [ -n "$current_modes" ]; then
+		log_msg "invalid mode data for ${device}; leaving modes unchanged"
+		return 1
+	fi
+
+	# Only reconnect the one network interface whose proto and complete device
+	# value match this modem.  Never call a global network restart.
+	if [ "$changed" -eq 1 ]; then
+		find_network_for_device "$device"
+		if [ "$network_count" -eq 1 ] && valid_section_name "$network_section"; then
+			"$IFUP_BIN" "$network_section" >/dev/null 2>&1 ||
+				log_msg "failed to bring up matching interface ${network_section}"
+		elif [ "$network_count" -gt 1 ]; then
+			log_msg "not reconnecting ${device}: multiple matching interfaces"
+		fi
+	fi
+	return 0
+}
+
+apply_config() {
+	local failed=0
+	local section
+
+	for section in $(list_sections mmconfig modem); do
+		apply_section "$section" || failed=1
+	done
+	return "$failed"
+}
+
+discover_modems() {
+	local list_json modem_paths modem_path modem_index modem_json device
+	local section configured new_section changed=0
+
+	list_json=$("$MMCLI_BIN" -L -J 2>/dev/null) || return 0
+	[ -n "$list_json" ] || return 0
+	modem_paths=$(printf '%s' "$list_json" | json_get '@["modem-list"].*')
+	[ -n "$modem_paths" ] || return 0
+
+	for modem_path in $modem_paths; do
+		case "$modem_path" in
+			/org/freedesktop/ModemManager1/Modem/*) ;;
+			*) continue ;;
+		esac
+		modem_index="${modem_path##*/}"
+		case "$modem_index" in
+			''|*[!0-9]*) continue ;;
+		esac
+
+		modem_json=$("$MMCLI_BIN" --modem="$modem_index" -J 2>/dev/null) || continue
+		device=$(printf '%s' "$modem_json" |
+			json_get '@["modem"]["generic"]["device"]')
+		valid_device "$device" || continue
+
+		configured=0
+		for section in $(list_sections mmconfig modem); do
+			valid_section_name "$section" || continue
+			if [ "$(get_uci "mmconfig.${section}.device")" = "$device" ]; then
+				configured=1
+				break
+			fi
+		done
+		[ "$configured" -eq 1 ] && continue
+
+		new_section=$("$UCI_BIN" -q add mmconfig modem 2>/dev/null) || continue
+		valid_section_name "$new_section" || continue
+		"$UCI_BIN" -q set "mmconfig.${new_section}.device=${device}" || continue
+		changed=1
+	done
+
+	# Commit only this package's own UCI file.  In particular, never use the
+	# unscoped `uci commit` form, which could commit another LuCI page's edits.
+	[ "$changed" -eq 1 ] && "$UCI_BIN" -q commit mmconfig
+	return 0
+}
+
+case "$1" in
+	discover)
+		discover_modems
+		;;
+	apply|reload)
+		apply_config
+		;;
+	prepare)
+		valid_device "$2" || exit 2
+		PREPARE_DEVICE="$2"
+		apply_config
+		;;
+	*)
+		echo "Usage: $0 {discover|apply}" >&2
+		exit 2
+		;;
+esac

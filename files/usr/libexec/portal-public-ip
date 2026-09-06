@@ -1,0 +1,20 @@
+#!/bin/sh
+# 登录时异步刷新，绝不让公网地址查询阻塞 SSH shell。
+cache=/tmp/portal-public-ip
+now=$(date +%s)
+updated=$(cat "$cache.time" 2>/dev/null)
+case "$updated" in ''|*[!0-9]*) updated=0 ;; esac
+[ "$((now - updated))" -lt 300 ] && exit 0
+lock=/tmp/portal-public-ip.lock
+mkdir "$lock" 2>/dev/null || exit 0
+trap 'rmdir "$lock" 2>/dev/null' EXIT
+trap 'exit 1' HUP INT TERM
+for url in https://ipinfo.io/ip https://api.ipify.org; do
+    ip=$(wget -q -T 3 -O - "$url" 2>/dev/null)
+    if printf '%s\n' "$ip" | awk -F. 'NF == 4 { for (i=1;i<=4;i++) if ($i !~ /^[0-9]+$/ || $i > 255) exit 1; ok=1 } END { if (!ok) exit 1 }'; then
+        printf '%s\n' "$ip" > "$cache.new" && mv "$cache.new" "$cache" || exit 1
+        printf '%s\n' "$now" > "$cache.time"
+        exit 0
+    fi
+done
+exit 1

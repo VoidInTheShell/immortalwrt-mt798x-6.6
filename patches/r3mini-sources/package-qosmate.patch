@@ -1,0 +1,587 @@
+diff --git a/Makefile b/Makefile
+index 9ad3299..c3121e3 100644
+--- a/Makefile
++++ b/Makefile
+@@ -13,7 +13,7 @@ define Package/qosmate
+   SECTION:=net
+   CATEGORY:=Base system
+   TITLE:=QoSmate - Quality of Service management tool
+-  DEPENDS:=+kmod-sched +ip-full +kmod-veth +tc-full +kmod-netem +kmod-sched-ctinfo +kmod-ifb +kmod-sched-cake +kmod-sched-red
++  DEPENDS:=+kmod-sched +ip-full +kmod-veth +tc-full +kmod-netem +kmod-sched-ctinfo +kmod-ifb +kmod-sched-cake +kmod-sched-red +luci-lib-jsonc +lua +jq +coreutils-sleep
+ endef
+ 
+ define Package/qosmate/description
+@@ -31,15 +31,26 @@ define Package/qosmate/conffiles
+ endef
+ 
+ define Package/qosmate/install
+-	$(INSTALL_DIR) $(1)/etc
+-	$(INSTALL_DIR) $(1)/etc/init.d
+-	$(INSTALL_DIR) $(1)/etc/hotplug.d/iface
+-	$(INSTALL_DIR) $(1)/etc/config
+-
+-	$(INSTALL_BIN) ./etc/qosmate.sh $(1)/etc/
+-	$(INSTALL_BIN) ./etc/init.d/qosmate $(1)/etc/init.d/
+-	$(INSTALL_CONF) ./etc/hotplug.d/iface/13-qosmateHotplug $(1)/etc/hotplug.d/iface/
+-	$(INSTALL_CONF) ./etc/config/qosmate $(1)/etc/config/
++		$(INSTALL_DIR) $(1)/etc
++		$(INSTALL_DIR) $(1)/etc/init.d
++		$(INSTALL_DIR) $(1)/etc/hotplug.d/iface
++		$(INSTALL_DIR) $(1)/etc/config
++		$(INSTALL_DIR) $(1)/etc/qosmate.d
++		$(INSTALL_DIR) $(1)/usr/lib/tc
++
++		$(INSTALL_BIN) ./etc/qosmate.sh $(1)/etc/
++		$(INSTALL_BIN) ./etc/qosmate-autorate.sh $(1)/etc/
++		$(INSTALL_BIN) ./etc/qosmate-autorate-tc.sh $(1)/etc/
++		$(INSTALL_BIN) ./etc/init.d/qosmate $(1)/etc/init.d/
++		$(SED) 's/^VERSION="dev"/VERSION="$(PKG_VERSION)"/' $(1)/etc/init.d/qosmate
++		$(INSTALL_BIN) ./etc/init.d/qosmate-autorate $(1)/etc/init.d/
++		$(INSTALL_BIN) ./etc/hotplug.d/iface/13-qosmateHotplug $(1)/etc/hotplug.d/iface/
++		$(INSTALL_CONF) ./etc/config/qosmate $(1)/etc/config/
++		$(INSTALL_DATA) ./etc/config/qosmate $(1)/etc/qosmate.d/qosmate-defaults
++		touch $(1)/etc/qosmate.d/portalwrt-managed
++		$(INSTALL_DIR) $(1)/lib/upgrade/keep.d
++		echo /etc/qosmate.d/offload-state/ > $(1)/lib/upgrade/keep.d/qosmate-offload-state
++		$(INSTALL_DATA) ./usr/lib/tc/*.dist $(1)/usr/lib/tc/
+ endef
+ 
+ $(eval $(call BuildPackage,qosmate))
+diff --git a/README.md b/README.md
+index 988d537..39fea66 100644
+--- a/README.md
++++ b/README.md
+@@ -155,7 +155,7 @@ Remember that these are starting points - optimal settings may depend on your sp
+ 
+ | Config option | Description                                                                                                                                                                                                                    | Type              | Default |
+ | ------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ----------------- | ------- |
+-| enabled       | Enables or disables QoSmate. Set to 1 to enable, 0 to disable.                                                                                                             | boolean           | 1       |
++| enabled       | Enables or disables QoSmate. Set to 1 to enable, 0 to disable.                                                                                                             | boolean           | 0       |
+ | WAN           | Specifies the WAN interface. This is crucial for applying QoS rules to the correct network interface. It's typically the interface connected to your ISP.                                                                      | string            | eth1    |
+ | DOWNRATE      | Download rate in kbps. Set this to about 80-90% of your actual download speed to allow for overhead and prevent bufferbloat. This creates a buffer that helps maintain low latency even when the connection is fully utilized. Set to 0 to disable ingress shaping, see [One-Directional Shaping](#one-directional-shaping). | integer           | 90000   |
+ | UPRATE        | Upload rate in kbps. Set this to about 80-90% of your actual upload speed for the same reasons as DOWNRATE. Set to 0 to disable egress shaping.                                                                                | integer           | 45000   |
+diff --git a/etc/config/qosmate b/etc/config/qosmate
+index 4e4eb8c..6fc77d7 100644
+--- a/etc/config/qosmate
++++ b/etc/config/qosmate
+@@ -1,5 +1,5 @@
+ config global 'global'
+-	option enabled '1'
++	option enabled '0'
+ 
+ config settings 'settings'
+ 	option WAN 'eth1'
+diff --git a/etc/hotplug.d/iface/13-qosmateHotplug b/etc/hotplug.d/iface/13-qosmateHotplug
+index e69de29..d36b793 100644
+--- a/etc/hotplug.d/iface/13-qosmateHotplug
++++ b/etc/hotplug.d/iface/13-qosmateHotplug
+@@ -0,0 +1,22 @@
++#!/bin/sh
++
++# QoSmate is shipped disabled.  Keep hotplug passive until the user explicitly
++# enables global.enabled; this avoids changing qdiscs or HNAT on first boot.
++[ "$ACTION" = "ifup" ] || exit 0
++[ -n "$DEVICE" ] || exit 0
++
++. /lib/functions.sh
++config_load qosmate 2>/dev/null || exit 0
++
++config_get qosmate_enabled global enabled 0
++[ "$qosmate_enabled" = "1" ] || exit 0
++
++# Only react to the configured WAN.  INTERFACE is normally the logical name
++# (wan), while DEVICE is normally the physical name (eth1, pppoe-wan, ...).
++config_get qosmate_wan settings WAN ""
++[ "$INTERFACE" = "wan" ] || [ "$INTERFACE" = "$qosmate_wan" ] || \
++	[ "$DEVICE" = "$qosmate_wan" ] || exit 0
++
++logger -t qosmate "Reloading qosmate after $ACTION of $INTERFACE ($DEVICE)"
++/etc/init.d/qosmate enabled || /etc/init.d/qosmate enable
++/etc/init.d/qosmate restart
+diff --git a/etc/init.d/qosmate b/etc/init.d/qosmate
+index 195d95d..2c6e5fd 100644
+--- a/etc/init.d/qosmate
++++ b/etc/init.d/qosmate
+@@ -2,13 +2,13 @@
+ # shellcheck disable=SC3043,SC1091,SC2155,SC3020,SC3010,SC2016,SC3060,SC3003,SC3015,SC3044
+ 
+ START=99
+-STOP=99
++STOP=10
+ 
+ USE_PROCD=1
+ VERSION="dev"
+ UPD_CHANNEL="release"
+ 
+-EXTRA_COMMANDS="check_version update auto_setup auto_setup_noninteractive auto_setup_detached validate_custom_rules health_check"
++EXTRA_COMMANDS="check_version update auto_setup auto_setup_noninteractive auto_setup_detached validate_custom_rules health_check recover_offload"
+ EXTRA_HELP="
+         check_version              Check for updates
+         update                     Update qosmate
+@@ -54,6 +54,8 @@ QOSMATE_DEFAULTS_FILE=${QOSMATE_D}/qosmate-defaults
+ QOSMATE_CUSTOM_RULES_FILE=${QOSMATE_D}/custom_rules.nft
+ QOSMATE_INLINE_RULES_FILE=${QOSMATE_D}/inline_dscptag.nft
+ QOSMATE_RUN_DIR=/tmp/qosmate
++# The forced UCI options are committed, so their journal must survive power loss.
++QOSMATE_OFFLOAD_STATE_DIR=${QOSMATE_D}/offload-state
+ QOSMATE_AUTO_SETUP_OUTPUT=/tmp/qosmate_auto_setup_output.txt
+ 
+ # Local path of JS files
+@@ -259,6 +261,7 @@ check_files_integrity() {
+ 
+     IFS="$DEFAULT_IFS"
+     [ -z "$files_missing" ] || return 2
++    [ -z "$reg_missing" ] || [ ! -e "$QOSMATE_D/portalwrt-managed" ] || return 0
+     [ -z "$reg_missing" ] || { error_out "$reg_file is not found. Can not check files integrity."; return 3; }
+ 
+     md5sum -c "$reg_file" &>/dev/null || return 4
+@@ -713,6 +716,10 @@ check_version() {
+ # -f : force update
+ # -i : ignore previous cache results
+ update() {
++    if [ -e "$QOSMATE_D/portalwrt-managed" ]; then
++        error_out "This installation contains board-specific fixes. Update QoSmate through the firmware/package build."
++        return 1
++    fi
+     upd_failed() {
+         rm -rf "${QOSMATE_UPD_DIR:-?}"
+         [ -n "$*" ] && error_out "$@"
+@@ -1832,29 +1839,212 @@ check_package_status() {
+     return 0
+ }
+ 
+-create_hotplug_script() {
+-    [ -s "$QOSMATE_HOTPLUG_SCRIPT" ] && { log_msg "Hotplug script already exists."; return 0; }
+-    log_msg "" "Creating the hotplug script."
+-    cat > "$QOSMATE_HOTPLUG_SCRIPT" << 'EOF'
+-#!/bin/sh
++hnat_hook_number() {
++    case "$1" in enabled|1) echo 1 ;; disabled|0) echo 0 ;; *) return 1 ;; esac
++}
+ 
+-[ -n "$DEVICE" ] || exit 0
+-if [ "$ACTION" = ifup ]; then
+-    . /lib/functions.sh
+-    config_load qosmate || {
+-        logger -t qosmate -p user.err "Failed to load config."
+-        exit 1
+-    }
+-    config_get qosmate_enabled global enabled
+-    if [ "$qosmate_enabled" = "1" ]; then
+-        logger -t qosmate "Reloading qosmate.sh due to $ACTION of $INTERFACE ($DEVICE)"
+-        /etc/init.d/qosmate enable
+-        /etc/init.d/qosmate restart
++save_offload_uci_option() {
++    local name="$1" key="$2"
++
++    if uci -q get "$key" > "$QOSMATE_OFFLOAD_STATE_DIR/$name.value" 2>/dev/null; then
++        printf '%s\n' set > "$QOSMATE_OFFLOAD_STATE_DIR/$name.mode"
+     else
+-        logger -t qosmate "qosmate is disabled in the configuration. Not executing the script."
++        rm -f "$QOSMATE_OFFLOAD_STATE_DIR/$name.value"
++        printf '%s\n' unset > "$QOSMATE_OFFLOAD_STATE_DIR/$name.mode"
++    fi
++}
++
++restore_offload_uci_option() {
++    local name="$1" key="$2" forced="$3" current value mode
++
++    mode="$(cat "$QOSMATE_OFFLOAD_STATE_DIR/$name.mode" 2>/dev/null)"
++    [ -n "$mode" ] || return 0
++    current="$(uci -q get "$key" 2>/dev/null)"
++
++    # A user may have changed the option while QoSmate was active.  In that
++    # case keep the new value instead of restoring an old snapshot over it.
++    [ "$current" = "$forced" ] || return 0
++    case "$mode" in
++        set)
++            value="$(cat "$QOSMATE_OFFLOAD_STATE_DIR/$name.value" 2>/dev/null)"
++            uci -q set "$key=$value" || return 1
++            ;;
++        unset)
++            uci -q delete "$key" || return 1
++            ;;
++        *)
++            return 1
++            ;;
++    esac
++    QOSMATE_OFFLOAD_RESTORE_CHANGED=1
++}
++
++prepare_offload_state() {
++    local firewall_changed=0 turboacc_changed=0 hnat_path=/sys/kernel/debug/hnat
++    local fastpath hnat_enabled hnat_v6
++
++    if [ -f "$QOSMATE_OFFLOAD_STATE_DIR/prepared" ]; then
++        # After a hard reboot the persistent snapshot is still valid but the
++        # driver can have restored its default hook. Keep the original snapshot
++        # and disable the live hook again before attaching software queues.
++        [ ! -e "$hnat_path/hook_toggle" ] || echo 0 > "$hnat_path/hook_toggle" || return 1
++        return 0
++    fi
++    try_mkdir -p "$QOSMATE_OFFLOAD_STATE_DIR" || return 1
++
++    # QoSmate's tc queues need to see every packet.  Snapshot the generic
++    # firewall offload flags and restore them when the service is stopped.
++    save_offload_uci_option firewall_flow_offloading firewall.@defaults[0].flow_offloading || return 1
++    save_offload_uci_option firewall_flow_offloading_hw firewall.@defaults[0].flow_offloading_hw || return 1
++
++    if [ "$(uci -q get firewall.@defaults[0].flow_offloading 2>/dev/null)" = "1" ]; then
++        uci -q set 'firewall.@defaults[0].flow_offloading=0' || return 1
++        firewall_changed=1
++    fi
++    if [ "$(uci -q get firewall.@defaults[0].flow_offloading_hw 2>/dev/null)" = "1" ]; then
++        uci -q set 'firewall.@defaults[0].flow_offloading_hw=0' || return 1
++        firewall_changed=1
++    fi
++
++    # MediaTek HNAT is controlled by turboacc's fastpath setting and the
++    # debugfs hook.  Keep the user's complete setting (including IPv6) and
++    # disable it only for the lifetime of QoSmate.
++    if uci -q show turboacc.config >/dev/null 2>&1; then
++        save_offload_uci_option turboacc_fastpath turboacc.config.fastpath || return 1
++        save_offload_uci_option turboacc_hnat turboacc.config.fastpath_mh_eth_hnat || return 1
++        save_offload_uci_option turboacc_hnat_v6 turboacc.config.fastpath_mh_eth_hnat_v6 || return 1
++
++        fastpath="$(uci -q get turboacc.config.fastpath 2>/dev/null)"
++        case "$fastpath" in
++            fast_classifier|shortcut_fe_cm|mediatek_hnat|flow_offloading)
++                uci -q set turboacc.config.fastpath=disabled || return 1
++                turboacc_changed=1
++                ;;
++        esac
++        hnat_enabled="$(uci -q get turboacc.config.fastpath_mh_eth_hnat 2>/dev/null)"
++        if [ "$hnat_enabled" = "1" ]; then
++            uci -q set turboacc.config.fastpath_mh_eth_hnat=0 || return 1
++            turboacc_changed=1
++        fi
++        hnat_v6="$(uci -q get turboacc.config.fastpath_mh_eth_hnat_v6 2>/dev/null)"
++        if [ "$hnat_v6" = "1" ]; then
++            uci -q set turboacc.config.fastpath_mh_eth_hnat_v6=0 || return 1
++            turboacc_changed=1
++        fi
++    fi
++
++    if [ -r "$hnat_path/hook_toggle" ]; then
++        hnat_hook_number "$(cat "$hnat_path/hook_toggle")" > "$QOSMATE_OFFLOAD_STATE_DIR/hnat_hook.value" || return 1
++        printf '%s\n' present > "$QOSMATE_OFFLOAD_STATE_DIR/hnat_hook.mode"
++        # Do this even when the UCI package is absent: a loaded HNAT module is
++        # still incompatible with the shaping queues.
++        echo 0 > "$hnat_path/hook_toggle" || return 1
++    fi
++
++    # Mark the snapshot before committing any of the temporary values.  If a
++    # commit fails, start_service can use the same rollback path safely.
++    printf '%s\n' prepared > "$QOSMATE_OFFLOAD_STATE_DIR/prepared" || return 1
++    sync
++    if [ "$firewall_changed" = "1" ]; then
++        uci -q commit firewall || return 1
++    fi
++    if [ "$turboacc_changed" = "1" ]; then
++        uci -q commit turboacc || return 1
++    fi
++    [ "$firewall_changed" = "1" ] && /etc/init.d/firewall reload
++    return 0
++}
++
++restore_offload_state() {
++    local firewall_changed=0 turboacc_changed=0 hnat_path=/sys/kernel/debug/hnat
++    local saved_hook current_hook saved_fastpath fastpath_mode fastpath_was_forced=0
++
++    [ -f "$QOSMATE_OFFLOAD_STATE_DIR/prepared" ] || return 0
++    QOSMATE_OFFLOAD_RESTORE_CHANGED=0
++    # Capture the temporary values before restoring UCI.  The saved runtime
++    # hook must be restored only when QoSmate still owns the forced state.
++    fastpath_was_forced="$(uci -q get turboacc.config.fastpath 2>/dev/null)"
++    fastpath_mode="$(cat "$QOSMATE_OFFLOAD_STATE_DIR/turboacc_fastpath.mode" 2>/dev/null)"
++    saved_fastpath="$(cat "$QOSMATE_OFFLOAD_STATE_DIR/turboacc_fastpath.value" 2>/dev/null)"
++    case "$fastpath_mode" in
++        set)
++            if [ "$fastpath_was_forced" = "disabled" ] || [ "$fastpath_was_forced" = "$saved_fastpath" ]; then
++                fastpath_was_forced=1
++            else
++                fastpath_was_forced=0
++            fi
++            ;;
++        unset)
++            [ -z "$fastpath_was_forced" ] && fastpath_was_forced=1 || fastpath_was_forced=0
++            ;;
++        '')
++            # turboacc may be absent while the MTK HNAT debugfs control is
++            # still available; in that case the hook snapshot is authoritative.
++            fastpath_was_forced=1
++            ;;
++        *)
++            fastpath_was_forced=0
++            ;;
++    esac
++
++    restore_offload_uci_option firewall_flow_offloading firewall.@defaults[0].flow_offloading 0 || return 1
++    restore_offload_uci_option firewall_flow_offloading_hw firewall.@defaults[0].flow_offloading_hw 0 || return 1
++    if [ "$QOSMATE_OFFLOAD_RESTORE_CHANGED" = "1" ]; then
++        firewall_changed=1
++    fi
++
++    QOSMATE_OFFLOAD_RESTORE_CHANGED=0
++    restore_offload_uci_option turboacc_fastpath turboacc.config.fastpath disabled || return 1
++    restore_offload_uci_option turboacc_hnat turboacc.config.fastpath_mh_eth_hnat 0 || return 1
++    restore_offload_uci_option turboacc_hnat_v6 turboacc.config.fastpath_mh_eth_hnat_v6 0 || return 1
++    if [ "$QOSMATE_OFFLOAD_RESTORE_CHANGED" = "1" ]; then
++        turboacc_changed=1
++    fi
++
++    if [ "$firewall_changed" = "1" ]; then
++        uci -q commit firewall || return 1
++    fi
++    if [ "$turboacc_changed" = "1" ]; then
++        uci -q commit turboacc || return 1
++    fi
++
++    # Restore the runtime HNAT hook only if turboacc is still in the value we
++    # forced and the hook itself is still zero.  This keeps an explicit user
++    # change made while QoSmate was on.  For the MTK driver, refresh the IPv6
++    # and bind-rate settings while the hook is still disabled, then restore the
++    # saved hook value as the final operation.
++    saved_hook="$(hnat_hook_number "$(cat "$QOSMATE_OFFLOAD_STATE_DIR/hnat_hook.value" 2>/dev/null)")"
++    current_hook="$(hnat_hook_number "$(cat "$hnat_path/hook_toggle" 2>/dev/null)")"
++    if [ "$fastpath_was_forced" = "1" ] && [ -n "$saved_hook" ] && [ "$current_hook" = "0" ] && \
++       [ -w "$hnat_path/hook_toggle" ]; then
++        if [ "$(uci -q get turboacc.config.fastpath 2>/dev/null)" = "mediatek_hnat" ] && \
++           [ "$(uci -q get turboacc.config.fastpath_mh_eth_hnat 2>/dev/null)" = "1" ] && \
++           [ -w "$hnat_path/hnat_setting" ]; then
++            echo "8 $(uci -q get turboacc.config.fastpath_mh_eth_hnat_v6 2>/dev/null || echo 1)" > "$hnat_path/hnat_setting"
++            echo "11 $(uci -q get turboacc.config.fastpath_mh_eth_hnat_bind_rate 2>/dev/null || echo 30)" > "$hnat_path/hnat_setting"
++        fi
++        echo "$saved_hook" > "$hnat_path/hook_toggle" || return 1
+     fi
+-fi
+-EOF
++
++    if [ "$firewall_changed" = "1" ]; then
++        /etc/init.d/firewall reload || return 1
++    fi
++    rm -rf "$QOSMATE_OFFLOAD_STATE_DIR"
++    return 0
++}
++
++recover_offload() {
++    [ "$(uci -q get qosmate.global.enabled)" = "1" ] && return 0
++    restore_offload_state
++}
++
++create_hotplug_script() {
++    [ -s "$QOSMATE_HOTPLUG_SCRIPT" ] || {
++        error_out "Missing packaged hotplug script '$QOSMATE_HOTPLUG_SCRIPT'."
++        return 1
++    }
++    chmod 0755 "$QOSMATE_HOTPLUG_SCRIPT" || return 1
++    return 0
+ }
+ 
+ manage_custom_rules_file() {
+@@ -1879,8 +2069,14 @@ manage_custom_rules_file() {
+ }
+ 
+ start_service() {
++    if [ "$(uci -q get daed.config.enabled)" = "1" ] || pidof daed >/dev/null 2>&1 ||
++       [ -f /var/run/mtkhqos/active ] ||
++       { [ "$(uci -q get 'mtkhqos.@global[0].enabled')" = "1" ] && [ "$(uci -q get 'mtkhqos.@global[0].hqos')" = "1" ]; }; then
++        error_out "Disable daed/HQoS before enabling QoSmate: these services must not replace each other's packet hooks or queues."
++        return 1
++    fi
+     # handle first run after installation or update from older versions
+-    if [ "$VERSION" = dev ]; then
++    if [ "$VERSION" = dev ] && [ ! -e "$QOSMATE_D/portalwrt-managed" ]; then
+         log_msg "" "Completing the upgrade of the update mechanism..."
+         update -f || return 1
+         # shellcheck disable=SC1090
+@@ -1895,6 +2091,11 @@ start_service() {
+             0) ;; # integrity OK
+             1) return 1 ;;
+             2|3) # missing files
++                if [ -e "$QOSMATE_D/portalwrt-managed" ]; then
++                    [ "$rv" = "3" ] && continue
++                    error_out "Packaged QoSmate files are missing; reinstall the firmware package."
++                    return 1
++                fi
+                 local fix_upd_channel='' fix_version='' force_version=''
+                 case "$component" in
+                     BACKEND) fix_version="$VERSION" fix_upd_channel="$UPD_CHANNEL" ;;
+@@ -1924,6 +2125,17 @@ start_service() {
+ 
+     load_and_fix_config || return 1
+ 
++    # Keep the offload state reversible.  This is done after the QoSmate
++    # configuration has been loaded so a failed config migration cannot leave
++    # HNAT or firewall offloading disabled.
++    try_mkdir -p "$QOSMATE_RUN_DIR" || return 1
++    prepare_offload_state || {
++        error_out "Failed to temporarily disable flow/HNAT offloading."
++        restore_offload_state
++        rm -rf "$QOSMATE_RUN_DIR"
++        return 1
++    }
++
+     # Enable the global option
+     uci set qosmate.global.enabled='1'
+     uci commit qosmate
+@@ -1936,12 +2148,15 @@ start_service() {
+ 
+     preserve_config_files # Add config files to sysupgrade.conf
+ 
+-    try_mkdir -p "$QOSMATE_RUN_DIR"
+-
+     # Save the current WAN interface to a temporary file
+     printf '%s\n' "$WAN" > /tmp/qosmate_wan
+ 
+-    /bin/sh "$QOSMATE_MAIN_SCRIPT" || { error_out "Failed to start qosmate."; return 1; }
++    /bin/sh "$QOSMATE_MAIN_SCRIPT" || {
++        restore_offload_state
++        rm -rf "$QOSMATE_RUN_DIR"
++        error_out "Failed to start qosmate."
++        return 1
++    }
+ 
+     /etc/init.d/firewall reload &&
+     enabled || /etc/init.d/qosmate enable || return 1
+@@ -1957,6 +2172,17 @@ start_service() {
+ }
+ 
+ stop_service() {
++    # No runtime ownership means no permission to remove another program's
++    # qdisc/clsact, IFB or nftables rules. A saved journal only needs recovery.
++    if [ ! -e /tmp/qosmate_wan ]; then
++        restore_offload_state || return 1
++        if [ "$DISABLE_ON_STOP" != "0" ] && [ -z "$FROM_SHUTDOWN" ]; then
++            disable
++            uci -q set qosmate.global.enabled=0
++            uci -q commit qosmate
++        fi
++        return 0
++    fi
+     # Read the old WAN interface from the temporary file
+     OLD_WAN=$(cat /tmp/qosmate_wan 2>/dev/null)
+     if [ -z "$OLD_WAN" ]; then
+@@ -1982,8 +2208,8 @@ stop_service() {
+     # Remove custom rules table
+     nft destroy table inet qosmate_custom
+ 
+-    ## Delete files
+-    rm -f "$QOSMATE_HOTPLUG_SCRIPT"
++    ## Delete generated runtime files.  The packaged hotplug hook is kept so
++    ## an ordinary stop followed by a later explicit start remains safe.
+     rm -f /usr/share/nftables.d/ruleset-post/dscptag.nft
+ 
+     ## Delete the old qdiscs and IFB associated with the old WAN interface
+@@ -1996,9 +2222,18 @@ stop_service() {
+ 
+     nft destroy table inet dscptag
+ 
++    # Restore the exact offload/HNAT settings captured before start.  During a
++    # restart the snapshot must survive until the new instance is running;
++    # normal stop and shutdown remove it after restoration.
++    if [ "$DISABLE_ON_STOP" = "0" ]; then
++        :
++    else
++        restore_offload_state || error_out "Failed to restore flow/HNAT offloading state."
++    fi
++
+     # Remove temporary/runtime files
+     rm -f /tmp/qosmate_wan
+-    rm -rf "$QOSMATE_RUN_DIR"
++    [ "$DISABLE_ON_STOP" = "0" ] || rm -rf "$QOSMATE_RUN_DIR"
+ 
+     print_msg "Reloading network service..."
+     /etc/init.d/network reload
+@@ -2206,7 +2441,11 @@ restart() {
+ }
+ 
+ reload_service() {
+-    restart
++    if [ "$(uci -q get qosmate.global.enabled)" = "1" ]; then
++        restart
++    else
++        stop_service
++    fi
+ }
+ 
+ # 1 - speedtest command
+@@ -2585,7 +2824,7 @@ auto_setup_detached() {
+ 
+ health_check() {
+     # Check if QoSmate is properly configured and running
+-    local status="" errors=0 service_enabled=0 config_status=''
++    local status="" errors=0 service_enabled=0 service_active=0 config_status=''
+ 
+     # Check the config
+     if load_and_fix_config -nofix 1>/dev/null; then
+@@ -2599,38 +2838,44 @@ health_check() {
+     enabled && service_enabled=1
+ 
+     case "${service_enabled}${global_enabled}" in
+-        11) status="${status}service:enabled;" ;;
+-        00) status="${status}service:disabled;"; errors=$((errors + 1)) ;;
++        11) status="${status}service:enabled;"; service_active=1 ;;
++        00) status="${status}service:disabled;" ;;
+         *) status="${status}service:invalid_state;"; errors=$((errors + 1)) ;;
+     esac
+ 
+-    # Check nftables configuration
+-    if nft list table inet dscptag >/dev/null 2>&1; then
+-        status="${status}nft:ok;"
++    if [ "$service_active" = 0 ]; then
++        # A deliberately preinstalled-but-disabled QoSmate must be healthy;
++        # missing runtime nft/tc state is expected until the user starts it.
++        status="${status}nft:off;tc:off;"
+     else
+-        status="${status}nft:failed;"
+-        errors=$((errors + 1))
+-    fi
+-
+-    # Check tc configuration for every direction that is configured to be shaped.
+-    # A rate of 0 disables that direction, so its absence must not count as a failure.
+-    local tc_dev tc_devs='' tc_ok=1
+-    if [ -z "$WAN" ]; then
+-        status="${status}tc:failed;"
+-        errors=$((errors + 1))
+-    else
+-        [ "$SHAPE_EGRESS" = 1 ] && tc_devs="$WAN"
+-        [ "$SHAPE_INGRESS" = 1 ] && tc_devs="$tc_devs ifb-$WAN"
+-        for tc_dev in $tc_devs; do
+-            tc qdisc show dev "$tc_dev" 2>/dev/null | grep -E -q "hfsc|cake|htb" || tc_ok=0
+-        done
+-        if [ -z "$tc_devs" ]; then
+-            status="${status}tc:off;"
+-        elif [ "$tc_ok" = 1 ]; then
+-            status="${status}tc:ok;"
++        # Check nftables configuration
++        if nft list table inet dscptag >/dev/null 2>&1; then
++            status="${status}nft:ok;"
+         else
++            status="${status}nft:failed;"
++            errors=$((errors + 1))
++        fi
++
++        # Check tc configuration for every direction that is configured to be shaped.
++        # A rate of 0 disables that direction, so its absence must not count as a failure.
++        local tc_dev tc_devs='' tc_ok=1
++        if [ -z "$WAN" ]; then
+             status="${status}tc:failed;"
+             errors=$((errors + 1))
++        else
++            [ "$SHAPE_EGRESS" = 1 ] && tc_devs="$WAN"
++            [ "$SHAPE_INGRESS" = 1 ] && tc_devs="$tc_devs ifb-$WAN"
++            for tc_dev in $tc_devs; do
++                tc qdisc show dev "$tc_dev" 2>/dev/null | grep -E -q "hfsc|cake|htb" || tc_ok=0
++            done
++            if [ -z "$tc_devs" ]; then
++                status="${status}tc:off;"
++            elif [ "$tc_ok" = 1 ]; then
++                status="${status}tc:ok;"
++            else
++                status="${status}tc:failed;"
++                errors=$((errors + 1))
++            fi
+         fi
+     fi
+ 

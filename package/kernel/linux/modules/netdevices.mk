@@ -1960,6 +1960,22 @@ endef
 $(eval $(call KernelPackage,wwan))
 
 
+define KernelPackage/iosm
+  SUBMENU:=$(NETWORK_DEVICES_MENU)
+  TITLE:=Intel IOSM M.2 WWAN driver
+  DEPENDS:=@PCI_SUPPORT +kmod-wwan
+  KCONFIG:=CONFIG_IOSM
+  FILES:=$(LINUX_DIR)/drivers/net/wwan/iosm/iosm.ko
+  AUTOLOAD:=$(call AutoProbe,iosm)
+endef
+
+define KernelPackage/iosm/description
+  Driver for Intel IOSM PCIe M.2 WWAN modems (7360/7560)
+endef
+
+$(eval $(call KernelPackage,iosm))
+
+
 define KernelPackage/mhi-net
   SUBMENU:=$(NETWORK_DEVICES_MENU)
   TITLE:=MHI Network Device

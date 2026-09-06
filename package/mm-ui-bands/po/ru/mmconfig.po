@@ -1,0 +1,52 @@
+msgid ""
+msgstr ""
+"Project-Id-Version: luci-app-mmconfig\n"
+"Language: ru\n"
+"PO-Revision-Date: 2026-09-06 00:00+0000\n"
+"Last-Translator: PortalWRT\n"
+"Language-Team: Russian\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+
+msgid "ModemManager"
+msgstr "ModemManager"
+
+msgid "Bands and modes"
+msgstr "Диапазоны и режимы"
+
+msgid "ModemManager band and mode configuration"
+msgstr "Настройка диапазонов и режимов ModemManager"
+
+msgid "Bands"
+msgstr "Диапазоны"
+
+msgid "Allowed network technology"
+msgstr "Разрешённая технология сети"
+
+msgid "Preferred network technology"
+msgstr "Предпочтительная технология сети"
+
+msgid "Any"
+msgstr "Любая"
+
+msgid "None"
+msgstr "Нет"
+
+msgid "All"
+msgstr "Все"
+
+msgid "Automatic (all supported bands)"
+msgstr "Автоматически (все поддерживаемые диапазоны)"
+
+msgid "Automatic mode cannot be combined with specific bands."
+msgstr "Автоматический режим нельзя совмещать с отдельными диапазонами."
+
+msgid "Discover ModemManager devices"
+msgstr "Найти устройства ModemManager"
+
+msgid "Apply saved modem settings"
+msgstr "Применить сохранённые настройки модема"
+
+msgid "ModemManager settings applied."
+msgstr "Настройки ModemManager применены."

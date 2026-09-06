@@ -1,0 +1,35 @@
+#!/bin/sh
+# 开机/联网后异步下载。失败保留内置背景，下次联网或重启会重试。
+. /etc/portalwrt.conf
+[ -n "$PORTAL_THEME_BG_URL" ] || exit 0
+[ "$(cat /etc/portalwrt-background.url 2>/dev/null)" = "$PORTAL_THEME_BG_URL" ] && exit 0
+mkdir -p /var/lock
+lock=/var/lock/portal-background
+mkdir "$lock" 2>/dev/null || exit 0
+image="$lock/background"
+trap 'rm -f "$image"; rmdir "$lock" 2>/dev/null' EXIT
+trap 'exit 1' HUP INT TERM
+for attempt in 1 2 3; do
+    if wget -q -T 15 -O "$image" "$PORTAL_THEME_BG_URL"; then
+        magic=$(hexdump -v -n 8 -e '8/1 "%02x"' "$image")
+        case "$magic" in
+            ffd8ff*|89504e470d0a1a0a)
+                for theme in argon kucat; do
+                    dir="/www/luci-static/$theme/img"
+                    [ -d "$dir" ] || continue
+                    cp "$image" "$dir/bg1.jpg.new" && mv "$dir/bg1.jpg.new" "$dir/bg1.jpg" || exit 1
+                done
+                # KuCat 优先读取 resources/background；同步同一张客制化壁纸。
+                dir=/www/luci-static/resources/background
+                mkdir -p "$dir" || exit 1
+                cp "$image" "$dir/portal.jpg.new" && mv "$dir/portal.jpg.new" "$dir/portal.jpg" || exit 1
+                printf '%s\n' "$PORTAL_THEME_BG_URL" > /etc/portalwrt-background.url
+                logger -t portal-background 'Custom wallpaper updated'
+                exit 0 ;;
+            *) logger -t portal-background 'Downloaded content is not a JPEG/PNG image' ;;
+        esac
+    fi
+    [ "$attempt" = 3 ] || sleep 20
+done
+logger -t portal-background 'Download failed; keeping bundled wallpaper, will retry after reconnect/reboot'
+exit 1

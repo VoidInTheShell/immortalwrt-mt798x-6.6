@@ -1,0 +1,6 @@
+# ModemManager band preferences.
+# A missing or empty `bands` list keeps the modem's own default policy.
+# The explicit value `any` resets a previous restriction to automatic selection.
+# Radio modes are stored on the matching network interface as
+# `allowedmode`/`preferredmode`, because netifd is their single source of
+# truth.

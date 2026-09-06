@@ -1,0 +1,38 @@
+{
+  "returncode": 0,
+  "followup_overrides": {
+    "CONFIG_PACKAGE_ntfs-3g": "n",
+    "CONFIG_NODEJS_HOST_BIN": "y",
+    "CONFIG_NODEJS_24": "y",
+    "CONFIG_NODEJS_20": "n",
+    "CONFIG_NODEJS_22": "n",
+    "CONFIG_PACKAGE_luci-app-daed": "y",
+    "CONFIG_PACKAGE_daed": "y",
+    "CONFIG_PACKAGE_daed-geoip": "y",
+    "CONFIG_PACKAGE_daed-geosite": "y",
+    "CONFIG_DEVEL": "y",
+    "CONFIG_BPF_TOOLCHAIN_HOST": "y",
+    "CONFIG_BPF_TOOLCHAIN_NONE": "n",
+    "CONFIG_KERNEL_DEBUG_INFO": "y",
+    "CONFIG_KERNEL_DEBUG_INFO_REDUCED": "n",
+    "CONFIG_KERNEL_DEBUG_INFO_BTF": "y",
+    "CONFIG_KERNEL_BPF_EVENTS": "y",
+    "CONFIG_KERNEL_CGROUP_BPF": "y",
+    "CONFIG_KERNEL_BPF_STREAM_PARSER": "y",
+    "CONFIG_KERNEL_XDP_SOCKETS": "y",
+    "CONFIG_PACKAGE_luci-app-daed-next": "n",
+    "CONFIG_PACKAGE_daed-next": "n",
+    "CONFIG_PACKAGE_node": "n"
+  },
+  "not_preserved": {},
+  "selected_package_count": 880,
+  "target_node_selected": {},
+  "node_host_build_consumers": {
+    "smartdns": "PACKAGE_smartdns-ui:node/host PACKAGE_smartdns-ui:rust-bindgen/host",
+    "smartdns-ui": "PACKAGE_smartdns-ui:node/host PACKAGE_smartdns-ui:rust-bindgen/host",
+    "filebrowser": "golang/host node/host node-pnpm/host"
+  },
+  "node_host_binary": "y",
+  "selected_y_conflicts": [],
+  "scope": "Configuration-only candidate; host prebuilt compatibility, package builds, services and hardware are untested."
+}

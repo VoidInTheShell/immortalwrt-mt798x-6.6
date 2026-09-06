@@ -1,0 +1,100 @@
+diff --git a/luasrc/model/cbi/modem/dial_overview.lua b/luasrc/model/cbi/modem/dial_overview.lua
+index 8c3e5c5..a49f568 100644
+--- a/luasrc/model/cbi/modem/dial_overview.lua
++++ b/luasrc/model/cbi/modem/dial_overview.lua
+@@ -11,6 +11,11 @@ s = m:section(NamedSection, "global", "global", translate("Global Config"))
+ s.anonymous = true
+ s.addremove = false
+ 
++o = s:option(Flag, "enabled", translate("Enable modem manager"))
++o.rmempty = false
++o.default = "0"
++o.description = translate("Enable this manager only after disabling ModemManager and other managers for the same modem. Disabled mode also disables automatic USB and network configuration.")
++
+ o = s:option(Flag, "enable_dial", translate("Enable"))
+ o.rmempty = false
+ o.description = translate("Enable dial configurations")
+diff --git a/root/etc/config/modem b/root/etc/config/modem
+index 23b6875..4dffcc4 100755
+--- a/root/etc/config/modem
++++ b/root/etc/config/modem
+@@ -1,6 +1,7 @@
+ 
+ config global 'global'
+-	option enable_dial '1'
++	option enabled '0'
++	option enable_dial '0'
+ 	option modem_number '0'
+ 	option manual_configuration '0'
+-	option network_interface_alias '1'
+\ No newline at end of file
++	option network_interface_alias '1'
+diff --git a/root/etc/hotplug.d/net/20-modem-net b/root/etc/hotplug.d/net/20-modem-net
+index 62499e7..b36a4e9 100644
+--- a/root/etc/hotplug.d/net/20-modem-net
++++ b/root/etc/hotplug.d/net/20-modem-net
+@@ -1,6 +1,8 @@
+ #!/bin/sh
+ # Copyright (C) 2023 Siriling <siriling@qq.com>
+ 
++[ "$(uci -q get modem.global.enabled)" = '1' ] || exit 0
++
+ #导入组件工具
+ source "/usr/share/modem/modem_util.sh"
+ 
+diff --git a/root/etc/hotplug.d/usb/20-modem-usb b/root/etc/hotplug.d/usb/20-modem-usb
+index 702b28b..e1d8b03 100644
+--- a/root/etc/hotplug.d/usb/20-modem-usb
++++ b/root/etc/hotplug.d/usb/20-modem-usb
+@@ -1,6 +1,8 @@
+ #!/bin/sh
+ # Copyright (C) 2023 Siriling <siriling@qq.com>
+ 
++[ "$(uci -q get modem.global.enabled)" = '1' ] || exit 0
++
+ #导入组件工具
+ source "/usr/share/modem/modem_util.sh"
+ 
+diff --git a/root/etc/init.d/modem b/root/etc/init.d/modem
+index edf82a9..4b491a2 100755
+--- a/root/etc/init.d/modem
++++ b/root/etc/init.d/modem
+@@ -794,6 +794,9 @@ service_triggers()
+ }
+ 
+ start_service() {
++	[ "$(uci -q get modem.global.enabled)" = '1' ] || return 0
++	mkdir -p "$MODEM_RUNDIR"
++	touch "$MODEM_RUNDIR/manager-active"
+ 
+ 	#加载模组配置
+ 	config_load modem
+@@ -821,6 +824,9 @@ start_service() {
+ 
+ stop_service()
+ {
++	# A disabled alternative manager must not stop another manager's modem.
++	[ -e "$MODEM_RUNDIR/manager-active" ] || return 0
++	rm -f "$MODEM_RUNDIR/manager-active"
+ 	#删除记录文件
+ 	rm -rf ${MODEM_RUN_CONFIG}
+ 	#停止qmi、mbim拨号
+diff --git a/root/etc/init.d/modeminit b/root/etc/init.d/modeminit
+index 280769d..07498ed 100755
+--- a/root/etc/init.d/modeminit
++++ b/root/etc/init.d/modeminit
+@@ -10,6 +10,7 @@ SCRIPT_DIR="/usr/share/modem"
+ 
+ start_service()
+ {
++	[ "$(uci -q get modem.global.enabled)" = '1' ] || return 0
+     # 暂时弃用
+     # /bin/sh ${SCRIPT_DIR}/modem_init.sh
+     echo "init"
+@@ -17,4 +18,4 @@ start_service()
+ #     procd_set_param command /bin/sh /usr/share/modem/modem_init.sh
+ #     procd_set_param respawn # 定义respawn参数，告知procd当task程序退出后尝试进行重启
+ #     procd_close_instance #关闭实例
+-}
+\ No newline at end of file
++}

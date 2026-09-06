@@ -1,0 +1,49 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: R3 Mini migration <r3mini@localhost>
+Date: Sun, 6 Sep 2026 17:00:00 +0800
+Subject: [PATCH] luci-app-daed: expose guarded network reload options
+
+This patch is applied inside the feeds/luci checkout:
+
+    git -C feeds/luci apply ../../patches/r3mini/0002-luci-app-daed-runtime-options.patch
+
+It also fixes the status link to use the actual listen_addr UCI option.
+
+---
+ .../resources/view/daed/config.js                  | 13 +++++++++++++
+ 1 file changed, 13 insertions(+)
+
+diff --git a/applications/luci-app-daed/htdocs/luci-static/resources/view/daed/config.js b/applications/luci-app-daed/htdocs/luci-static/resources/view/daed/config.js
+index edecbf8..215a17a 100644
+--- a/applications/luci-app-daed/htdocs/luci-static/resources/view/daed/config.js
++++ b/applications/luci-app-daed/htdocs/luci-static/resources/view/daed/config.js
+@@ -47,7 +47,7 @@ return view.extend({
+ 
+ 	render: function(data) {
+ 		let m, s, o;
+-		let webport = (uci.get(data[0], 'config', 'address') || '0.0.0.0:2023').split(':').slice(-1)[0];
++		let webport = (uci.get(data[0], 'config', 'listen_addr') || '0.0.0.0:2023').split(':').slice(-1)[0];
+ 
+ 		m = new form.Map('daed', _('daed'),
+ 			_('A modern dashboard for dae.'));
+@@ -88,6 +88,18 @@ return view.extend({
+ 		o.datatype = 'uinteger';
+ 		o.default = '5';
+ 
++		o = s.option(form.Flag, 'hotplug', _('Restart on network changes'),
++			_('Restart daed when a selected logical network changes. Leave disabled when dae can rebind interfaces itself.'));
++		o.default = o.disabled;
++		o.rmempty = false;
++
++		o = s.option(form.DynamicList, 'hotplug_network', _('Networks to watch'),
++			_('Optional netifd logical network names, such as wan, wan6 or wwan.'));
++		o.placeholder = 'wan';
++		o.depends('hotplug', '1');
++		o.optional = true;
++		o.rmempty = true;
++
+ 		return m.render();
+ 	}
+ });
+-- 
+2.43.0

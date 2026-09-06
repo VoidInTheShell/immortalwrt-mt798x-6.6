@@ -1,0 +1,41 @@
+diff --git a/Makefile b/Makefile
+index 120a123..6a75cf9 100644
+--- a/Makefile
++++ b/Makefile
+@@ -13,25 +13,14 @@ LUCI_PKGARCH:=all
+ 
+ PO_LANG:=de
+ 
+-include $(TOPDIR)/feeds/luci/luci.mk
+-
+-define Build/Compile
+-endef
+-
+-define Package/$(PKG_NAME)/install
+-	$(INSTALL_DIR) $(1)/www/luci-static/resources/view/qosmate
+-	$(INSTALL_DIR) $(1)/usr/share/luci/menu.d
+-	$(INSTALL_DIR) $(1)/usr/share/rpcd/acl.d
+-	$(INSTALL_DIR) $(1)/usr/libexec/rpcd
+-
+-	$(INSTALL_DATA) ./htdocs/luci-static/resources/view/*.js $(1)/www/luci-static/resources/view/qosmate/
+-
+-	$(INSTALL_DATA) ./root/usr/share/luci/menu.d/luci-app-qosmate.json $(1)/usr/share/luci/menu.d/
+-	$(INSTALL_DATA) ./root/usr/share/rpcd/acl.d/luci-app-qosmate.json $(1)/usr/share/rpcd/acl.d/
+-
+-	$(INSTALL_BIN) ./root/usr/libexec/rpcd/luci.qosmate $(1)/usr/libexec/rpcd/
+-endef
+-
+-# call BuildPackage - OpenWrt buildroot signature
+-
+-$(eval $(call BuildPackage,$(PKG_NAME)))
++# Use the standard LuCI installer exactly once. Arrange the prepared views in
++# the namespace referenced by menu.d; root/ also installs both executable RPCs.
++define Build/Prepare/luci-app-qosmate
++	mkdir -p $(PKG_BUILD_DIR)/htdocs/luci-static/resources/view/qosmate
++	mv $(PKG_BUILD_DIR)/htdocs/luci-static/resources/view/*.js $(PKG_BUILD_DIR)/htdocs/luci-static/resources/view/qosmate/
++	chmod 0755 $(PKG_BUILD_DIR)/root/usr/libexec/rpcd/luci.qosmate*
++endef
++
++include $(TOPDIR)/feeds/luci/luci.mk
++
++# call BuildPackage - OpenWrt metadata scan marker; luci.mk expands it once.

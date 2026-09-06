@@ -1,0 +1,48 @@
+#!/bin/sh
+# First-boot defaults only. Never run this router script on the build host.
+[ "$(cat /tmp/sysinfo/board_name 2>/dev/null)" = 'bananapi,bpi-r3-mini' ] || exit 0
+. /lib/functions.sh
+
+# Do not reset service choices saved across sysupgrade.
+[ -e /etc/config/r3mini-feature-defaults-applied ] && exit 0
+
+# Applications are installed and available, with one DNS/DHCP and connection
+# manager at first boot. Do not call stop: some third-party stops rewrite shared
+# firewall state even if they have never been started.
+for service in \
+  qosmate qosmate-autorate sqm qosify nft-qos eqos mtkhqos irqbalance \
+  nikki passwall passwall_server daed smartdns AdGuardHome adguardhome \
+  dnsforwarder ipset-dns chinadns-ng dnscrypt-proxy https-dns-proxy \
+  samba4 nfsd vsftpd rsyncd rclone filebrowser sshd \
+  ntpd ntpdate dhcpcd dhcp-fwd rdnssd \
+  umdns avahi-daemon mdnsd mdnsresponder igmpproxy omcproxy miniupnpd \
+  banip geoip-shell pbr mwan3 \
+  frpc frps npc nps cloudflared tailscale zerotier softethervpnserver \
+  softethervpnbridge softethervpnclient p910nd cupsd atftpd \
+  modem modeminit quectel-timesync wifi_schedule zram;
+do
+  [ ! -x "/etc/init.d/$service" ] || "/etc/init.d/$service" disable
+done
+
+set_existing() {
+  uci -q get "${1%.*}" >/dev/null || return 0
+  uci -q set "$1=$2"
+  uci -q commit "${1%%.*}"
+}
+set_existing qosmate.global.enabled 0
+set_existing qosmate.autorate.enabled 0
+set_existing daed.config.enabled 0
+set_existing nikki.config.enabled 0
+set_existing smartdns.@smartdns[0].enabled 0
+set_existing adguardhome.config.enabled 0
+set_existing passwall.@global[0].enabled 0
+set_existing mtkhqos.@global[0].enabled 0
+set_existing mtkhqos.@global[0].hqos 0
+set_existing mtkhqos.@global[0].txq_num 64
+set_existing modem.global.enabled 0
+set_existing modem.global.enable_dial 0
+
+# Keep Dropbear, dnsmasq, odhcpd, sysntpd, ModemManager, MTK wireless/HNAT and
+# existing PortalWRT/LuCI/ttyd defaults under their own board/service control.
+touch /etc/config/r3mini-feature-defaults-applied
+exit 0

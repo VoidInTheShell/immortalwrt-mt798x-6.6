@@ -109,7 +109,11 @@ return view.extend({
 					var tds = [ 'fastpath_state', 'fullcone_state', 'tcpcca_state' ];
 					for (var i in tds) {
 						var view = document.getElementById(tds[i]);
-						view.innerHTML = stats[i];
+						if (view) view.innerHTML = stats[i];
+					}
+					for (var flag of ['warp_loaded', 'wifi_loaded', 'wireless_configured']) {
+						var field = document.getElementById(flag);
+						if (field) field.textContent = res[0][flag] ? _('Yes') : _('No');
 					}
 				});
 			});
@@ -127,7 +131,15 @@ return view.extend({
 					E('td', { 'width': '33%' }, _('TCP CCA')),
 					E('td', { 'id': 'tcpcca_state' }, E('em', {}, _('Collecting data...')))
 				])
-			]);
+				]);
+
+				for (var item of [
+					['warp_loaded', _('WARP driver loaded')],
+					['wifi_loaded', _('MediaTek Wi-Fi driver loaded')],
+					['wireless_configured', _('Wireless HNAT configured')]
+				]) acc_status.appendChild(E('tr', {}, [
+					E('td', {}, item[1]), E('td', { 'id': item[0] }, _('Collecting data...'))
+				]));
 
 			if (ppe_stats.hasOwnProperty('PPE_NUM')) {
 				poll.add(function () {
@@ -135,7 +147,7 @@ return view.extend({
 						var ppe_num = parseInt(res[0].PPE_NUM);
 						for (var i=0; i<ppe_num; i++) {
 							var ppe_bar = document.getElementById(`ppe${i}_entry`);
-							ppe_bar.innerHTML = E('td', {},
+							if (ppe_bar) ppe_bar.innerHTML = E('td', {},
 							progressbar(res[0][`BIND_PPE${i}`], res[0][`ALL_PPE${i}`])).innerHTML;
 						}
 					});
@@ -222,6 +234,7 @@ return view.extend({
 		o = s.option(form.Value, 'fastpath_mh_eth_hnat_ap', _('Enable AP Mode'),
 			_('Fill in ip to enable AP Mode(reboot needed)'));
 		o.optional = true;
+		o.datatype = 'ip4addr';
 		o.depends('fastpath_mh_eth_hnat', '1');
 		
 		o = s.option(form.Value, 'fastpath_mh_eth_hnat_bind_rate', _('HNAT bind rate threshold (pps)'),
@@ -231,18 +244,13 @@ return view.extend({
 		o.placeholder = 30;
 		o.depends('fastpath_mh_eth_hnat', '1');
 
-		o = s.option(form.ListValue, 'fastpath_mh_eth_hnat_ppenum', _('Number of HNAT PPE'),
-			_('Apply this setting after reboot.'));
-		o.rmempty = false;
-		o.value(1);
-		o.value(2);
-		o.default = 2;
-		o.depends('fastpath_mh_eth_hnat', '1');
+		o = s.option(form.DummyValue, '_ppe_count', _('Number of HNAT PPE'));
+		o.cfgvalue = function() { return ppe_stats.PPE_NUM || _('Unavailable'); };
 
 		o = s.option(form.ListValue, 'fullcone', _('Full cone NAT'),
 			_('Full cone NAT (NAT1) can improve gaming performance effectively.'));
 		o.value('0', _('Disable'))
-		o.value('2', _('Boardcom_FULLCONE_NAT'));
+		o.value('2', _('Conntrack Full Cone NAT'));
 		o.default = '0';
 		o.rmempty = false;
 

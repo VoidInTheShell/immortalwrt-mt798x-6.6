@@ -27,7 +27,7 @@ local methods = {
 				hasXTFULLCONENAT  = fs.access("/lib/modules/" .. boardinfo.kernel .. "/xt_FULLCONENAT.ko"),
 				hasTCPCCA         = readfile("/proc/sys/net/ipv4/tcp_available_congestion_control")
 			}
-			print(json.stringify(features))
+			return features
 		end
 	},
 	getFastPathStat = {
@@ -44,12 +44,18 @@ local methods = {
 				local ethernet_hnat = readfile("/sys/kernel/debug/hnat/hook_toggle")
 				ethernet_hnat = (ethernet_hnat ~= "enabled") and " / Ethernet HNAT Disabled" or ""
 
-				local wireless_hnat = (sys.call("grep -q 'WHNAT=1' '/etc/wireless/mediatek/'*_card*.dat") ~= 0) and " / Wireless HNAT Disabled" or ""
-				if (ethernet_hnat == "") or (wireless_hnat == "") then
-					fptype = "MediaTek HNAT" .. ethernet_hnat .. wireless_hnat
+				if ethernet_hnat == "" then
+					fptype = "MediaTek HNAT"
 				end
 			end
-			print(json.stringify({ type = fptype }))
+			-- Configured WHNAT is distinct from a running driver and bound PPE
+			-- entries. A dat flag alone cannot prove wireless offloading works.
+			return {
+				type = fptype,
+				warp_loaded = fs.stat("/sys/module/mtk_warp", "type") == "dir",
+				wifi_loaded = fs.stat("/sys/module/mt_wifi", "type") == "dir",
+				wireless_configured = sys.call("grep -q '^WHNAT=1' /etc/wireless/mediatek/*_card*.dat 2>/dev/null") == 0
+			}
 		end
 	},
 	getFullConeStat = {
@@ -60,16 +66,16 @@ local methods = {
 				fctype = "xt_FULLCONENAT"
 			elseif  fs.access("/proc/sys/net/netfilter/nf_conntrack_nat_mode") and
 				(readfile("/proc/sys/net/netfilter/nf_conntrack_nat_mode") or "0") ~= "0" then
-				fctype = "Boardcom Fullcone"
+					fctype = "Conntrack Full Cone NAT"
 			end
-			print(json.stringify({ type = fctype }))
+			return { type = fctype }
 		end
 	},
 	getTCPCCAStat = {
 		call = function()
 			local ccatype = readfile("/proc/sys/net/ipv4/tcp_congestion_control")
 			ccatype = ccatype and ccatype:upper() or nil
-			print(json.stringify({ type = ccatype }))
+			return { type = ccatype }
 		end
 	},
 	getMTKPPEStat = {
@@ -82,13 +88,13 @@ local methods = {
 				for line in fd:lines() do
 					local i = string.find(line, "=")
 					if i then
-						ppe_stat[string.sub(line,1,i-1)] = string.sub(line,i+1)
+						ppe_stat[string.sub(line,1,i-1):trim()] = string.sub(line,i+1):trim()
 					end
 				end
 				fd:close()
 			end
 
-			print(json.stringify(ppe_stat))
+			return ppe_stat
 		end
 	}
 }
