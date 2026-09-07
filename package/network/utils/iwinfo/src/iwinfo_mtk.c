@@ -736,11 +736,14 @@ static inline int wext_freq2mhz(const struct iw_freq *in)
 
 static int mtk_get_freqlist(const char *dev, char *buf, int *len)
 {
-	struct iwreq wrq;
-	struct iw_range range;
-	struct iwinfo_freqlist_entry entry;
+	struct iwreq wrq = { 0 };
+	struct iw_range range = { 0 };
+	struct iwinfo_freqlist_entry entry = { 0 };
 	const char* ifname;
-	int i, bl, op_band;
+	unsigned int i;
+	int bl, op_band;
+
+	*len = 0;
 
 	ifname = mtk_dev2phy(dev);
 	if (!ifname)
@@ -759,7 +762,9 @@ static int mtk_get_freqlist(const char *dev, char *buf, int *len)
 	{
 		bl = 0;
 
-		for (i = 0; i < range.num_frequency; i++)
+		for (i = 0; i < range.num_frequency &&
+		     i < sizeof(range.freq) / sizeof(range.freq[0]) &&
+		     bl + sizeof(entry) <= IWINFO_BUFSIZE; i++)
 		{
 			entry.mhz        = wext_freq2mhz(&range.freq[i]);
 			entry.channel    = range.freq[i].i;
@@ -838,15 +843,15 @@ static int mtk_get_hwmodelist(const char *dev, int *buf)
 	band = uci_lookup_option_string(uci_ctx, s, "band");
 
 uciout:
-	iwinfo_uci_free();
-
 	if (band) {
 		if (!strcmp(band,"2g"))
 			*buf = (IWINFO_80211_N | IWINFO_80211_AX);
 		else if (!strcmp(band,"5g"))
 			*buf = (IWINFO_80211_AC | IWINFO_80211_AX);
-		return 0;
 	}
+	iwinfo_uci_free();
+	if (*buf)
+		return 0;
 
 	/* get hwmode base on iwrange */
 	ifname = mtk_dev2phy(dev);
@@ -855,7 +860,8 @@ uciout:
 
 	if (!mtk_get_freqlist(ifname, chans, &len))
 	{
-		for (e = (struct iwinfo_freqlist_entry *)chans; e->channel; e++ )
+		for (e = (struct iwinfo_freqlist_entry *)chans;
+		     (char *)(e + 1) <= chans + len; e++)
 		{
 			if (e->channel <= 14 ) //2.4Ghz
 			{
@@ -892,16 +898,16 @@ static int mtk_get_htmodelist(const char *dev, int *buf)
 	band = uci_lookup_option_string(uci_ctx, s, "band");
 
 uciout:
-	iwinfo_uci_free();
-
 	if (band) {
 		if (!strcmp(band,"2g"))
 			*buf = (IWINFO_HTMODE_HT20 | IWINFO_HTMODE_HT40 | IWINFO_HTMODE_HE20 | IWINFO_HTMODE_HE40);
 		else if (!strcmp(band,"5g"))
 			*buf = (IWINFO_HTMODE_VHT20 | IWINFO_HTMODE_VHT40 | IWINFO_HTMODE_VHT80 | IWINFO_HTMODE_VHT160
 			| IWINFO_HTMODE_HE20 | IWINFO_HTMODE_HE40 | IWINFO_HTMODE_HE80 | IWINFO_HTMODE_HE160);
-		return 0;
 	}
+	iwinfo_uci_free();
+	if (*buf)
+		return 0;
 
 	/* get htmode base on iwrange */
 	ifname = mtk_dev2phy(dev);
@@ -910,7 +916,8 @@ uciout:
 
 	if (!mtk_get_freqlist(ifname, chans, &len))
 	{
-		for (e = (struct iwinfo_freqlist_entry *)chans; e->channel; e++ )
+		for (e = (struct iwinfo_freqlist_entry *)chans;
+		     (char *)(e + 1) <= chans + len; e++)
 		{
 			if (e->channel <= 14 ) //2.4Ghz
 			{

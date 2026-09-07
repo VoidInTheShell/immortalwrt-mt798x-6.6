@@ -4,7 +4,7 @@ include $(TOPDIR)/rules.mk
 # source is kept in this tree's dedicated package directory.
 PKG_NAME:=luci-app-mmconfig
 PKG_VERSION:=0.1.2
-PKG_RELEASE:=3
+PKG_RELEASE:=4
 
 PKG_MAINTAINER:=PortalWRT
 PKG_LICENSE:=GPL-3.0-only

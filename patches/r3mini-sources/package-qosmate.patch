@@ -1,8 +1,21 @@
 diff --git a/Makefile b/Makefile
-index 9ad3299..c3121e3 100644
+index 9ad3299..d0c2881 100644
 --- a/Makefile
 +++ b/Makefile
-@@ -13,7 +13,7 @@ define Package/qosmate
+@@ -1,8 +1,10 @@
+ include $(TOPDIR)/rules.mk
+ 
+ PKG_NAME:=qosmate
+-PKG_VERSION:=0.5.48
+-PKG_RELEASE:=1
++# v1.9.0 plus the pinned upstream address-range fix; retain local HNAT policy.
++PKG_VERSION:=1.9.0+git.20260727.5a27872
++PKG_RELEASE:=2
++PKG_UPSTREAM_COMMIT:=5a27872a2274c01eb42d7e0728cab6331fadf6bb
+ 
+ PKG_MAINTAINER:=Markus Hütter <mh@hudra.net>
+ PKG_LICENSE:=GPL-3.0-or-later
+@@ -13,7 +15,7 @@ define Package/qosmate
    SECTION:=net
    CATEGORY:=Base system
    TITLE:=QoSmate - Quality of Service management tool
@@ -11,7 +24,7 @@ index 9ad3299..c3121e3 100644
  endef
  
  define Package/qosmate/description
-@@ -31,15 +31,26 @@ define Package/qosmate/conffiles
+@@ -31,15 +33,26 @@ define Package/qosmate/conffiles
  endef
  
  define Package/qosmate/install
@@ -35,7 +48,7 @@ index 9ad3299..c3121e3 100644
 +		$(INSTALL_BIN) ./etc/qosmate-autorate.sh $(1)/etc/
 +		$(INSTALL_BIN) ./etc/qosmate-autorate-tc.sh $(1)/etc/
 +		$(INSTALL_BIN) ./etc/init.d/qosmate $(1)/etc/init.d/
-+		$(SED) 's/^VERSION="dev"/VERSION="$(PKG_VERSION)"/' $(1)/etc/init.d/qosmate
++			$(SED) 's/^VERSION="dev"/VERSION="$(PKG_UPSTREAM_COMMIT)"/; s/^UPD_CHANNEL="release"/UPD_CHANNEL="snapshot"/' $(1)/etc/init.d/qosmate
 +		$(INSTALL_BIN) ./etc/init.d/qosmate-autorate $(1)/etc/init.d/
 +		$(INSTALL_BIN) ./etc/hotplug.d/iface/13-qosmateHotplug $(1)/etc/hotplug.d/iface/
 +		$(INSTALL_CONF) ./etc/config/qosmate $(1)/etc/config/
@@ -99,7 +112,7 @@ index e69de29..d36b793 100644
 +/etc/init.d/qosmate enabled || /etc/init.d/qosmate enable
 +/etc/init.d/qosmate restart
 diff --git a/etc/init.d/qosmate b/etc/init.d/qosmate
-index 195d95d..2c6e5fd 100644
+index 195d95d..34c7edc 100644
 --- a/etc/init.d/qosmate
 +++ b/etc/init.d/qosmate
 @@ -2,13 +2,13 @@
@@ -135,6 +148,47 @@ index 195d95d..2c6e5fd 100644
      [ -z "$reg_missing" ] || { error_out "$reg_file is not found. Can not check files integrity."; return 3; }
  
      md5sum -c "$reg_file" &>/dev/null || return 4
+@@ -556,26 +559,26 @@ get_frontend_spec() {
+     are_var_names_safe "$1" "$2" || return 1
+     [ -n "$3" ] || { error_out "$me: missing args."; return 1; }
+ 
+-    # assumes string enclosed in FS and no prior FS present in the line
++    # LuCI's package installer minifies JS, placing both constants after other
++    # statements on one line. Locate each declaration before splitting quotes.
+     spec_res="$(
+-        awk -v v_ptrn_1="^[ 	]*const UI_VERSION[ 	]*=" -v v_ptrn_2="^[-a-zA-Z0-9_.]+$" \
+-            -v u_ptrn_1="^[ 	]*const UI_UPD_CHANNEL[ 	]*=" -v u_ptrn_2="^[-a-zA-Z0-9_.=]+$" \
++        awk -v v_ptrn_1="(^|;)[ 	]*const UI_VERSION[ 	]*=" -v v_ptrn_2="^[-a-zA-Z0-9_.]+$" \
++            -v u_ptrn_1="(^|;)[ 	]*const UI_UPD_CHANNEL[ 	]*=" -v u_ptrn_2="^[-a-zA-Z0-9_.=]+$" \
+             -F "'" '
+-                BEGIN{rv=1}
+-                {
+-                    if (v_match_res != "" && u_match_res != "") {rv = v_match_res + u_match_res; exit}
+-                }
+-                $0~v_ptrn_1 {
++                match($0, v_ptrn_1) {
++                    split(substr($0, RSTART), spec, FS)
+                     v_match_res=2
+-                    if ( $2~v_ptrn_2 ) {print "version:" $2; v_match_res=0}
+-                    next
++                    if ( spec[2]~v_ptrn_2 ) {print "version:" spec[2]; v_match_res=0}
+                 }
+-                $0~u_ptrn_1 {
++                match($0, u_ptrn_1) {
++                    split(substr($0, RSTART), spec, FS)
+                     u_match_res=3
+-                    if ( $2~u_ptrn_2 ) {print "upd_channel:" $2; u_match_res=0}
+-                    next
++                    if ( spec[2]~u_ptrn_2 ) {print "upd_channel:" spec[2]; u_match_res=0}
++                }
++                END {
++                    if (v_match_res == "" || u_match_res == "") exit 1
++                    exit v_match_res + u_match_res
+                 }
+-                END{exit rv}
+             ' "$spec_path"
+         )" || {
+             rv=$?
 @@ -713,6 +716,10 @@ check_version() {
  # -f : force update
  # -i : ignore previous cache results
@@ -320,7 +374,9 @@ index 195d95d..2c6e5fd 100644
 +    restore_offload_uci_option firewall_flow_offloading_hw firewall.@defaults[0].flow_offloading_hw 0 || return 1
 +    if [ "$QOSMATE_OFFLOAD_RESTORE_CHANGED" = "1" ]; then
 +        firewall_changed=1
-+    fi
+     fi
+-fi
+-EOF
 +
 +    QOSMATE_OFFLOAD_RESTORE_CHANGED=0
 +    restore_offload_uci_option turboacc_fastpath turboacc.config.fastpath disabled || return 1
@@ -353,9 +409,7 @@ index 195d95d..2c6e5fd 100644
 +            echo "11 $(uci -q get turboacc.config.fastpath_mh_eth_hnat_bind_rate 2>/dev/null || echo 30)" > "$hnat_path/hnat_setting"
 +        fi
 +        echo "$saved_hook" > "$hnat_path/hook_toggle" || return 1
-     fi
--fi
--EOF
++    fi
 +
 +    if [ "$firewall_changed" = "1" ]; then
 +        /etc/init.d/firewall reload || return 1

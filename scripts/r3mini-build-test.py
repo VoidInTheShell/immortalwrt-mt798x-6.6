@@ -15,6 +15,17 @@ spec.loader.exec_module(runner)
 
 
 class BuildPlanTests(unittest.TestCase):
+    def test_incremental_plan_checks_entire_dag_and_keeps_image_validation(self):
+        plan = runner.make_plan(incremental=True)
+        self.assertEqual(set(plan['components']), set(runner.evaluate_graph()))
+        stages = {stage['name']: stage for stage in plan['stages']}
+        self.assertFalse(any(name.startswith('packages-') for name in stages))
+        self.assertEqual(stages['package-completion']['targets'], ['package/compile'])
+        self.assertLessEqual(stages['package-completion']['job_limit'], 4)
+        self.assertEqual(stages['package-completion']['jobs'], stages['package-completion']['job_limit'])
+        self.assertTrue({'tools', 'toolchain', 'kernel', 'package-install', 'images',
+                         'buildinfo', 'index', 'overview', 'checksum'} <= stages.keys())
+
     def test_dependencies_finish_before_heavy_and_light_consumers(self):
         graph = {'base': set(), 'go': {'base'}, 'ui': {'go'}, 'lib': {'base'}}
         with patch.object(runner, 'classify', side_effect=lambda n: {'class': 'go' if n == 'go' else 'light'}):

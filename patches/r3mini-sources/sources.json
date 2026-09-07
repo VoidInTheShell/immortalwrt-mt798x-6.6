@@ -1,5 +1,5 @@
 {
-  "root_revision": "ec9ef10efc65da1e6d1de4e2c043c0e13d08eed8",
+  "root_revision": "a7e0bf2a1dbf26ef718896c9f053aead4397f88a",
   "sources": [
     {
       "path": "feeds/luci",
@@ -13,7 +13,7 @@
       "origin": "https://github.com/immortalwrt/packages.git",
       "revision": "0cb6db25afff9a17be88520bc3fdd8f4c79f80de",
       "patch": "feeds-packages.patch",
-      "patch_sha256": "44089586357bd7881c53ddfb6521a41b135b72b66dba9c52b78266e182c4b727"
+      "patch_sha256": "69ba2fe3e1b02c57638267146a9a4fa0c83b1c178f47100502ceab498cc1dd03"
     },
     {
       "path": "package/luci-app-adguardhome",
@@ -48,7 +48,7 @@
       "origin": "https://github.com/hudra0/luci-app-qosmate.git",
       "revision": "6d2abc73d463fbf314d52404ce1b010544b0bca2",
       "patch": "package-luci-app-qosmate.patch",
-      "patch_sha256": "77cf793fb965c25d04e11ff88abed828d523b760e29215d6a732d8f3073b89e6"
+      "patch_sha256": "599d0f4e7c1264cfa234fb1c9fe6b5e203713a464c1e61d04deda751941467a3"
     },
     {
       "path": "package/luci-app-taskplan",
@@ -62,7 +62,7 @@
       "origin": "https://github.com/sirpdboy/luci-theme-kucat.git",
       "revision": "1c8e7f7c1052552f4fac09d60e5adc07ed33bfa3",
       "patch": "package-luci-theme-kucat.patch",
-      "patch_sha256": "01e5745dcfd37d74b563a2ea0360bf0d57b958066386fb47239561395fe34619"
+      "patch_sha256": "cfc4200848fb6e19f2bd19ecf329b6338c11169aaf3139a6648c4a8ba64e83fe"
     },
     {
       "path": "package/mm-ui-sms",
@@ -83,7 +83,7 @@
       "origin": "https://github.com/hudra0/qosmate.git",
       "revision": "5a27872a2274c01eb42d7e0728cab6331fadf6bb",
       "patch": "package-qosmate.patch",
-      "patch_sha256": "85e0101d14717df76cd499eeb6f0efcda15f1c8ccb3e23d2c9dae979bde2cc31"
+      "patch_sha256": "25e1672a6566093cae8c188d390e194821e33ed4b0ee86c1dd059233a402de41"
     }
   ]
 }

@@ -655,12 +655,15 @@ function addModeOptions(section, record, networkInfo) {
 }
 
 function addActions(map) {
-	var section = map.section(form.NamedSection, 'actions', _('ModemManager actions'));
+	// UI-only controls must not depend on an existing UCI section.
+	var section = map.section(form.TypedSection, 'actions', _('ModemManager actions'));
 	var discover;
 	var apply;
 
 	section.anonymous = true;
 	section.addremove = false;
+	section.cfgsections = function() { return [ 'actions' ]; };
+	section.parse = function() { return Promise.resolve(); };
 
 	discover = section.option(form.Button, '_discover', null);
 	discover.inputtitle = _('Discover ModemManager devices');
@@ -752,7 +755,7 @@ return view.extend({
 		sections.forEach(function(section, index) {
 			var record = byDevice[section.device];
 			var networkInfo = record ? findNetwork(record.device) : { matches: [], section: null };
-			var named = map.section(form.NamedSection, section['.name'], modemTitle(record, index));
+				var named = map.section(form.NamedSection, section['.name'], 'modem', modemTitle(record, index));
 			var device = named.option(form.HiddenValue, 'device', null);
 			var info;
 			var bands;
@@ -802,10 +805,13 @@ return view.extend({
 		});
 
 		if (!sections.length) {
-			var empty = map.section(form.NamedSection, 'empty', _('ModemManager status'));
+				var empty = map.section(form.TypedSection, 'empty', _('ModemManager status'));
 			var message;
 
-			empty.anonymous = true;
+				empty.anonymous = true;
+				empty.addremove = false;
+				empty.cfgsections = function() { return [ 'empty' ]; };
+				empty.parse = function() { return Promise.resolve(); };
 			message = empty.option(form.DummyValue, '_message', null);
 			message.rawhtml = true;
 			message.default = '<div class="mmconfig-info-warning">' +

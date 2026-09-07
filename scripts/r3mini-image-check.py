@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Read-only validation of an Autoneg-r2 FIT/GPT and its original firmware.
+"""Read-only validation of an Autoneg FIT/GPT and its original firmware.
 
 Only extracted verification data is written, to a new audit directory.
 No flashing, loop devices, mounts, or changes to firmware are performed.
@@ -9,6 +9,7 @@ import gzip
 import hashlib
 import json
 from pathlib import Path
+import re
 import struct
 import subprocess
 import zlib
@@ -86,6 +87,64 @@ def check_gpt(path):
     return partitions
 
 
+def check_runtime_fixes(rootfs, kernel, config_buildinfo, zerotier_demand_start=False):
+    """Check installed payloads, not merely the working-tree source files."""
+    def read(name):
+        return command(TOOLS / 'unsquashfs4', '-cat', rootfs, name).decode()
+
+    require('# CONFIG_MTK_DEFAULT_5G_PROFILE is not set' in config_buildinfo,
+            'R3 Mini profile order was not restored')
+    require(b'mt_wifi: using R3 Mini device-tree base EEPROM (read-only)' in
+            gzip.decompress(kernel.read_bytes()), 'Kernel lacks the board EEPROM reader')
+    backend = read('etc/init.d/qosmate')
+    frontend = read('www/luci-static/resources/view/qosmate/settings.js')
+    require('VERSION="5a27872a2274c01eb42d7e0728cab6331fadf6bb"' in backend and
+            'UPD_CHANNEL="snapshot"' in backend, 'Wrong installed QoSmate backend identity')
+    require('match($0, v_ptrn_1)' in backend, 'QoSmate cannot parse minified frontend versions')
+    require('6d2abc73d463fbf314d52404ce1b010544b0bca2' in frontend and
+            re.search(r'UI_UPD_CHANNEL\s*=\s*[\'\"]snapshot', frontend),
+            'Wrong installed QoSmate frontend identity')
+    read('etc/qosmate.d/portalwrt-managed')
+    kucat = read('www/luci-static/resources/menu-kucat.js')
+    require(re.search(r'currentCategory\s*:\s*[\'\"]allmenu', kucat),
+            'Kucat still defaults to filtered menus')
+    modem = read('www/luci-static/resources/view/mmconfig/bands.js')
+    for name in ('actions', 'empty'):
+        require(re.search(r'TypedSection\s*,\s*[\'\"]' + name, modem),
+                'Modem UI still depends on a missing ' + name + ' UCI section')
+    if zerotier_demand_start:
+        zerotier = read('etc/init.d/zerotier')
+        zerotier_config = read('etc/config/zerotier')
+        defaults = read('etc/uci-defaults/zzzz-r3mini-services')
+        for fragment in ('IDTOOL=/usr/bin/zerotier-idtool', 'has_enabled_network()',
+                         'ensure_identity()', 'ensure_identity || return 1',
+                         '[ "${service_active}" -eq 1 ] || return 0'):
+            require(fragment in zerotier, 'Installed ZeroTier demand-start/identity fix is incomplete')
+        require("option config_path '/etc/zerotier'" in zerotier_config,
+                'ZeroTier identity directory is not persistent')
+        require('/etc/init.d/zerotier enable' in defaults and
+                'r3mini-zerotier-demand-start-applied' in defaults,
+                'R3 Mini first boot still disables the ZeroTier procd trigger')
+    versions = {}
+    for block in read('usr/lib/opkg/status').split('\n\n'):
+        fields = dict(line.split(': ', 1) for line in block.splitlines() if ': ' in line)
+        if 'Package' in fields:
+            versions[fields['Package']] = fields.get('Version')
+    expected = {'qosmate': '1.9.0+git.20260727.5a27872-r2',
+                'luci-app-qosmate': '1.9.0+git.20260727.6d2abc7-r1',
+                'luci-app-mmconfig': '0.1.2-r4', 'luci-theme-kucat': '3.3.2-r20260907'}
+    if zerotier_demand_start:
+        expected.update({'zerotier': '1.14.1-r15', 'r3mini-defaults': '2026.09.07-r2'})
+    for name, version in expected.items():
+        require(versions.get(name) == version, 'Stale installed package: ' + name)
+    require(versions.get('libiwinfo20230701', '').endswith('-r2'), 'Stale iwinfo backend package')
+    result = {'installed_package_versions': expected, 'profile_order': '2g;5g',
+              'dt_eeprom_reader_present': True, 'hardware_runtime_tested': False}
+    if zerotier_demand_start:
+        result['zerotier_identity'] = 'unique-on-first-enabled-network'
+    return result
+
+
 def check_host_flash(directory, image):
     directory = directory.resolve()
     require(directory.is_relative_to(ROOT / '.r3mini-output'), 'Host bundle must be in isolated output')
@@ -146,6 +205,8 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('image', type=Path)
     parser.add_argument('--audit-dir', type=Path, required=True)
+    parser.add_argument('--codename', default='GLaDOS-R3Mini-Autoneg-r4',
+                        help='Expected firmware codename (use r2/r3 explicitly for older artifacts)')
     parser.add_argument('--host-flash-dir', type=Path,
                         help='Optional self-contained eMMC host-flash bundle to validate')
     args = parser.parse_args()
@@ -154,7 +215,7 @@ def main():
     require(image.is_relative_to(ROOT / '.r3mini-output'), 'Expected isolated output')
     require(audit.is_relative_to(ROOT / '.r3mini-checks'), 'Audit must be in .r3mini-checks')
     audit.mkdir(parents=True, exist_ok=False)
-    require('autoneg-r2' in image.name, 'Missing new filename suffix')
+    require(args.codename.lower() in image.name, 'Missing expected filename suffix')
     data = image.read_bytes()
     require(len(data) < 2048 * 1024**2, 'Firmware exceeds production capacity')
     require(struct.unpack_from('>I', data)[0] == 0xd00dfeed, 'Not a FIT image')
@@ -204,7 +265,7 @@ def main():
     config_buildinfo = (image.parent / 'config.buildinfo').read_text()
     for setting in ('CONFIG_TARGET_ROOTFS_PARTSIZE=2048',
                     'CONFIG_VERSION_NUMBER="24.10.2"',
-                    'CONFIG_VERSION_CODE="GLaDOS-R3Mini-Autoneg-r2"'):
+                    'CONFIG_VERSION_CODE="' + args.codename + '"'):
         require(setting in config_buildinfo, 'Wrong isolated config buildinfo: ' + setting)
     require((image.parent / 'version.buildinfo').read_text().strip()
             == meta['version']['revision'], 'Image and isolated version buildinfo disagree')
@@ -212,7 +273,7 @@ def main():
     rootfs = audit / 'rootfs.squashfs'
     release = command(TOOLS / 'unsquashfs4', '-cat', rootfs, 'etc/openwrt_release').decode()
     require("DISTRIB_RELEASE='24.10.2'" in release, 'Wrong in-image release')
-    require('glados-r3mini-autoneg-r2' in release.lower(), 'Wrong in-image codename')
+    require(args.codename.lower() in release.lower(), 'Wrong in-image codename')
     listing = command(TOOLS / 'unsquashfs4', '-ll', rootfs).decode()
     required = ('mtkhnat.ko', 'mt_wifi.ko', 'mtk_warp.ko', 'mtk_warp_proxy.ko',
                 'conninfra.ko', 'air_en8811h.ko', '7986_WOCPU0_RAM_CODE_release.bin',
@@ -222,7 +283,7 @@ def main():
         require(component in listing, 'Missing image component ' + component)
     original = list((ROOT / 'bin/targets/mediatek/filogic').glob('*-squashfs-sysupgrade.itb'))
     require(len(original) == 1 and sha256(original[0]) == BASELINE, 'Original firmware changed')
-    gpt = list(image.parent.glob('*autoneg-r2*emmc-gpt.bin'))
+    gpt = list(image.parent.glob('*' + args.codename.lower() + '*emmc-gpt.bin'))
     require(len(gpt) == 1, 'Expected exactly one new GPT')
     result = {'image': str(image.relative_to(ROOT)), 'bytes': len(data),
               'sha256': hashlib.sha256(data).hexdigest(), 'fit_parts': parts,
@@ -230,6 +291,10 @@ def main():
               'release': release, 'gpt': check_gpt(gpt[0]),
               'required_components': list(required), 'old_sha256_unchanged': BASELINE,
               'hardware_runtime_tested': False}
+    if args.codename.startswith('GLaDOS-R3Mini-Autoneg-r'):
+        result['runtime_fixes'] = check_runtime_fixes(
+            rootfs, audit / 'kernel.gz', config_buildinfo,
+            zerotier_demand_start=args.codename == 'GLaDOS-R3Mini-Autoneg-r4')
     if args.host_flash_dir:
         result['host_flash'] = check_host_flash(args.host_flash_dir, image)
     (audit / 'result.json').write_text(json.dumps(result, indent=2) + '\n')

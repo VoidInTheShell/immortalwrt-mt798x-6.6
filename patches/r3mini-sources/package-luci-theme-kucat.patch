@@ -1,3 +1,38 @@
+diff --git a/Makefile b/Makefile
+index 8a38364..05349f4 100644
+--- a/Makefile
++++ b/Makefile
+@@ -11,7 +11,7 @@ PKG_NAME:=luci-theme-$(THEME_NAME)
+ LUCI_TITLE:=Kucat Theme by sirpdboy
+ LUCI_DEPENDS:=+wget +curl +jsonfilter
+ PKG_VERSION:=3.3.2
+-PKG_RELEASE:=20260329
++PKG_RELEASE:=20260907
+ 
+ define Package/luci-theme-$(THEME_NAME)/conffiles
+ /www/luci-static/resources/background/
+diff --git a/htdocs/luci-static/resources/menu-kucat.js b/htdocs/luci-static/resources/menu-kucat.js
+index 90d425a..3f057f2 100644
+--- a/htdocs/luci-static/resources/menu-kucat.js
++++ b/htdocs/luci-static/resources/menu-kucat.js
+@@ -122,7 +122,9 @@ return baseclass.extend({
+         basic: []
+     },
+     
+-    currentCategory: 'basic',
++    // First visits must expose all installed applications. Keep an explicitly
++    // saved basic/allmenu preference when loadSavedCategory() runs.
++    currentCategory: 'allmenu',
+     menuRendered: false,
+ 
+     __init__: function() {
+@@ -952,4 +954,4 @@ return baseclass.extend({
+             return E([]);
+         }
+     }
+-});
+\ No newline at end of file
++});
 diff --git a/ucode/template/themes/kucat/header.ut b/ucode/template/themes/kucat/header.ut
 index f8eb757..4f21aea 100644
 --- a/ucode/template/themes/kucat/header.ut

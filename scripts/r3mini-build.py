@@ -166,14 +166,19 @@ def package_stages(graph, caps):
     return result
 
 
-def make_plan(output_dir=None):
+def make_plan(output_dir=None, incremental=False):
     res = resources()
     graph = evaluate_graph()
     stages = [{'name': 'tools', 'class': 'light', 'jobs': res['caps']['light'], 'targets': ['tools/install']},
               {'name': 'toolchain', 'class': 'toolchain', 'jobs': res['caps']['toolchain'], 'targets': ['toolchain/install']},
               {'name': 'kernel', 'class': 'kernel', 'jobs': res['caps']['kernel'], 'targets': ['target/compile']}]
-    stages += package_stages(graph, res['caps'])
-    stages += [{'name': 'package-completion', 'class': 'light', 'jobs': res['caps']['light'], 'targets': ['package/compile']},
+    if not incremental:
+        stages += package_stages(graph, res['caps'])
+    # A warm tree can let GNU make validate the whole selected package DAG in
+    # one invocation. Keep its shared job budget conservative because this may
+    # mix expensive package classes. No stamps or validation are bypassed.
+    package_jobs = min(4, res['caps']['light']) if incremental else res['caps']['light']
+    stages += [{'name': 'package-completion', 'class': 'light', 'jobs': package_jobs, 'targets': ['package/compile']},
                {'name': 'package-install', 'class': 'images', 'jobs': 1, 'targets': ['package/install']},
                {'name': 'images', 'class': 'images', 'jobs': res['caps']['images'], 'targets': ['target/install']},
                # Do not invoke Makefile's recursive buildinfo wrapper here:
@@ -186,6 +191,8 @@ def make_plan(output_dir=None):
                {'name': 'overview', 'class': 'images', 'jobs': 1, 'targets': ['json_overview_image_info']},
                {'name': 'checksum', 'class': 'images', 'jobs': 1, 'targets': ['checksum']}]
     for i, stage in enumerate(stages, 1):
+        if incremental and stage['name'] == 'package-completion':
+            stage['job_limit'] = package_jobs
         stage['id'] = f'{i:04d}-' + stage['name'] + '-' + digest(' '.join(stage['targets']).encode())[:8]
     return {'resources': res, 'output_dir': str(output_dir) if output_dir else None,
             'config_sha256': digest((ROOT / '.config').read_bytes()), 'stages': stages,
@@ -304,11 +311,14 @@ def validate_wifi_artifacts():
         return ['Missing MT7986 object build command or linked mt_wifi.ko']
     defines = set(re.findall(r'(?:^|\s)-D(\w+)', command.read_text()))
     required = {'PRE_CAL_MT7986_SUPPORT', 'CAL_FREE_IC_SUPPORT', 'DOT11_HE_AX', 'DBDC_MODE',
+                'MULTI_PROFILE',
                 'TXBF_SUPPORT', 'HE_TXBF_SUPPORT', 'WHNAT_SUPPORT',
                 'WFDMA_WED_COMPATIBLE',
                 'CONFIG_FAST_NAT_SUPPORT', 'CUT_THROUGH', 'CUT_THROUGH_FULL_OFFLOAD',
                 'HDR_TRANS_TX_SUPPORT', 'HDR_TRANS_RX_SUPPORT'}
     errors = ['Compiled mt_wifi lacks ' + name for name in sorted(required - defines)]
+    if 'DEFAULT_5G_PROFILE' in defines:
+        errors.append('Compiled mt_wifi reverses the R3 Mini 2g;5g profile order')
     errors += ['Compiled mt_wifi still uses legacy layout ' + name for name in
                sorted({symbol.removeprefix('CONFIG_MTK_') for symbol in LEGACY_WIFI_CAL} & defines)]
     nm = subprocess.run(['nm', str(module)], text=True, capture_output=True)
@@ -671,6 +681,7 @@ def execute(plan, logdir, resume):
             warm = stage['id'] in warm_stages
             ceiling = rerun_jobs(current_resources) if warm else current_resources['caps'][stage['class']]
             jobs = min(stage['jobs'], ceiling) if not warm else ceiling
+            jobs = min(jobs, stage.get('job_limit', jobs))
             print(f"[{stage['id']}] jobs={jobs} targets={len(stage['targets'])}"
                   + (' warm-reuse=1' if warm else ''), flush=True)
             attempt = 1 + sum(r['id'] == stage['id'] for r in state['attempts'])
@@ -705,6 +716,8 @@ def main():
     parser.add_argument('action', choices=['plan', 'preflight', 'download', 'build', 'report'])
     parser.add_argument('--log-dir', type=Path, default=OUT)
     parser.add_argument('--resume', action='store_true')
+    parser.add_argument('--incremental', action='store_true',
+                        help='Warm-tree build: check the complete package DAG once with at most four jobs')
     parser.add_argument('--output-dir', type=Path,
                         help='Separate firmware/package output root (not bin/); included in resume identity')
     args = parser.parse_args()
@@ -730,7 +743,7 @@ def main():
         subprocess.run([sys.executable, 'scripts/r3mini-migrate.py', '--verify'], cwd=ROOT, check=True)
         subprocess.run(['make', 'prereq'], cwd=ROOT, check=True)
         subprocess.run(['clang', '--version'], check=True, stdout=subprocess.DEVNULL)
-    plan = make_plan(args.output_dir)
+    plan = make_plan(args.output_dir, args.incremental)
     if args.action in ('plan', 'preflight'):
         save_plan(args.log_dir, plan)
         print(json.dumps({'stages': len(plan['stages']), 'components': len(plan['components']),

@@ -366,6 +366,191 @@ index 0f0d24a4..da99b3a3 100644
  		end
  		element['device'] = status['modem'][k]['device']
  
+diff --git a/net/zerotier/Makefile b/net/zerotier/Makefile
+index cb377ef5..548268b8 100644
+--- a/net/zerotier/Makefile
++++ b/net/zerotier/Makefile
+@@ -7,7 +7,7 @@ include $(TOPDIR)/rules.mk
+ 
+ PKG_NAME:=zerotier
+ PKG_VERSION:=1.14.1
+-PKG_RELEASE:=14
++PKG_RELEASE:=15
+ 
+ PKG_SOURCE:=$(PKG_NAME)-$(PKG_VERSION).tar.gz
+ PKG_SOURCE_URL:=https://codeload.github.com/zerotier/ZeroTierOne/tar.gz/$(PKG_VERSION)?
+diff --git a/net/zerotier/files/etc/config/zerotier b/net/zerotier/files/etc/config/zerotier
+index 086de29f..ea2cf79b 100644
+--- a/net/zerotier/files/etc/config/zerotier
++++ b/net/zerotier/files/etc/config/zerotier
+@@ -4,14 +4,17 @@ config zerotier 'global'
+ 	option enabled '0'
+ 	# Sets the ZeroTier listening port (default 9993; set to 0 for random)
+ 	#option port '9993'
+-	# Client secret (leave blank to generate a secret on first run)
++	# Client secret (leave blank to generate a unique secret on first network activation)
+ 	option secret ''
+ 	# Path of the optional file local.conf (see documentation at
+ 	# https://docs.zerotier.com/config#local-configuration-options)
+ 	#option local_conf_path '/etc/zerotier.conf'
+ 	# Persistent configuration directory (to perform other configurations such
+ 	# as controller mode or moons, etc.)
+-	#option config_path '/etc/zerotier'
++	option config_path '/etc/zerotier'
++	# Internal first-use marker. Once set, the global Enable switch remains
++	# authoritative if an administrator later turns ZeroTier off.
++	#option initialized '0'
+ 	# Copy the contents of the persistent configuration directory to memory
+ 	# instead of linking it, this avoids writing to flash
+ 	#option copy_config_path '1'
+@@ -52,4 +55,3 @@ config network 'earth'
+ #	list fw_forward_ifaces 'br-lan'
+ #	option fw_allow_masq '1'
+ #	list fw_masq_ifaces 'br-lan'
+-
+diff --git a/net/zerotier/files/etc/init.d/zerotier b/net/zerotier/files/etc/init.d/zerotier
+index f6c3368c..59da4538 100755
+--- a/net/zerotier/files/etc/init.d/zerotier
++++ b/net/zerotier/files/etc/init.d/zerotier
+@@ -5,10 +5,65 @@ START=90
+ USE_PROCD=1
+ 
+ PROG=/usr/bin/zerotier-one
++IDTOOL=/usr/bin/zerotier-idtool
+ CONFIG_PATH=/var/lib/zerotier-one
+ RUN_PATH=/var/run/zerotier-one
+ 
+ network_ids=""
++network_requested=0
++service_active=0
++
++has_enabled_network() {
++	local section="${1}" enabled
++
++	config_get_bool enabled "${section}" 'enabled' '1'
++	[ "${enabled}" -eq 1 ] && network_requested=1
++}
++
++ensure_identity() {
++	local configured_secret secret_tmp public_tmp
++
++	configured_secret="${secret}"
++	if [ -z "${secret}" ] && [ -s "${CONFIG_PATH}/identity.secret" ]; then
++		secret="$(cat "${CONFIG_PATH}/identity.secret")"
++	fi
++
++	if [ -z "${secret}" ]; then
++		echo -n "Generating ZeroTier identity - please wait... "
++		secret="$("${IDTOOL}" generate)" || return 1
++		echo "done."
++	fi
++
++	[ -n "${secret}" ] || return 1
++	# Keep the private key and its matching public key together.  Do not leave
++	# a stale identity.public behind after a restored or newly generated secret.
++	umask 077
++	secret_tmp="$(mktemp "${CONFIG_PATH}/.identity.secret.XXXXXX")" || return 1
++	public_tmp="$(mktemp "${CONFIG_PATH}/.identity.public.XXXXXX")" || {
++		rm -f "${secret_tmp}"
++		return 1
++	}
++	printf '%s\n' "${secret}" > "${secret_tmp}"
++	if ! "${IDTOOL}" validate "${secret_tmp}" >/dev/null 2>&1; then
++		echo "Invalid ZeroTier client secret"
++		rm -f "${secret_tmp}" "${public_tmp}"
++		return 1
++	fi
++	if ! "${IDTOOL}" getpublic "${secret_tmp}" > "${public_tmp}" || [ ! -s "${public_tmp}" ]; then
++		echo "Unable to derive ZeroTier public identity"
++		rm -f "${secret_tmp}" "${public_tmp}"
++		return 1
++	fi
++	chmod 600 "${secret_tmp}"
++	chmod 644 "${public_tmp}"
++	mv -f "${secret_tmp}" "${CONFIG_PATH}/identity.secret"
++	mv -f "${public_tmp}" "${CONFIG_PATH}/identity.public"
++
++	if [ "${configured_secret}" != "${secret}" ]; then
++		uci set zerotier.global.secret="${secret}"
++		uci commit zerotier
++	fi
++}
+ 
+ join_network() {
+ 	local section="${1}"
+@@ -37,19 +92,34 @@ join_network() {
+ 
+ start_service() {
+ 	config_load zerotier
+-	local enabled port secret local_conf_path config_path copy_config_path
++	local enabled initialized port secret local_conf_path config_path copy_config_path
+ 	local args=""
+ 
+ 	config_get_bool enabled 'global' 'enabled' 0
++	config_get_bool initialized 'global' 'initialized' 0
+ 	config_get port 'global' 'port'
+ 	config_get secret 'global' 'secret'
+ 	config_get local_conf_path 'global' 'local_conf_path'
+ 	config_get config_path 'global' 'config_path'
+ 	config_get_bool copy_config_path 'global' 'copy_config_path' 0
++	network_requested=0
++	service_active=0
++	config_foreach has_enabled_network network
+ 
+ 	if [ "${enabled}" -eq 0 ]; then
+-		echo "disabled in /etc/config/zerotier"
+-		return
++		# A newly added, enabled network is the normal first-use action in LuCI.
++		# Promote only that first activation; after it has happened, an explicit
++		# later global disable remains authoritative.
++		if [ "${network_requested}" -eq 1 ] && [ "${initialized}" -eq 0 ]; then
++			echo "Enabling ZeroTier for its first configured network"
++			uci set zerotier.global.enabled='1'
++			uci set zerotier.global.initialized='1'
++			uci commit zerotier
++			enabled=1
++		else
++			echo "disabled in /etc/config/zerotier"
++			return 0
++		fi
+ 	fi
+ 
+ 	# Remove existing link or folder
+@@ -82,21 +152,7 @@ start_service() {
+ 		args="${args} -p${port}"
+ 	fi
+ 
+-	if [ -z "${secret}" ]; then
+-		echo -n "Generating secret - please wait... "
+-		[ -e "${CONFIG_PATH}/identity.secret" ] && secret="$(cat "${CONFIG_PATH}/identity.secret")"
+-		[ -n "$secret" ] || secret="$(zerotier-idtool generate)"
+-		[ "${?}" -ne 0 ] && return 1
+-		uci set zerotier.global.secret="${secret}"
+-		uci commit zerotier
+-		echo "done."
+-	fi
+-
+-	if [ -n "${secret}" ]; then
+-		echo "${secret}" > "${CONFIG_PATH}"/identity.secret
+-		# make sure there is not previous identity.public
+-		rm -f "${CONFIG_PATH}"/identity.public
+-	fi
++	ensure_identity || return 1
+ 
+ 	procd_open_instance
+ 	procd_set_param command ${PROG} ${args}
+@@ -105,9 +161,11 @@ start_service() {
+ 	procd_set_param limits nofile="1000000 1000000"
+ 	procd_set_param respawn
+ 	procd_close_instance
++	service_active=1
+ }
+ 
+ service_started() {
++	[ "${service_active}" -eq 1 ] || return 0
+ 	zerotier-fw4 -s
+ }
+ 
 diff --git a/utils/filebrowser/Makefile b/utils/filebrowser/Makefile
 index 9c848e93..9dd25ec1 100644
 --- a/utils/filebrowser/Makefile

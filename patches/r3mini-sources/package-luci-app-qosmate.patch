@@ -1,8 +1,20 @@
 diff --git a/Makefile b/Makefile
-index 120a123..6a75cf9 100644
+index 120a123..d202e33 100644
 --- a/Makefile
 +++ b/Makefile
-@@ -13,25 +13,14 @@ LUCI_PKGARCH:=all
+@@ -1,8 +1,9 @@
+ include $(TOPDIR)/rules.mk
+ 
+ PKG_NAME:=luci-app-qosmate
+-PKG_VERSION:=1.0.14
+-PKG_RELEASE:=1
++PKG_VERSION:=1.9.0+git.20260727.6d2abc7
++PKG_RELEASE:=1
++PKG_UPSTREAM_COMMIT:=6d2abc73d463fbf314d52404ce1b010544b0bca2
+ 
+ PKG_MAINTAINER:=Markus Hütter <mh@hudra.net>
+ PKG_LICENSE:=GPL-3.0-or-later
+@@ -13,25 +14,15 @@ LUCI_PKGARCH:=all
  
  PO_LANG:=de
  
@@ -33,6 +45,7 @@ index 120a123..6a75cf9 100644
 +define Build/Prepare/luci-app-qosmate
 +	mkdir -p $(PKG_BUILD_DIR)/htdocs/luci-static/resources/view/qosmate
 +	mv $(PKG_BUILD_DIR)/htdocs/luci-static/resources/view/*.js $(PKG_BUILD_DIR)/htdocs/luci-static/resources/view/qosmate/
++	$(SED) "s/^const UI_VERSION = .*/const UI_VERSION = '$(PKG_UPSTREAM_COMMIT)';/; s/^const UI_UPD_CHANNEL = .*/const UI_UPD_CHANNEL = 'snapshot';/" $(PKG_BUILD_DIR)/htdocs/luci-static/resources/view/qosmate/settings.js
 +	chmod 0755 $(PKG_BUILD_DIR)/root/usr/libexec/rpcd/luci.qosmate*
 +endef
 +

@@ -149,6 +149,15 @@ that partition untouched, exactly as a normal sysupgrade does.
 
 ## Flashing route
 
+**Factory-data warning:** this generic raw image contains zeros in the eMMC
+`factory` partition (offset 4608 KiB, length 2048 KiB). It does not contain your
+device's factory backup. A whole-user-area write also overwrites this range.
+Before using it on an existing installation, save the current partition table,
+factory data and configuration off-device; restore any verified factory backup
+to its matching partition after flashing. The firmware's board-specific DT
+EEPROM fallback is not a recovery of erased per-device factory calibration.
+For an already working installation with the correct layout, prefer sysupgrade.
+
 The BPI R3 Mini does not expose its eMMC as a generic USB mass-storage device.
 Boot the board from a known-good NAND installation, or first load a
 **board-specific RAM BL2/FIP rescue pair** with mtk_uartboot and reach a rescue
