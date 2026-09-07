@@ -263,7 +263,40 @@ int main(void)
         self.assertIn('IFF_DONT_BRIDGE | IFF_NO_ADDRCONF', text)
         self.assertIn('mtk_ppd_xdp_setup(eth, prog)', text)
         self.assertIn('dev->phydev->interface == PHY_INTERFACE_MODE_2500BASEX', text)
-        self.assertIn('+\t\ts.base.speed = SPEED_2500;', text)
+        self.assertIn('+\tif (mtk_ppd_uses_rate_matching(eth, dev))\n+\t\treturn NOTIFY_DONE;', text)
+        self.assertNotIn('+\t\ts.base.speed = SPEED_2500;', text)
+
+    def test_rate_matching_keeps_copper_events_out_of_hqos(self):
+        added = '\n'.join(line[1:] for line in PATCH.read_text().splitlines()
+                          if line.startswith('+') and not line.startswith('+++'))
+        run_c(r'''
+#include <assert.h>
+#include <stdbool.h>
+#include <stddef.h>
+enum { RATE_MATCH_NONE, RATE_MATCH_PAUSE, PHY_INTERFACE_MODE_2500BASEX, SGMII };
+struct phy_device { int rate_matching, interface, speed; bool carrier; };
+struct net_device { struct phy_device *phydev; };
+struct mtk_eth { struct net_device *ppd; };
+''' + function(added, 'mtk_ppd_uses_rate_matching') + r'''
+int main(void)
+{
+    struct phy_device phy = {RATE_MATCH_PAUSE, PHY_INTERFACE_MODE_2500BASEX, 100, true};
+    struct net_device dev = {&phy}, ppd = {NULL};
+    struct mtk_eth eth = {&ppd};
+    int speeds[] = {100, 1000, 2500, -1};
+    for (int i = 0; i < 4; ++i) {
+        phy.speed = speeds[i]; phy.carrier = !phy.carrier;
+        assert(mtk_ppd_uses_rate_matching(&eth, &dev));
+    }
+    eth.ppd = NULL; assert(!mtk_ppd_uses_rate_matching(&eth, &dev));
+    eth.ppd = &ppd; phy.rate_matching = RATE_MATCH_NONE;
+    assert(!mtk_ppd_uses_rate_matching(&eth, &dev));
+    phy.rate_matching = RATE_MATCH_PAUSE; phy.interface = SGMII;
+    assert(!mtk_ppd_uses_rate_matching(&eth, &dev));
+    dev.phydev = NULL; assert(!mtk_ppd_uses_rate_matching(&eth, &dev));
+    return 0;
+}
+''')
 
     def test_injection_checks_before_modifying_packets(self):
         text = (HNAT / 'hnat_nf_hook.c').read_text()

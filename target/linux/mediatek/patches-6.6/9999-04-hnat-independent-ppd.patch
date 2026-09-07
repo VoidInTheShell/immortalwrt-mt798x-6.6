@@ -202,24 +202,37 @@ identity. Physical GMACs retain phylink carrier and PHY rate matching.
  	netif_err(eth, tx_err, dev, "transmit timed out\n");
  
  	if (atomic_read(&eth->reset.force))
-@@ -4230,6 +4287,16 @@
+@@ -4197,6 +4254,14 @@
+ #endif
+ }
+ 
++static bool mtk_ppd_uses_rate_matching(struct mtk_eth *eth,
++				      struct net_device *dev)
++{
++	return eth->ppd && dev->phydev &&
++	       dev->phydev->rate_matching == RATE_MATCH_PAUSE &&
++	       dev->phydev->interface == PHY_INTERFACE_MODE_2500BASEX;
++}
++
+ static int mtk_device_event(struct notifier_block *n, unsigned long event, void *ptr)
+ {
+ 	struct mtk_mac *mac = container_of(n, struct mtk_mac, device_notifier);
+@@ -4230,6 +4295,14 @@
  	if (s.base.speed == 0 || s.base.speed == ((__u32)-1))
  		return NOTIFY_DONE;
  
-+	/* EN8811H performs copper rate matching with PAUSE on its 2.5G
-+	 * host interface. Preserve the old fixed-link queue budget so the
-+	 * shared PPE/QDMA path is not capped by an unrelated copper link.
-+	 * Explicit user HQoS configuration is left to the HNAT shaper API.
++	/* EN8811H uses PAUSE on its fixed 2.5G host interface. DMA init
++	 * already supplies the same uncapped QDMA budget as the old 2.5G
++	 * fixed-link. Do not reprogram queues on copper carrier events:
++	 * that would cap internal PPE traffic or erase user HQoS limits.
 +	 */
-+	if (eth->ppd && dev->phydev &&
-+	    dev->phydev->rate_matching == RATE_MATCH_PAUSE &&
-+	    dev->phydev->interface == PHY_INTERFACE_MODE_2500BASEX)
-+		s.base.speed = SPEED_2500;
++	if (mtk_ppd_uses_rate_matching(eth, dev))
++		return NOTIFY_DONE;
 +
  	if (dsa_slave_dev_check(dev)) {
  		dp = dsa_port_from_netdev(dev);
  		queue = dp->index + 3;
-@@ -4244,22 +4311,13 @@
+@@ -4244,22 +4317,13 @@
  	return NOTIFY_DONE;
  }
  
@@ -244,7 +257,7 @@ identity. Physical GMACs retain phylink carrier and PHY rate matching.
  	/* we run 2 netdevs on the same dma ring so we only bring it up once */
  	if (!refcount_read(&eth->dma_refcnt)) {
  		const struct mtk_soc_data *soc = eth->soc;
-@@ -4267,9 +4325,14 @@
+@@ -4267,9 +4331,14 @@
  		int i;
  
  		err = mtk_start_dma(eth);
@@ -261,7 +274,7 @@ identity. Physical GMACs retain phylink carrier and PHY rate matching.
  		}
  
  #if !defined(CONFIG_NET_MEDIATEK_HNAT) && !defined(CONFIG_NET_MEDIATEK_HNAT_MODULE)
-@@ -4278,9 +4341,6 @@
+@@ -4278,9 +4347,6 @@
  #endif
  
  		err = 0;
@@ -271,7 +284,7 @@ identity. Physical GMACs retain phylink carrier and PHY rate matching.
  
  		for (i = 0; i < MTK_MAX_DEVS; i++) {
  			if (!eth->netdev[i])
-@@ -4326,6 +4386,24 @@
+@@ -4326,6 +4392,24 @@
  	} else {
  		refcount_inc(&eth->dma_refcnt);
  	}
@@ -296,7 +309,7 @@ identity. Physical GMACs retain phylink carrier and PHY rate matching.
  
  	phylink_start(mac->phylink);
  	netif_tx_start_all_queues(dev);
-@@ -4388,18 +4466,10 @@
+@@ -4388,18 +4472,10 @@
  	}
  }
  
@@ -316,7 +329,7 @@ identity. Physical GMACs retain phylink carrier and PHY rate matching.
  	/* only shutdown DMA if this is the last user */
  	if (!refcount_dec_and_test(&eth->dma_refcnt))
  		return 0;
-@@ -4446,6 +4516,100 @@
+@@ -4446,6 +4522,100 @@
  	return 0;
  }
  
@@ -417,7 +430,7 @@ identity. Physical GMACs retain phylink carrier and PHY rate matching.
  static int mtk_xdp_setup(struct net_device *dev, struct bpf_prog *prog,
  			 struct netlink_ext_ack *extack)
  {
-@@ -4465,6 +4629,8 @@
+@@ -4465,6 +4635,8 @@
  	}
  
  	need_update = !!eth->prog != !!prog;
@@ -426,7 +439,7 @@ identity. Physical GMACs retain phylink carrier and PHY rate matching.
  	if (netif_running(dev) && need_update)
  		mtk_stop(dev);
  
-@@ -5471,6 +5637,7 @@
+@@ -5471,6 +5643,7 @@
  {
  	struct mtk_eth *eth = container_of(work, struct mtk_eth, pending_work);
  	unsigned long restart = 0;
@@ -434,7 +447,7 @@ identity. Physical GMACs retain phylink carrier and PHY rate matching.
  	int i;
  
  	rtnl_lock();
-@@ -5496,6 +5663,10 @@
+@@ -5496,6 +5669,10 @@
  		break;
  	}
  	/* stop all devices to make sure that dma is properly shut down */
@@ -445,7 +458,7 @@ identity. Physical GMACs retain phylink carrier and PHY rate matching.
  	for (i = 0; i < MTK_MAX_DEVS; i++) {
  		if (!eth->netdev[i] || !netif_running(eth->netdev[i]))
  			continue;
-@@ -5529,6 +5700,10 @@
+@@ -5529,6 +5706,10 @@
  	}
  
  	clear_bit(MTK_RESETTING, &eth->state);
@@ -456,7 +469,7 @@ identity. Physical GMACs retain phylink carrier and PHY rate matching.
  
  	mtk_wed_fe_reset_complete();
  	mtk_restore_qdma_cfg(eth);
-@@ -5547,6 +5722,11 @@
+@@ -5547,6 +5728,11 @@
  {
  	int i;
  
@@ -468,7 +481,7 @@ identity. Physical GMACs retain phylink carrier and PHY rate matching.
  	for (i = 0; i < MTK_MAX_DEVS; i++) {
  		if (!eth->netdev[i])
  			continue;
-@@ -5566,9 +5746,13 @@
+@@ -5566,9 +5752,13 @@
  {
  	int i;
  
@@ -483,7 +496,7 @@ identity. Physical GMACs retain phylink carrier and PHY rate matching.
  			continue;
  		mac = netdev_priv(eth->netdev[i]);
  		if (MTK_HAS_CAPS(eth->soc->caps, MTK_QDMA))
-@@ -5589,11 +5773,11 @@
+@@ -5589,11 +5779,11 @@
  
  static int mtk_cleanup(struct mtk_eth *eth)
  {
@@ -498,7 +511,7 @@ identity. Physical GMACs retain phylink carrier and PHY rate matching.
  
  	return 0;
  }
-@@ -5986,6 +6170,68 @@
+@@ -5986,6 +6176,68 @@
  	.ndo_select_queue	= mtk_select_queue,
  };
  
@@ -567,7 +580,7 @@ identity. Physical GMACs retain phylink carrier and PHY rate matching.
  static void mux_poll(struct work_struct *work)
  {
  	struct mtk_mux *mux = container_of(work, struct mtk_mux, poll.work);
-@@ -6810,6 +7056,20 @@
+@@ -6810,6 +7062,20 @@
  		}
  	}
  
@@ -588,7 +601,7 @@ identity. Physical GMACs retain phylink carrier and PHY rate matching.
  	mtketh_debugfs_init(eth);
  	debug_proc_init(eth);
  
-@@ -6840,14 +7100,17 @@
+@@ -6840,14 +7106,17 @@
  	struct mtk_mac *mac;
  	int i;
  

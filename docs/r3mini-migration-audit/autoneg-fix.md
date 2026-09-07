@@ -19,7 +19,7 @@
 - FE 复位、XDP RX 缓冲重建包含内部 DMA 使用者；失败重开不重复释放引用。卸载先注销接口、停止 DMA/NAPI，再释放对象。
 - HNAT 专用 RX handler 在普通接收路径清理未知 VLAN 前处理内部 VLAN/流表标记；其注册、注销和模块开关使用 RTNL/RCU 保护。
 - 外部接口回注沿用原 ifindex/VLAN 还原逻辑。CPU→WiFi 的标记 1234 返回 br-lan 发送路径，经既有 HNAT 桥钩子和 WiFi TX 钩子学习 WDMA 目标，不依赖有线桥端口在线。
-- RATE_MATCH_PAUSE 按内部接口速率设置自动 QDMA 队列预算，避免百兆铜口误限共享内部流量；用户硬件 QoS 入口保留。铜口掉线只清相关物理出口流表。
+- RATE_MATCH_PAUSE 保留 DMA 初始化时与原 2.5G 固定链路相同的 QDMA 队列预算，铜口链路通知不再重写队列：既避免百兆铜口误限内部流量，也避免拔插覆盖用户硬件 QoS 设置。铜口掉线只清相关物理出口流表。
 - 同时修复 PPD RX 标记跨描述符串用、共享设备指针生命周期，以及部分 skb 已释放后的错误返回值。
 
 未关闭 HNAT、WED/WARP、PPE/WDMA 学习、TSO/SG/校验和能力，未修改 WiFi 校准或 WO 固件，未裁减完整配置包选择。这里描述的是代码保留的路径；**编译及主机测试不能证明实际硬件吞吐、时序或所有加速场景已通过验收**。
@@ -40,7 +40,7 @@ python3 scripts/r3mini-autoneg-test.py
 python3 scripts/r3mini-build-test.py
 python3 scripts/r3mini-migrate.py --verify
 python3 scripts/r3mini-build.py build \
-  --log-dir logs/r3mini-build-autoneg-r2-run1 \
+  --log-dir logs/r3mini-build-autoneg-r2-run2 \
   --output-dir .r3mini-output/autoneg-r2
 ```
 
