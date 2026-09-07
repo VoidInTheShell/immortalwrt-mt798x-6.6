@@ -99,7 +99,39 @@ WAN=eth1、dial_mode=ip、fallback=direct；53 端口 must_direct 保留原有 D
 - 新镜像 mt_wifi.ko 与实机已验证模块 SHA-256 相同：
   `f7a5ea5a1763f763fb435ec3dca59b6910c3dcbfac45db2e4fe694c385376afe`。
 - 旧基线/r4 镜像校验值不变，旧 package 备份与 bin/packages 同名文件逐内容
-  比较一致。未对设备执行 sysupgrade，当前仍是 r4 加实机热修复。
+  比较一致。该次构建验收尚未刷机；后续保留配置升级结果见下节。
+
+## 后续实机保留配置升级（2026-09-07）
+
+用户明确授权远程保留配置升级后，已完成 r4 → r5 的实际 sysupgrade。
+刷写前在设备上核对镜像 SHA-256，`sysupgrade -T` 返回 0；使用标准保留配置
+升级，不加 -n/-F，不刷 bootloader、不重分区。设备既有 production 分区此前
+已经扩到接近整个 eMMC，因此保留的是约 7 GiB overlay，而非把现有分区缩回
+镜像构建模板的 2 GiB。升级后通过原 ZeroTier 地址重新登录成功。
+
+升级前后配置归档均保存到本地私有目录（目录 0700、文件 0600），只比较内容，
+不输出密码或私钥。比对发现 LuCI 主题选择从 Argon 变为 Kucat、TurboACC
+fullcone 从 2 变为 0；已依照升级前备份恢复两项配置，同时恢复运行时 NAT
+模式为 2。恢复后 81 个 `/etc/config/` 文件中 80 个完全一致，唯一变化为
+`uci-defaults-log.txt` 初始化日志。SSH 主机密钥、shadow、banner 脚本以及
+自动恢复服务启停状态的脚本也完全一致。这两处首次启动默认值覆盖现象记录为
+后续版本需要修正的保留配置迁移问题；本次设备配置已恢复，不宣称源码已修正。
+
+冷启动后核验：版本确为 r5，ZeroTier 使用原身份在线；WAN 自协商为 1 Gbps
+全双工；2.4 GHz 为 HE40，5 GHz 保留 HE160，两频 BSSID 不同；无线两灯均亮。
+HNAT enabled、PPE0 专用路径正常，mt_wifi/mtk_warp/mtk_warp_proxy/mtkhnat
+模块均已加载，Wi-Fi 模块哈希与构建验收一致。PWM 插件在启动时自动应用
+45/55/65°C 阈值，CPU 约 40°C 时为 0 档，符合配置。两主题设置插件及 Modem
+父/子菜单已安装，r5 的交互 SSH banner 截图再次通过视觉确认。
+
+启动日志中不再出现缺失 max-link-width 的警告；空 PCIe 插槽仍出现
+detect.quiet/-110，符合前述验证边界。早期时钟 -517 后有再次 probe，属于
+初始化依赖尚未就绪的延迟探测。此次启动采样时没有无线终端关联，未把空闲
+PPE 的 BIND=0 当作硬件故障，也未冒称升级后重复完成了流量/吞吐实测。
+
+本地证据：`.r3mini-checks/r5-upgrade-20260907/postcheck.txt`、
+`config-comparison-final.json`、`banner-r5.png`。配置归档包含设备私密信息，
+不提交 Git，也不对外共享。
 
 ## 回归与证据
 
