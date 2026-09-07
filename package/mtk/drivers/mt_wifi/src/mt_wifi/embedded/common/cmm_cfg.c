@@ -13425,6 +13425,13 @@ INT32 set_datcfg_ack_cts_timeout (RTMP_ADAPTER *pAd)
 	}
 
 	for (idx = 0; idx < DBDC_BAND_NUM; idx++) {
+		/* The disabled feature keeps packed TMAC register defaults which are
+		 * intentionally wider than MAX_ACK_TIMEOUT. Do not treat those CR
+		 * defaults as user timeout values or emit a failure for every band.
+		 */
+		if (pAd->CommonCfg.ack_cts_enable[idx] == FALSE)
+			continue;
+
 		if (pAd->CommonCfg.distance[idx] > 0) {
 			value = pAd->CommonCfg.distance[idx];
 			value = value*2/LIGHT_SPEED;

@@ -550,6 +550,14 @@
 	status = "okay";
 };
 
+/* The on-SoC DBDC radio registers one WARP client and uses the combined WED
+ * resources exposed by &wed. Leaving the alias node enabled makes the same
+ * platform driver probe a second time without an available client entry.
+ */
+&wed2 {
+	status = "disabled";
+};
+
 &wifi {
 	pinctrl-names = "default", "dbdc";
 	pinctrl-0 = <&wf_2g_5g_pins>;

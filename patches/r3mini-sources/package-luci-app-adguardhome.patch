@@ -1,0 +1,15 @@
+diff --git a/luci-app-adguardhome/Makefile b/luci-app-adguardhome/Makefile
+index f435342..70fa23c 100644
+--- a/luci-app-adguardhome/Makefile
++++ b/luci-app-adguardhome/Makefile
+@@ -5,6 +5,7 @@ include $(TOPDIR)/rules.mk
+ 
+ PKG_NAME:=luci-app-adguardhome
+ PKG_VERSION:=1.1.1
++PKG_RELEASE:=2
+ PKG_MAINTAINER:=<https://github.com/sirpdboy/luci-app-adguardhome>
+ 
+ LUCI_TITLE:=LuCI app for AdGuardHome
+diff --git a/luci-app-adguardhome/root/usr/share/AdGuardHome/addhost.sh b/luci-app-adguardhome/root/usr/share/AdGuardHome/addhost.sh
+old mode 100644
+new mode 100755

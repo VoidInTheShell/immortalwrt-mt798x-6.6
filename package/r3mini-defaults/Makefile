@@ -2,7 +2,7 @@ include $(TOPDIR)/rules.mk
 
 PKG_NAME:=r3mini-defaults
 PKG_VERSION:=2026.09.07
-PKG_RELEASE:=3
+PKG_RELEASE:=4
 PKG_LICENSE:=GPL-2.0-only
 
 include $(INCLUDE_DIR)/package.mk
@@ -33,7 +33,12 @@ define Package/r3mini-defaults/install
 	$(INSTALL_BIN) ./files/r3mini-offload-recover $(1)/etc/init.d/r3mini-offload-recover
 	$(INSTALL_DIR) $(1)/usr/share/luci/menu.d
 	$(INSTALL_DATA) ./files/luci-menu-modem.json $(1)/usr/share/luci/menu.d/r3mini-modem.json
-	printf '%s\n' /etc/config/r3mini-feature-defaults-applied /etc/config/r3mini-zerotier-demand-start-applied > $(1)/lib/upgrade/keep.d/r3mini-defaults
+	printf '%s\n' \
+		/etc/config/r3mini-feature-defaults-applied \
+		/etc/config/r3mini-zerotier-demand-start-applied \
+		/etc/config/r3mini-ntp-service-applied \
+		/etc/config/r3mini-haproxy3-migration-applied \
+		> $(1)/lib/upgrade/keep.d/r3mini-defaults
 endef
 
 $(eval $(call BuildPackage,r3mini-defaults))

@@ -93,7 +93,7 @@ int main(void) {
         function = helpers.function(source, 'portal_banner_center')
         for value in ('LAN IP: 10.0.1.1 | WAN IP: 203.0.113.1 | Uptime: 123d 23h 59m',
                       'Time: 2026-09-07 15:00:00 | OpenWrt: 24.10.2 | Build: 2026-09-07',
-                      'Firmware: PortalWRT 24.10.2 GLaDOS-R3Mini-Autoneg-r5',
+                      'Firmware: PortalWRT 24.10.2 GLaDOS-R3Mini-Autoneg-r6',
                       'Board: Bananapi BPi-R3 Mini | Architecture: aarch64 | Kernel: 6.6.133',
                       'Powered by APERTURE Science'):
             result = subprocess.check_output(['sh', '-c', function + '\nportal_banner_center "$1"', 'test', value], text=True)

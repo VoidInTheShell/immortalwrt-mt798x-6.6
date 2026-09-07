@@ -87,7 +87,7 @@ def check_gpt(path):
     return partitions
 
 
-def check_runtime_fixes(rootfs, kernel, config_buildinfo, zerotier_demand_start=False, r5=False):
+def check_runtime_fixes(rootfs, kernel, config_buildinfo, zerotier_demand_start=False, r5=False, r6=False):
     """Check installed payloads, not merely the working-tree source files."""
     def read(name):
         return command(TOOLS / 'unsquashfs4', '-cat', rootfs, name).decode()
@@ -136,7 +136,7 @@ def check_runtime_fixes(rootfs, kernel, config_buildinfo, zerotier_demand_start=
     if zerotier_demand_start:
         expected.update({'zerotier': '1.14.1-r15', 'r3mini-defaults': '2026.09.07-r2'})
     if r5:
-        expected.update({'r3mini-defaults': '2026.09.07-r3',
+        expected.update({'r3mini-defaults': '2026.09.07-r4' if r6 else '2026.09.07-r3',
                          'luci-app-r3mini-fan': '1.0.0-r1',
                          'luci-app-kucat-config': '2.2.1-r20260907'})
         require('luci-app-argon-config' in versions, 'Missing Argon settings package')
@@ -160,6 +160,21 @@ def check_runtime_fixes(rootfs, kernel, config_buildinfo, zerotier_demand_start=
                 'Fan service must not write read-only hysteresis')
         require('hook_toggle' in read('www/luci-static/resources/view/daed/config.js'),
                 'Missing daed/HNAT coexistence status')
+    if r6:
+        expected['luci-app-adguardhome'] = '1.1.1-r2'
+        expected['haproxy'] = '3.0.25-r2'
+        defaults = read('etc/uci-defaults/zzzz-r3mini-services')
+        require('/etc/init.d/sysntpd disable' in defaults and '/etc/init.d/ntpd enable' in defaults,
+                'Missing full-ntpd service migration')
+        require('r3mini-haproxy3-migration-applied' in defaults and
+                'http-request return status 200' in defaults,
+                'Missing HAProxy 3 migration')
+        haproxy_config = read('etc/haproxy.cfg')
+        require(not re.search(r'^\s*mode health\s*$', haproxy_config, re.M),
+                'Installed HAProxy config still uses mode health')
+        require('haproxy' in versions, 'PassWall-selected HAProxy binary was removed')
+        require('local menu=/usr/share/luci/menu.d/luci-app-netwizard.json' in
+                read('etc/init.d/advancedplus'), 'Installed advancedplus lacks optional netwizard guard')
     for name, version in expected.items():
         require(versions.get(name) == version, 'Stale installed package: ' + name)
     require(versions.get('libiwinfo20230701', '').endswith('-r2'), 'Stale iwinfo backend package')
@@ -230,7 +245,7 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('image', type=Path)
     parser.add_argument('--audit-dir', type=Path, required=True)
-    parser.add_argument('--codename', default='GLaDOS-R3Mini-Autoneg-r5',
+    parser.add_argument('--codename', default='GLaDOS-R3Mini-Autoneg-r6',
                         help='Expected firmware codename (use r2/r3 explicitly for older artifacts)')
     parser.add_argument('--host-flash-dir', type=Path,
                         help='Optional self-contained eMMC host-flash bundle to validate')
@@ -266,6 +281,9 @@ def main():
     board = audit / 'board.dtb'
     tree = command('dtc', '-I', 'dtb', '-O', 'dts', board).decode()
     (audit / 'board.dts').write_text(tree)
+    if args.codename == 'GLaDOS-R3Mini-Autoneg-r6':
+        require(fdt(board, '/soc/wed2@15011000', 'status') == 'disabled',
+                'Unused duplicate WED node is still probed')
     ethernet = '/soc/ethernet@15100000'
     require(fdt(board, ethernet, 'mediatek,hnat-ppd') == '', 'Missing internal PPE flag')
     for index, address in ((0, 'e'), (1, 'f')):
@@ -299,6 +317,8 @@ def main():
     release = command(TOOLS / 'unsquashfs4', '-cat', rootfs, 'etc/openwrt_release').decode()
     require("DISTRIB_RELEASE='24.10.2'" in release, 'Wrong in-image release')
     require(args.codename.lower() in release.lower(), 'Wrong in-image codename')
+    require("DISTRIB_REVISION='%s'" % meta['version']['revision'] in release,
+            'FIT metadata and rootfs revision disagree')
     listing = command(TOOLS / 'unsquashfs4', '-ll', rootfs).decode()
     required = ('mtkhnat.ko', 'mt_wifi.ko', 'mtk_warp.ko', 'mtk_warp_proxy.ko',
                 'conninfra.ko', 'air_en8811h.ko', '7986_WOCPU0_RAM_CODE_release.bin',
@@ -306,6 +326,9 @@ def main():
                 '7986_WACPU_RAM_CODE_release.bin', 'usr/bin/daed', 'usr/sbin/ModemManager')
     for component in required:
         require(component in listing, 'Missing image component ' + component)
+    if args.codename == 'GLaDOS-R3Mini-Autoneg-r6':
+        require(re.search(r'^-rwx\S*\s+.*usr/share/AdGuardHome/addhost\.sh$', listing, re.M),
+                'AdGuardHome addhost helper is not executable')
     original = list((ROOT / 'bin/targets/mediatek/filogic').glob('*-squashfs-sysupgrade.itb'))
     require(len(original) == 1 and sha256(original[0]) == BASELINE, 'Original firmware changed')
     gpt = list(image.parent.glob('*' + args.codename.lower() + '*emmc-gpt.bin'))
@@ -319,8 +342,10 @@ def main():
     if args.codename.startswith('GLaDOS-R3Mini-Autoneg-r'):
         result['runtime_fixes'] = check_runtime_fixes(
             rootfs, audit / 'kernel.gz', config_buildinfo,
-            zerotier_demand_start=args.codename in ('GLaDOS-R3Mini-Autoneg-r4', 'GLaDOS-R3Mini-Autoneg-r5'),
-            r5=args.codename == 'GLaDOS-R3Mini-Autoneg-r5')
+            zerotier_demand_start=args.codename in ('GLaDOS-R3Mini-Autoneg-r4', 'GLaDOS-R3Mini-Autoneg-r5',
+                                                    'GLaDOS-R3Mini-Autoneg-r6'),
+            r5=args.codename in ('GLaDOS-R3Mini-Autoneg-r5', 'GLaDOS-R3Mini-Autoneg-r6'),
+            r6=args.codename == 'GLaDOS-R3Mini-Autoneg-r6')
     if args.host_flash_dir:
         result['host_flash'] = check_host_flash(args.host_flash_dir, image)
     (audit / 'result.json').write_text(json.dumps(result, indent=2) + '\n')

@@ -1,0 +1,38 @@
+From: PortalWRT maintainers <maintainers@portalwrt.local>
+Date: Mon, 7 Sep 2026 18:00:00 +0800
+Subject: [PATCH] netfilter: make vendor conntrack sysctls netns-safe
+
+The vendor full-cone NAT and optional TCP window controls are global, but their
+writable sysctl table entries are copied into every network namespace. Linux
+6.6 detects that writable non-init-net entries point at global kernel data,
+warns, and removes their write permission at registration time.
+
+Explicitly expose those global controls read-only outside init_net. The DSCP
+learning switch is already stored per network namespace; point the copied
+table at the matching netns value, as the surrounding conntrack sysctls do.
+This preserves the init_net ABI and hardware-offload controls while avoiding
+cross-namespace writes and the register_net_sysctl_sz warnings.
+
+---
+ net/netfilter/nf_conntrack_standalone.c | 3 +++
+ 1 file changed, 3 insertions(+)
+
+--- a/net/netfilter/nf_conntrack_standalone.c
++++ b/net/netfilter/nf_conntrack_standalone.c
+@@ -1169,6 +1169,7 @@ static int nf_conntrack_standalone_init_
+ 	table[NF_SYSCTL_CT_COUNT].data = &cnet->count;
+ 	table[NF_SYSCTL_CT_CHECKSUM].data = &net->ct.sysctl_checksum;
+ 	table[NF_SYSCTL_CT_LOG_INVALID].data = &net->ct.sysctl_log_invalid;
++	table[NF_SYSCTL_CT_QOS].data = &net->ct.sysctl_qos;
+ 	table[NF_SYSCTL_CT_ACCT].data = &net->ct.sysctl_acct;
+ #ifdef CONFIG_NF_CONNTRACK_EVENTS
+ 	table[NF_SYSCTL_CT_EVENTS].data = &net->ct.sysctl_events;
+@@ -1193,6 +1194,8 @@ static int nf_conntrack_standalone_init_
+ 	/* Don't allow non-init_net ns to alter global sysctls */
+ 	if (!net_eq(&init_net, net)) {
+ 		table[NF_SYSCTL_CT_MAX].mode = 0444;
++		table[NF_SYSCTL_CT_NAT_MODE].mode = 0444;
++		table[NF_SYSCTL_CT_PROTO_TCP_NO_WINDOW_CHECK].mode = 0444;
+ 		table[NF_SYSCTL_CT_EXPECT_MAX].mode = 0444;
+ 		table[NF_SYSCTL_CT_BUCKETS].mode = 0444;
+ 	}

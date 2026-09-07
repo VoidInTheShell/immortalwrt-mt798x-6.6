@@ -135,6 +135,37 @@ index baa72884..381bcd7f 100644
 +
 +	config_list_foreach "config" "hotplug_network" add_interface_trigger
  }
+diff --git a/net/haproxy/Makefile b/net/haproxy/Makefile
+index a656d8b4..67ced88a 100644
+--- a/net/haproxy/Makefile
++++ b/net/haproxy/Makefile
+@@ -11,7 +11,7 @@ include $(TOPDIR)/rules.mk
+ 
+ PKG_NAME:=haproxy
+ PKG_VERSION:=3.0.25
+-PKG_RELEASE:=1
++PKG_RELEASE:=2
+ 
+ PKG_SOURCE:=$(PKG_NAME)-$(PKG_VERSION).tar.gz
+ PKG_SOURCE_URL:=https://www.haproxy.org/download/3.0/src
+diff --git a/net/haproxy/files/haproxy.cfg b/net/haproxy/files/haproxy.cfg
+index ffe5949c..95d40013 100644
+--- a/net/haproxy/files/haproxy.cfg
++++ b/net/haproxy/files/haproxy.cfg
+@@ -99,9 +99,7 @@ listen local_health_check
+ 	# Listen on port 60000
+ 	bind :60000
+ 
+-	# This is a health check
+-	mode health
+-
+-	# Enable HTTP-style responses: "HTTP/1.0 200 OK"
+-	# else just print "OK".
+-	#option httpchk
++	# HAProxy 3.x removed "mode health". Return a successful HTTP response
++	# directly so external load balancers can keep using this listener.
++	mode http
++	http-request return status 200
 diff --git a/net/modemmanager/Makefile b/net/modemmanager/Makefile
 index fb4bcef9..71644738 100644
 --- a/net/modemmanager/Makefile

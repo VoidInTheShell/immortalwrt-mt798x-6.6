@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Host regressions for the R3 Mini runtime-audit fixes; not RF/PPE emulation."""
 import importlib.util
+import os
 from pathlib import Path
 import re
 import subprocess
@@ -15,6 +16,45 @@ spec.loader.exec_module(helpers)
 
 
 class RuntimeFixes(unittest.TestCase):
+
+    def test_r6_boot_log_fixes(self):
+        defaults = (ROOT / 'package/r3mini-defaults/files/zzzz-r3mini-services').read_text()
+        self.assertIn('/etc/init.d/sysntpd disable', defaults)
+        self.assertIn('/etc/init.d/ntpd enable', defaults)
+        self.assertIn('r3mini-ntp-service-applied', defaults)
+        self.assertIn('mode health', defaults)
+        self.assertIn('http-request return status 200', defaults)
+        self.assertIn('r3mini-haproxy3-migration-applied', defaults)
+        ntpd_package = (ROOT / 'feeds/packages/net/ntpd/Makefile').read_text()
+        self.assertIn('rm -f "$${IPKG_INSTROOT}/usr/sbin/ntpd"', ntpd_package)
+        self.assertIn('PROG=/sbin/ntpd', (ROOT / 'feeds/packages/net/ntpd/files/ntpd.init').read_text())
+
+        haproxy = (ROOT / 'feeds/packages/net/haproxy/files/haproxy.cfg').read_text()
+        self.assertIsNone(re.search(r'^\s*mode health\s*$', haproxy, re.M),
+                          'Removed HAProxy mode returned')
+        self.assertIn('http-request return status 200', haproxy)
+        passwall = (ROOT / 'feeds/luci/applications/luci-app-passwall/Makefile').read_text()
+        self.assertIn('+PACKAGE_$(PKG_NAME)_INCLUDE_Haproxy:haproxy', passwall)
+
+        netns = (ROOT / 'target/linux/mediatek/patches-6.6/999-3005-netfilter-fix-vendor-sysctl-netns-safety.patch').read_text()
+        self.assertIn('table[NF_SYSCTL_CT_QOS].data = &net->ct.sysctl_qos;', netns)
+        self.assertIn('table[NF_SYSCTL_CT_NAT_MODE].mode = 0444;', netns)
+        self.assertIn('table[NF_SYSCTL_CT_PROTO_TCP_NO_WINDOW_CHECK].mode = 0444;', netns)
+
+        cfg = (ROOT / 'package/mtk/drivers/mt_wifi/src/mt_wifi/embedded/common/cmm_cfg.c').read_text()
+        ack = cfg[cfg.index('INT32 set_datcfg_ack_cts_timeout '):
+                  cfg.index('INT set_dst2acktimeout_proc')]
+        self.assertLess(ack.index('ack_cts_enable[idx] == FALSE'), ack.index('distance[idx] > 0'))
+        dts = (ROOT / 'target/linux/mediatek/dts/mt7986a-bananapi-bpi-r3-mini.dts').read_text()
+        self.assertRegex(dts, r'&wed2\s*\{\s*status = "disabled";\s*\};')
+
+        advanced = (ROOT / 'package/luci-app-advancedplus/root/etc/init.d/advancedplus').read_text()
+        function = helpers.function(advanced, 'setnetwizard')
+        self.assertIn('local menu=/usr/share/luci/menu.d/luci-app-netwizard.json', function)
+        self.assertIn('[ -f "$menu" ] || return 0', function)
+        addhost = ROOT / 'package/luci-app-adguardhome/luci-app-adguardhome/root/usr/share/AdGuardHome/addhost.sh'
+        self.assertTrue(os.stat(addhost).st_mode & 0o111)
+
     def test_profile_order_and_acceleration_selection(self):
         for name in ('.config', 'defconfig/portalwrt-bpi-r3-mini-full.config',
                      'docs/r3mini-migration-audit/hardware-required.config'):

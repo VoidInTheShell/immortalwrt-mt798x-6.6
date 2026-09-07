@@ -56,6 +56,30 @@ if [ ! -e /etc/config/r3mini-zerotier-demand-start-applied ]; then
 	touch /etc/config/r3mini-zerotier-demand-start-applied
 fi
 
+# The full ntpd package deliberately removes BusyBox's /usr/sbin/ntpd link.
+# Do not leave sysntpd enabled with a command that can no longer exist. Prefer
+# the full daemon already selected by this image and migrate only once, so later
+# user changes to the service state remain untouched across sysupgrade.
+if [ ! -e /etc/config/r3mini-ntp-service-applied ]; then
+	if [ -x /sbin/ntpd ] && [ -x /etc/init.d/ntpd ]; then
+		[ ! -x /etc/init.d/sysntpd ] || /etc/init.d/sysntpd disable
+		/etc/init.d/ntpd enable
+	fi
+	touch /etc/config/r3mini-ntp-service-applied
+fi
+
+# HAProxy is retained because the selected PassWall feature depends on its
+# binary. Migrate only the removed HAProxy 1.x/2.x health-listener directive;
+# leave every other user-defined proxy rule unchanged.
+if [ ! -e /etc/config/r3mini-haproxy3-migration-applied ]; then
+	if [ -f /etc/haproxy.cfg ] && \
+	   grep -q '^[[:space:]]*mode health[[:space:]]*$' /etc/haproxy.cfg; then
+		sed -i 's/^[[:space:]]*mode health[[:space:]]*$/\tmode http\
+\thttp-request return status 200/' /etc/haproxy.cfg
+	fi
+	touch /etc/config/r3mini-haproxy3-migration-applied
+fi
+
 # Repair only the old mac80211 interface names on retained r2/r3/r4 configs.
 # Keep deliberate user LED assignments intact.
 if [ "$(uci -q get system.led_wlan2g.dev)" = phy0-ap0 ]; then
