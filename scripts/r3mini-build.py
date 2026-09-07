@@ -175,9 +175,12 @@ def make_plan(output_dir=None, incremental=False):
     if not incremental:
         stages += package_stages(graph, res['caps'])
     # A warm tree can let GNU make validate the whole selected package DAG in
-    # one invocation. Keep its shared job budget conservative because this may
-    # mix expensive package classes. No stamps or validation are bypassed.
-    package_jobs = min(4, res['caps']['light']) if incremental else res['caps']['light']
+    # one invocation. package/compile has overlapping recursive aggregate
+    # targets which can otherwise package the same ipkg directory twice; those
+    # recipes rm -rf their CONTROL directory and are not parallel-safe. Keep
+    # the full graph validation serial in incremental mode. No stamps or
+    # validation are bypassed.
+    package_jobs = 1 if incremental else res['caps']['light']
     stages += [{'name': 'package-completion', 'class': 'light', 'jobs': package_jobs, 'targets': ['package/compile']},
                {'name': 'package-install', 'class': 'images', 'jobs': 1, 'targets': ['package/install']},
                {'name': 'images', 'class': 'images', 'jobs': res['caps']['images'], 'targets': ['target/install']},

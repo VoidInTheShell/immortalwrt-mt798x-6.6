@@ -21,7 +21,7 @@ class BuildPlanTests(unittest.TestCase):
         stages = {stage['name']: stage for stage in plan['stages']}
         self.assertFalse(any(name.startswith('packages-') for name in stages))
         self.assertEqual(stages['package-completion']['targets'], ['package/compile'])
-        self.assertLessEqual(stages['package-completion']['job_limit'], 4)
+        self.assertEqual(stages['package-completion']['job_limit'], 1)
         self.assertEqual(stages['package-completion']['jobs'], stages['package-completion']['job_limit'])
         self.assertTrue({'tools', 'toolchain', 'kernel', 'package-install', 'images',
                          'buildinfo', 'index', 'overview', 'checksum'} <= stages.keys())
