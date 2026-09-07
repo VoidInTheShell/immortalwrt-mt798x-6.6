@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Exercise scheduling, failure handling and timing without firmware compilation."""
 import importlib.util
+import gzip
 import json
 import os
 from pathlib import Path
@@ -102,6 +103,48 @@ class BuildPlanTests(unittest.TestCase):
             self.assertEqual(row['exit_code'], 0)
             self.assertIn('OUTPUT_DIR=' + str(output), row['command'])
             self.assertIn('BIN_DIR=' + str(output / 'targets/mediatek/filogic'), row['command'])
+
+    def test_image_stage_requires_r3mini_host_flash_artifact(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            (root / '.config').write_text('CONFIG_TARGET_BOARD="mediatek"\n'
+                                         'CONFIG_TARGET_SUBTARGET="filogic"\n')
+            output = root / 'isolated-output'
+            with patch.object(runner, 'ROOT', root):
+                errors = runner.validate_artifacts('images', output_dir=str(output))
+                self.assertEqual(errors, ['Expected one compressed R3 Mini eMMC host-flash image, found 0'])
+                directory = output / 'targets/mediatek/filogic'; directory.mkdir(parents=True)
+                image = directory / 'portalwrt-test-bananapi_bpi-r3-mini-emmc.img.gz'
+                fip = directory / 'portalwrt-test-bananapi_bpi-r3-mini-emmc-bl31-uboot.fip'
+                fip.write_bytes(b'test-fip')
+                def pad(stream, amount):
+                    while amount:
+                        chunk = min(amount, 1024 * 1024)
+                        stream.write(b'\0' * chunk)
+                        amount -= chunk
+                with image.open('wb') as compressed:
+                    with gzip.GzipFile(filename='', mode='wb', fileobj=compressed, mtime=0) as stream:
+                        stream.write(b'\0' * 512 + b'EFI PART')
+                        pad(stream, 6656 * 1024 - 520)
+                        stream.write(fip.read_bytes())
+                        pad(stream, 64 * 1024 * 1024 - 6656 * 1024 - fip.stat().st_size)
+                        stream.write(b'\xd0\r\xfe\xed')
+                self.assertEqual(runner.validate_artifacts('images', output_dir=str(output)), [])
+                output.rename(root / 'bin')
+                image = root / 'bin/targets/mediatek/filogic' / image.name
+                self.assertEqual(runner.validate_artifacts('images'), [])
+                image.write_bytes(b'not-gzip')
+                self.assertEqual(runner.validate_artifacts('images'),
+                                 ['R3 Mini eMMC host-flash image is not valid gzip data'])
+
+    def test_r3mini_image_recipe_builds_host_flash_at_gpt_offsets(self):
+        image_make = (Path(__file__).resolve().parents[1]
+                      / 'target/linux/mediatek/image/filogic.mk').read_text()
+        block = image_make.split('define Device/bananapi_bpi-r3-mini', 1)[1].split('endef', 1)[0]
+        self.assertIn('emmc.img.gz', block)
+        self.assertIn('mt798x-gpt emmc | pad-to 6656k', block)
+        self.assertIn('mt7986-bl31-uboot bananapi_bpi-r3-mini-emmc', block)
+        self.assertIn('pad-to 64M | append-image squashfs-sysupgrade.itb | check-size | gzip', block)
 
     def test_build_environment_removes_wsl_windows_path_fragments(self):
         with patch.dict(os.environ, {'PATH': '/usr/bin:/mnt/c/Program:Files:(x86)/Git:/home/test/bin:C:\\Tools\\bin'}):

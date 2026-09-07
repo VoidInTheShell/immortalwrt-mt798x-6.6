@@ -5,6 +5,7 @@ Only extracted verification data is written, to a new audit directory.
 No flashing, loop devices, mounts, or changes to firmware are performed.
 """
 import argparse
+import gzip
 import hashlib
 import json
 from pathlib import Path
@@ -35,6 +36,28 @@ def sha256(path):
         return hashlib.file_digest(stream, 'sha256').hexdigest()
 
 
+def sha256_range(path, offset, length):
+    digest = hashlib.sha256()
+    with path.open('rb') as stream:
+        stream.seek(offset)
+        remaining = length
+        while remaining:
+            chunk = stream.read(min(1024 * 1024, remaining))
+            require(chunk, 'Truncated range in ' + str(path))
+            digest.update(chunk)
+            remaining -= len(chunk)
+    return digest.hexdigest()
+
+
+def gzip_uncompressed_digest(path):
+    digest, length = hashlib.sha256(), 0
+    with gzip.open(path, 'rb') as stream:
+        while chunk := stream.read(1024 * 1024):
+            digest.update(chunk)
+            length += len(chunk)
+    return length, digest.hexdigest()
+
+
 def check_gpt(path):
     data = path.read_bytes()
     header = data[512:1024]
@@ -63,10 +86,68 @@ def check_gpt(path):
     return partitions
 
 
+def check_host_flash(directory, image):
+    directory = directory.resolve()
+    require(directory.is_relative_to(ROOT / '.r3mini-output'), 'Host bundle must be in isolated output')
+    manifest_path = directory / 'manifest.json'
+    checksum_path = directory / 'SHA256SUMS'
+    require(manifest_path.is_file() and checksum_path.is_file(), 'Missing host-flash manifest or checksums')
+    manifest = json.loads(manifest_path.read_text())
+    require(manifest.get('format') == 'bpi-r3-mini-emmc-host-flash-v1', 'Wrong host-flash manifest type')
+    require(manifest.get('board') == 'bananapi,bpi-r3-mini', 'Wrong host-flash board')
+    components = manifest.get('components', {})
+    for name in ('sysupgrade', 'emmc_gpt', 'emmc_preloader', 'emmc_fip'):
+        entry = components.get(name, {})
+        path = directory / entry.get('name', '')
+        require(path.is_file() and path.stat().st_size == entry.get('bytes')
+                and sha256(path) == entry.get('sha256'), 'Invalid host component ' + name)
+    require(sha256(directory / components['sysupgrade']['name']) == sha256(image),
+            'Host bundle sysupgrade does not match verified source image')
+    for name in ('emmc_gpt', 'emmc_preloader', 'emmc_fip'):
+        source = image.parent / components[name]['name']
+        require(source.is_file() and sha256(source) == components[name]['sha256'],
+                'Host bundle component does not match source output: ' + name)
+    raw_entry, compressed_entry = manifest.get('raw', {}), manifest.get('compressed', {})
+    raw = directory / raw_entry.get('name', '')
+    compressed = directory / compressed_entry.get('name', '')
+    for label, path, entry in (('raw', raw, raw_entry), ('compressed', compressed, compressed_entry)):
+        require(path.is_file() and path.stat().st_size == entry.get('bytes')
+                and sha256(path) == entry.get('sha256'), 'Invalid host ' + label + ' image')
+    decompressed_length, decompressed_hash = gzip_uncompressed_digest(compressed)
+    require((decompressed_length, decompressed_hash) == (raw.stat().st_size, sha256(raw)),
+            'Compressed host image does not reproduce raw image')
+    gpt = directory / components['emmc_gpt']['name']
+    partitions = {entry['name']: entry for entry in check_gpt(gpt) if entry['name']}
+    layout = manifest.get('layout', {})
+    fip_offset = layout.get('fip_offset')
+    production_offset = layout.get('production_offset')
+    stripped = manifest.get('stripped_fit', {})
+    require((fip_offset, layout.get('fip_size_limit'))
+            == (partitions['fip']['start_bytes'], partitions['fip']['size_bytes']),
+            'Host FIP offset disagrees with GPT')
+    require((production_offset, layout.get('production_size'))
+            == (partitions['production']['start_bytes'], partitions['production']['size_bytes']),
+            'Host production offset disagrees with GPT')
+    fip = directory / components['emmc_fip']['name']
+    require(sha256_range(raw, 0, gpt.stat().st_size) == sha256(gpt), 'Raw host image GPT mismatch')
+    require(sha256_range(raw, fip_offset, fip.stat().st_size) == sha256(fip), 'Raw host image FIP mismatch')
+    require(raw.stat().st_size == production_offset + stripped.get('bytes'), 'Raw host image length mismatch')
+    require(sha256_range(raw, production_offset, stripped.get('bytes')) == stripped.get('sha256'),
+            'Raw host image FIT mismatch')
+    with raw.open('rb') as stream:
+        stream.seek(production_offset)
+        require(stream.read(4) == b'\xd0\r\xfe\xed', 'Host production payload is not FIT')
+    return {'directory': str(directory.relative_to(ROOT)), 'raw': raw_entry,
+            'compressed': compressed_entry, 'layout': layout,
+            'components': components, 'gpt': partitions}
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('image', type=Path)
     parser.add_argument('--audit-dir', type=Path, required=True)
+    parser.add_argument('--host-flash-dir', type=Path,
+                        help='Optional self-contained eMMC host-flash bundle to validate')
     args = parser.parse_args()
     image = args.image.resolve()
     audit = args.audit_dir.resolve()
@@ -149,6 +230,8 @@ def main():
               'release': release, 'gpt': check_gpt(gpt[0]),
               'required_components': list(required), 'old_sha256_unchanged': BASELINE,
               'hardware_runtime_tested': False}
+    if args.host_flash_dir:
+        result['host_flash'] = check_host_flash(args.host_flash_dir, image)
     (audit / 'result.json').write_text(json.dumps(result, indent=2) + '\n')
     print(json.dumps(result, indent=2))
 

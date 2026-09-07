@@ -7,6 +7,7 @@ The package DAG is evaluated by GNU make from OpenWrt's generated metadata.
 import argparse
 import csv
 import datetime as dt
+import gzip
 import hashlib
 import functools
 import json
@@ -327,7 +328,7 @@ def validate_wifi_artifacts():
     return errors
 
 
-def validate_artifacts(stage_name, targets=()):
+def validate_artifacts(stage_name, targets=(), output_dir=None):
     """Check actual build outputs before advancing to the next expensive stage."""
     if WIFI_TARGET in targets or stage_name == 'package-completion':
         return validate_wifi_artifacts()
@@ -395,6 +396,28 @@ def validate_artifacts(stage_name, targets=()):
                 if len(header) < 20 or header[:6] != b'\x7fELF\x02\x01' or int.from_bytes(header[18:20], 'little') != 183:
                     errors.append(relative + ' is not a Linux AArch64 ELF64 executable')
         return errors
+    if stage_name == 'images':
+        directory = output_bin_dir(output_dir or ROOT / 'bin')
+        images = list(directory.glob('*-bananapi_bpi-r3-mini-emmc.img.gz'))
+        if len(images) != 1:
+            return ['Expected one compressed R3 Mini eMMC host-flash image, found ' + str(len(images))]
+        fip = images[0].with_name(images[0].name.removesuffix('-emmc.img.gz') + '-emmc-bl31-uboot.fip')
+        if not fip.is_file():
+            return ['R3 Mini eMMC host-flash FIP artifact is missing']
+        try:
+            with gzip.open(images[0], 'rb') as stream:
+                stream.seek(512)
+                if stream.read(8) != b'EFI PART':
+                    return ['R3 Mini eMMC host-flash image has no GPT header']
+                stream.seek(6656 * 1024)
+                if stream.read(fip.stat().st_size) != fip.read_bytes():
+                    return ['R3 Mini eMMC host-flash image FIP differs from its artifact']
+                stream.seek(64 * 1024 * 1024)
+                if stream.read(4) != b'\xd0\r\xfe\xed':
+                    return ['R3 Mini eMMC host-flash FIT is not at the GPT production offset']
+        except (gzip.BadGzipFile, EOFError, OSError):
+            return ['R3 Mini eMMC host-flash image is not valid gzip data']
+        return []
     return []
 
 
@@ -655,7 +678,7 @@ def execute(plan, logdir, resume):
                              'output_dir': plan.get('output_dir')},
                             logdir, current_resources['affinity'])
             if not row['exit_code']:
-                errors = validate_artifacts(stage['name'], stage['targets'])
+                errors = validate_artifacts(stage['name'], stage['targets'], plan.get('output_dir'))
                 if errors:
                     row['exit_code'] = 1
                     row['artifact_errors'] = errors

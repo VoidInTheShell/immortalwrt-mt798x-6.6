@@ -16,6 +16,8 @@ portalwrt-24.10.2-glados-r3mini-autoneg-r2-mediatek-filogic-bananapi_bpi-r3-mini
 
 镜像的功能性源码为提交 `61d6559300` 和 `fa805065cc`（后者修正铜口 carrier 事件不覆盖 HQoS）。完整构建在该功能性源码状态完成。随后提交的构建器隔离修复只改变 buildinfo 元数据的落盘位置，不改变 `.config`、DTS、内核/HNAT 源码、软件包选择或已生成镜像的任意 payload。
 
+同一套已验证输入还生成了独立的 eMMC host-flash 包，位于 `.r3mini-output/autoneg-r2-hostflash/targets/mediatek/filogic/`：其中有未压缩 `emmc.img`、压缩 `emmc.img.gz`、独立的 `emmc-preloader.bin`、FIP、GPT、同一份 sysupgrade 和 `SHA256SUMS`。raw eMMC 用户区镜像 SHA-256 为 `4eec36f7d3a284637b6d4a5822c5773cb91c6a9d65268e42976b1058d6d06962`，压缩版本 SHA-256 为 `49e3df294a9bc174dcec92188e13292195dfffc3ef28b3301926c80ec0f44c41`。详见 [r3mini-emmc-host-flash.md](r3mini-emmc-host-flash.md)。
+
 ## 可复现构建记录
 
 执行的全量构建命令如下：
@@ -59,12 +61,14 @@ python3 scripts/r3mini-image-check.py \
 结果：
 
 - 自动协商/PPD 实际 C 代码提取测试 8/8 通过（含 ASan/UBSan 状态转换检查）。
-- 构建器测试 9/9 通过，包含 buildinfo 隔离路径的命令级测试。
+- 构建器测试 11/11 通过，包含 buildinfo 隔离路径、eMMC host-flash 产物声明及 GPT/FIP/FIT 偏移规则的命令级测试。
 - 迁移配置核验通过：951 个选择的软件包，无缺失包、无禁止包；配置 SHA-256 为 `37779538af1f29a5a6bcf245c8514ab725903a3cbd8701e5ba6fb52dafc17d68`。
 - 输出目录的 `sha256sums` 所列 6 个文件全部匹配。
 - FIT 的 kernel、FDT、rootfs 位置、长度、CRC32 与 SHA-1 均匹配内嵌哈希；解出的 DTS 确认两颗 EN8811H 都以真实 `phy-handle` 连接、MAC 仍为 `2500base-x`、没有 `fixed-link`，并启用 `ppe0` 隔离回注。
 - SquashFS 内确认包含 HNAT、mt_wifi、WARP/WARP proxy、conninfra、EN8811H 驱动、MT7986 WO/校准固件、`daed` 和 ModemManager。
 - GPT 主头和分区表 CRC 均通过，production 分区是 2 GiB。DTB 反编译仅输出原有的地址/单元命名告警，未触发本修复相关断言。
+- host-flash raw image 已逐段核验：GPT 位于 offset 0、FIP 位于 6656 KiB、剥离升级元数据后的 FIT 位于 64 MiB；`.img.gz` 解压后的长度和 SHA-256 与 raw image 完全一致，独立 BL2/preloader、FIP、GPT 与 sysupgrade 均与编译输出逐字节一致。
+- 已在独立的 `OUTPUT_DIR` 实跑 `make target/install` 验证原生 device image recipe：它同时生成 sysupgrade、GPT、eMMC preloader、FIP 和 `emmc.img.gz`；解压后的 image 长度为 `322306052` bytes，且 GPT、FIP 和 offset `64 MiB` 的 FIT magic/位置均通过检查。该隔离规则测试不会覆盖这里列出的交付镜像。
 
 ## 尚需上板的验收
 

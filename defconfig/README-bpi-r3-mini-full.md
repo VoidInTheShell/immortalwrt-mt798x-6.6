@@ -34,7 +34,7 @@ python3 scripts/r3mini-build.py build --log-dir logs/r3mini-build-run1 --resume
 
 提交包含 PortalWRT 的 `files/` 覆盖文件、板级修改、完整预设，以及 12 个选中外部仓库的提交锁和全部本地补丁。`--bootstrap` 只补建缺失的固定版本仓库，已有目录或提交不符合预期时停止；不会重置已有工作。默认恢复无需原来的 x86 仓库或个人 `custom_package.sh`。重新生成迁移预设时使用仓库内冻结的 R3 基线和功能清单；只有显式提供 `r3mini-migrate.py --x86-config PATH` 才读取另一份 x86 配置。
 
-eMMC 完整配置使用 **2048 MiB production 分区**，产物为带升级元数据的 `sysupgrade.itb` 和 eMMC GPT/引导组件。它不生成装有全部软件的 NAND factory 或 32 MiB recovery 镜像。现有 eMMC 的 production 分区必须能容纳最终镜像；普通 sysupgrade 不等于自动重分区。此配置不提供对现有设备进行破坏性重分区的脚本。
+eMMC 完整配置使用 **2048 MiB production 分区**。产物同时包含带升级元数据的 `sysupgrade.itb`，以及用于首刷/上位机传输的 `emmc.img.gz`、eMMC GPT、FIP 和独立 preloader。eMMC preloader 必须写入 `mmcblk0boot0` 专用硬件区，不能拼入用户区镜像；完整 host-flash 包和安全刷写路径见 [r3mini-emmc-host-flash.md](../docs/r3mini-migration-audit/r3mini-emmc-host-flash.md)。它不生成装有全部软件的 NAND factory 或 32 MiB recovery 镜像。现有 eMMC 的 production 分区必须能容纳最终镜像；普通 sysupgrade 不等于自动重分区。此配置不提供对现有设备进行破坏性重分区的脚本。
 
 预装不等于启动。初次启动保留 dnsmasq、Dropbear、ModemManager 和 MTK 加速/无线服务；会争抢 DNS、SSH、流量规则或产生额外常驻负担的可选服务默认关闭。用户后续保存的启用状态在保留配置升级时不会被首启脚本重置。QoS 只保留 MTK 专用 `mtkhqos_util` 和 QoSmate，两者默认均不启用整形。
 

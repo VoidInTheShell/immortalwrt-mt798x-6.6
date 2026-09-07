@@ -412,11 +412,18 @@ endif
     fit gzip $$(KDIR)/image-$$(firstword $$(DEVICE_DTS)).dtb external-static-with-rootfs | \
     pad-rootfs | append-metadata $(if $(CONFIG_R3MINI_FULL_EMMC),| check-size)
   ARTIFACTS := \
-       emmc-gpt.bin emmc-preloader.bin emmc-bl31-uboot.fip \
+       emmc-gpt.bin emmc-preloader.bin emmc-bl31-uboot.fip emmc.img.gz \
        $(if $(CONFIG_R3MINI_FULL_EMMC),,snand-factory.bin snand-preloader.bin snand-bl31-uboot.fip)
   ARTIFACT/emmc-gpt.bin := mt798x-gpt emmc
   ARTIFACT/emmc-preloader.bin := mt7986-bl2 emmc-ddr4
   ARTIFACT/emmc-bl31-uboot.fip := mt7986-bl31-uboot bananapi_bpi-r3-mini-emmc
+  # Raw eMMC user-area image for an initial/host flash.  BL2 is stored in the
+  # special mmcblk0boot0 hardware partition, so emmc-preloader.bin remains a
+  # separate artifact.  The FIP starts at GPT's 6656 KiB fip partition and the
+  # stripped FIT payload starts at the 64 MiB production partition.
+  ARTIFACT/emmc.img.gz := mt798x-gpt emmc | pad-to 6656k | \
+				mt7986-bl31-uboot bananapi_bpi-r3-mini-emmc | \
+				pad-to 64M | append-image squashfs-sysupgrade.itb | check-size | gzip
   ARTIFACT/snand-factory.bin := mt7986-bl2 spim-nand-ubi-ddr4 | pad-to 256k | \
 				mt7986-bl2 spim-nand-ubi-ddr4 | pad-to 512k | \
 				mt7986-bl2 spim-nand-ubi-ddr4 | pad-to 768k | \
