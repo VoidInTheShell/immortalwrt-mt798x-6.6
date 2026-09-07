@@ -17,6 +17,7 @@
 /.portalwrt-backups/
 /.r3mini-checks/
 /.r3mini-host/
+/.r3mini-output/
 **/__pycache__/
 # Selected external sources are restored by scripts/r3mini-sources.py from
 # patches/r3mini-sources/sources.json, never stored as incomplete gitlinks.

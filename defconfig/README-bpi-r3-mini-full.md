@@ -4,6 +4,8 @@
 
 完整实施记录和运行冲突说明见 [implementation.md](../docs/r3mini-migration-audit/implementation.md)。原始调查保留在同目录的审计文件中，最终选择以 `migration-verification.json` 和根 `.config` 为准。
 
+当前自定义版本为 `24.10.2 / GLaDOS-R3Mini-Autoneg-r2`，网口修复、独立输出构建与硬件验收要求见 [autoneg-fix.md](../docs/r3mini-migration-audit/autoneg-fix.md)。它保留 MAC 侧 2.5G 并恢复铜口自动协商，通过独立内部接口 `ppe0` 将 HNAT 回注与双铜口 carrier 解耦，保留无网线场景的硬件学习路径。尚需上板验证，不代表已经完成吞吐及复位测试。
+
 本次准备结果见 [final-validation.md](../docs/r3mini-migration-audit/final-validation.md)：948 个内置包、3 个仅生成 IPK 的 HS20 实验包，MM 官方前端、短信/USSD/AT 和频段扩展均选中。
 
 在仓库根目录执行：

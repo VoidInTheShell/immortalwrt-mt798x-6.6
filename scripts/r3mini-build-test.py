@@ -57,13 +57,16 @@ class BuildPlanTests(unittest.TestCase):
             make.chmod(0o755)
             logs = root / 'logs'; logs.mkdir()
             stage = {'id': 'test', 'name': 'test', 'class': 'light', 'jobs': 1, 'targets': ['example/compile']}
-            plan = {'resources': {'affinity': sorted(os.sched_getaffinity(0))}, 'stages': [stage, {**stage, 'id': 'next'}]}
+            plan = {'resources': {'affinity': sorted(os.sched_getaffinity(0))},
+                    'output_dir': str(root / 'isolated-output'),
+                    'stages': [stage, {**stage, 'id': 'next'}]}
             environment = {'PATH': str(bindir) + ':' + os.environ['PATH'], 'FAKE_EXIT': '7'}
             with patch.object(runner, 'ROOT', root), patch.object(runner, 'fingerprint', return_value='fixed'), patch.dict(os.environ, environment):
                 self.assertEqual(runner.execute(plan, logs, False), 7)
                 state = json.loads((logs / 'state.json').read_text())
                 self.assertEqual(len(state['attempts']), 1)
                 self.assertEqual(state['completed'], [])
+                self.assertIn('OUTPUT_DIR=' + plan['output_dir'], state['attempts'][0]['command'])
                 self.assertIn('example/compile', (logs / 'component-times.csv').read_text())
                 os.environ['FAKE_EXIT'] = '0'
                 refreshed_plan = {**plan, 'stages': [{**s, 'jobs': 2} for s in plan['stages']]}

@@ -147,7 +147,7 @@ def package_stages(graph, caps):
     return result
 
 
-def make_plan():
+def make_plan(output_dir=None):
     res = resources()
     graph = evaluate_graph()
     stages = [{'name': 'tools', 'class': 'light', 'jobs': res['caps']['light'], 'targets': ['tools/install']},
@@ -163,12 +163,14 @@ def make_plan():
                {'name': 'checksum', 'class': 'images', 'jobs': 1, 'targets': ['checksum']}]
     for i, stage in enumerate(stages, 1):
         stage['id'] = f'{i:04d}-' + stage['name'] + '-' + digest(' '.join(stage['targets']).encode())[:8]
-    return {'resources': res, 'config_sha256': digest((ROOT / '.config').read_bytes()), 'stages': stages,
+    return {'resources': res, 'output_dir': str(output_dir) if output_dir else None,
+            'config_sha256': digest((ROOT / '.config').read_bytes()), 'stages': stages,
             'components': {n: {**classify(n), 'dependencies': sorted(ds)} for n, ds in graph.items()}}
 
 
 def fingerprint(plan):
     h = hashlib.sha256((ROOT / '.config').read_bytes())
+    h.update(str(plan.get('output_dir')).encode())
     h.update(json.dumps(plan['stages'], sort_keys=True).encode())
     # Include selected recipes, source revisions and all tracked local patches.
     # For untracked packages include their nested git diff, not just the recipe.
@@ -428,6 +430,10 @@ def run_stage(stage, logdir, cpus):
     jobs = stage['jobs']
     log = logdir / (stage['id'] + f"-attempt-{stage.get('attempt', 1):02d}.log")
     cmd = ['make', *make_parallel_flags(), f'-j{jobs}', f'R3MINI_BUILD_JOBS={jobs}', 'V=s', *stage['targets']]
+    if stage.get('output_dir'):
+        # A command-line assignment propagates through recursive make and
+        # overrides rules.mk for firmware AND package repositories.
+        cmd.append('OUTPUT_DIR=' + stage['output_dir'])
     # Restrict nproc and Go runtime defaults used by upstream sub-builds as well.
     def setup():
         os.sched_setaffinity(0, set(cpus[:jobs]))
@@ -617,7 +623,8 @@ def execute(plan, logdir, resume):
             print(f"[{stage['id']}] jobs={jobs} targets={len(stage['targets'])}"
                   + (' warm-reuse=1' if warm else ''), flush=True)
             attempt = 1 + sum(r['id'] == stage['id'] for r in state['attempts'])
-            row = run_stage({**stage, 'jobs': jobs, 'attempt': attempt, 'warm_reuse': warm},
+            row = run_stage({**stage, 'jobs': jobs, 'attempt': attempt, 'warm_reuse': warm,
+                             'output_dir': plan.get('output_dir')},
                             logdir, current_resources['affinity'])
             if not row['exit_code']:
                 errors = validate_artifacts(stage['name'], stage['targets'])
@@ -647,7 +654,18 @@ def main():
     parser.add_argument('action', choices=['plan', 'preflight', 'download', 'build', 'report'])
     parser.add_argument('--log-dir', type=Path, default=OUT)
     parser.add_argument('--resume', action='store_true')
+    parser.add_argument('--output-dir', type=Path,
+                        help='Separate firmware/package output root (not bin/); included in resume identity')
     args = parser.parse_args()
+    if args.output_dir:
+        args.output_dir = args.output_dir.resolve()
+        original = (ROOT / 'bin').resolve()
+        if (args.output_dir == ROOT or args.output_dir == original
+                or original.is_relative_to(args.output_dir)
+                or args.output_dir.is_relative_to(original)
+                or not args.output_dir.is_relative_to(ROOT)
+                or any(c.isspace() or c in '$#' for c in str(args.output_dir))):
+            raise RuntimeError('--output-dir must be a separate directory inside the workspace, outside bin/')
     if args.action == 'report':
         print(json.dumps(report(json.loads((args.log_dir / 'state.json').read_text()), args.log_dir), indent=2)); return
     if args.action in ('build', 'download', 'preflight'):
@@ -661,7 +679,7 @@ def main():
         subprocess.run([sys.executable, 'scripts/r3mini-migrate.py', '--verify'], cwd=ROOT, check=True)
         subprocess.run(['make', 'prereq'], cwd=ROOT, check=True)
         subprocess.run(['clang', '--version'], check=True, stdout=subprocess.DEVNULL)
-    plan = make_plan()
+    plan = make_plan(args.output_dir)
     if args.action in ('plan', 'preflight'):
         save_plan(args.log_dir, plan)
         print(json.dumps({'stages': len(plan['stages']), 'components': len(plan['components']),

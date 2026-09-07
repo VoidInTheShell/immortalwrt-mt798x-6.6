@@ -144,6 +144,7 @@
 
 &eth {
 	status = "okay";
+	mediatek,hnat-ppd;
 	pinctrl-names = "default";
 	pinctrl-0 = <&eth_pins>;
 
@@ -151,66 +152,62 @@
 		compatible = "mediatek,eth-mac";
 		reg = <0>;
 		phy-mode = "2500base-x";
-		fixed-link {
-                        speed = <2500>;
-                        full-duplex;
-                        paus;
-                };
+		phy-handle = <&phy14>;
 	};
 
 	gmac1: mac@1 {
 		compatible = "mediatek,eth-mac";
 		reg = <1>;
 		phy-mode = "2500base-x";
-		fixed-link {
-                        speed = <2500>;
-                        full-duplex;
-                        paus;
-                };
+		phy-handle = <&phy15>;
 	};
 
 	mdio: mdio-bus {
 		#address-cells = <1>;
 		#size-cells = <0>;
 
-		phy14: phy@14 {
+		phy14: ethernet-phy@e {
 			compatible = "ethernet-phy-id03a2.a411";
 			reg = <14>;
 			pinctrl-names = "default";
 			pinctrl-0 = <&en8811_pwr_a>;
 
 			airoha,pnswap-rx;
+			/* Vendor EN8811H: initialize the fixed-rate host interface
+			 * at phylib attach, while copper uses autonegotiation.
+			 */
+			airoha,phy-handle;
 
 			interrupt-parent = <&pio>;
-			interrupts = <48 IRQ_TYPE_LEVEL_HIGH>;
+			interrupts = <48 IRQ_TYPE_EDGE_FALLING>;
 			reset-gpios = <&pio 49 1>;
 			reset-assert-us = <10000>;
 			reset-deassert-us = <20000>;
 
-			phy-mode = "2500base-x";
-			full-duplex;
-			pause;
 		};
 
-		phy15: phy@15 {
+		phy15: ethernet-phy@f {
 			compatible = "ethernet-phy-id03a2.a411";
 			reg = <15>;
 			pinctrl-names = "default";
 			pinctrl-0 = <&en8811_pwr_b>;
 
 			airoha,pnswap-rx;
+			airoha,phy-handle;
 
 			interrupt-parent = <&pio>;
-			interrupts = <46 IRQ_TYPE_LEVEL_HIGH>;
+			interrupts = <46 IRQ_TYPE_EDGE_FALLING>;
 			reset-gpios = <&pio 47 1>;
 			reset-assert-us = <10000>;
 			reset-deassert-us = <20000>;
 
-			phy-mode = "2500base-x";
-			full-duplex;
-			pause;
 		};
 	};
+};
+
+&hnat {
+	mtketh-ppd = "ppe0";
+	mediatek,ppd-isolated;
 };
 
 &i2c0 {

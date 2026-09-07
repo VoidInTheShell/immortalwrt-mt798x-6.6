@@ -1,0 +1,629 @@
+From: PortalWrt R3 Mini maintainers
+Subject: [PATCH] mediatek: separate HNAT PPE recirculation from PHY carrier
+
+The opt-in internal netdev owns a shared-DMA reference and its own BQL/qdisc
+identity. Physical GMACs retain phylink carrier and PHY rate matching.
+
+--- a/drivers/net/ethernet/mediatek/mtk_eth_soc.c
++++ b/drivers/net/ethernet/mediatek/mtk_eth_soc.c
+@@ -43,8 +43,18 @@
+ static int mtk_rest_cnt = 0;
+ atomic_t eth1_in_br = ATOMIC_INIT(0);
+ EXPORT_SYMBOL(eth1_in_br);
+-struct net_device *ppd_dev;
++struct net_device __rcu *ppd_dev;
+ EXPORT_SYMBOL(ppd_dev);
++
++/* TX completion identity only; never index MAC registers with this value. */
++#define MTK_PPD_ID MTK_MAX_DEVS
++
++static struct net_device *mtk_tx_netdev(struct mtk_eth *eth, unsigned int id)
++{
++	if (id == MTK_PPD_ID)
++		return eth->ppd;
++	return id < MTK_MAX_DEVS ? eth->netdev[id] : NULL;
++}
+ static int mtk_msg_level = -1;
+ module_param_named(msg_level, mtk_msg_level, int, 0);
+ MODULE_PARM_DESC(msg_level, "Message level (-1=defaults,0=none,...,16=all)");
+@@ -1796,6 +1806,9 @@
+ 	case MTK_GMAC3_ID:
+ 		data = PSE_GDM3_PORT << TX_DMA_FPORT_SHIFT_V2;
+ 		break;
++	case MTK_PPD_ID:
++		data = PSE_PPE0_PORT << TX_DMA_FPORT_SHIFT_V2;
++		break;
+ 	}
+ 
+ 	data |= TX_DMA_SWC_V2 | QID_BITS_V2(info->qid);
+@@ -2014,6 +2027,10 @@
+ {
+ 	int i;
+ 
++	if (eth->ppd && netif_running(eth->ppd) &&
++	    netif_queue_stopped(eth->ppd))
++		return 1;
++
+ 	for (i = 0; i < MTK_MAX_DEVS; i++) {
+ 		if (!eth->netdev[i])
+ 			continue;
+@@ -2028,6 +2045,9 @@
+ {
+ 	int i;
+ 
++	if (eth->ppd && netif_running(eth->ppd))
++		netif_wake_queue(eth->ppd);
++
+ 	for (i = 0; i < MTK_MAX_DEVS; i++) {
+ 		if (!eth->netdev[i])
+ 			continue;
+@@ -2060,6 +2080,14 @@
+ 	bool gso = false;
+ 	int tx_num;
+ 
++	/* The internal endpoint accepts only HNAT-generated PPE packets. */
++#if IS_ENABLED(CONFIG_NET_MEDIATEK_HNAT)
++	if (dev == eth->ppd && HNAT_SKB_CB2(skb)->magic != 0x78681415) {
++		dev_kfree_skb_any(skb);
++		goto dropped;
++	}
++#endif
++
+ 	if (skb_vlan_tag_present(skb) &&
+ 	    !eth_proto_is_802_3(eth_hdr(skb)->h_proto)) {
+ 		skb = __vlan_hwaccel_push_inside(skb);
+@@ -2469,13 +2497,13 @@
+ 	int done = 0, bytes = 0;
+ 	dma_addr_t dma_addr = DMA_MAPPING_ERROR;
+ 	int ppe_idx = 0;
+-	int sent_ppd = 0;
+ 
+ 	if (unlikely(!ring))
+ 		goto rx_done;
+ 
+ 	while (done < budget) {
+ 		unsigned int pktlen, *rxdcsum;
++		bool sent_ppd = false;
+ 		struct net_device *netdev;
+ 		u32 hash, reason;
+ 		int mac = 0;
+@@ -2507,18 +2535,23 @@
+ 			mac = RX_DMA_GET_SPORT(trxd.rxd4) - 1;
+ 		}
+ 
+-		if ( (mac == 4) || ((FIELD_GET(MTK_RXD4_PPE_CPU_REASON, trxd.rxd4)) == HIT_BIND_FORCE_TO_CPU))
+-		{
+-		
+-		mac = atomic_read(&eth1_in_br);
+-		sent_ppd = 1;
++		sent_ppd = mac == 4 ||
++			FIELD_GET(MTK_RXD4_PPE_CPU_REASON, trxd.rxd4) ==
++			HIT_BIND_FORCE_TO_CPU;
++		if (sent_ppd && eth->ppd) {
++			netdev = eth->ppd;
++			if (!netif_running(netdev))
++				goto release_desc;
++			ppe_idx = 0;
++		} else {
++			if (sent_ppd)
++				mac = atomic_read(&eth1_in_br);
++			if (unlikely(mac < 0 || mac >= MTK_MAX_DEVS ||
++				     !eth->netdev[mac]))
++				goto release_desc;
++			netdev = eth->netdev[mac];
++			ppe_idx = eth->mac[mac]->ppe_idx;
+ 		}
+-		if (unlikely(mac < 0 || mac >= MTK_MAX_DEVS ||
+-			     !eth->netdev[mac]))
+-			goto release_desc;
+-
+-		netdev = eth->netdev[mac];
+-		ppe_idx = eth->mac[mac]->ppe_idx;
+ 
+ 		if (unlikely(test_bit(MTK_RESETTING, &eth->state)))
+ 			goto release_desc;
+@@ -2548,7 +2581,9 @@
+ 					 false);
+ 			xdp_buff_clear_frags_flag(&xdp);
+ 
+-			ret = mtk_xdp_run(eth, ring, &xdp, netdev);
++			/* Internal PPE returns are not another physical XDP ingress. */
++			ret = sent_ppd && eth->ppd ? XDP_PASS :
++				mtk_xdp_run(eth, ring, &xdp, netdev);
+ 			if (ret == XDP_REDIRECT)
+ 				xdp_flush = true;
+ 
+@@ -2671,13 +2706,30 @@
+ 			hw_lro_flush_stats_update(ring->ring_no, &trxd);
+ 		}
+ 
+-		if (sent_ppd && ppd_dev){
+-		skb->protocol = eth_hdr(skb)->h_proto;
+-		skb->dev = ppd_dev;
+-		skb->mark = 0x78681415;
++		if (sent_ppd) {
++			struct net_device *dev;
++
++			rcu_read_lock();
++			dev = eth->ppd ? eth->ppd : rcu_dereference(ppd_dev);
++			if (unlikely(!dev || !netif_running(dev))) {
++				rcu_read_unlock();
++				dev_kfree_skb_any(skb);
++				goto skip_rx;
++			}
++			skb->protocol = eth_hdr(skb)->h_proto;
++			skb->dev = dev;
++			skb->pkt_type = PACKET_HOST;
++			skb->mark = 0x78681415;
++			skb_record_rx_queue(skb, 0);
++			if (eth->ppd)
++				dev_sw_netstats_rx_add(dev, skb->len);
++			/* ppe0 stays allocated until the shared NAPI is stopped. */
++			napi_gro_receive(napi, skb);
++			rcu_read_unlock();
++		} else {
++			skb_record_rx_queue(skb, 0);
++			napi_gro_receive(napi, skb);
+ 		}
+-		skb_record_rx_queue(skb, 0);
+-		napi_gro_receive(napi, skb);
+ 
+ skip_rx:
+ 		ring->data[idx] = new_data;
+@@ -2740,9 +2792,11 @@
+ 	eth->tx_packets++;
+ 	eth->tx_bytes += bytes;
+ 
+-	dev = eth->netdev[mac];
++	dev = mtk_tx_netdev(eth, mac);
+ 	if (!dev)
+ 		return;
++	if (dev == eth->ppd)
++		dev_sw_netstats_tx_add(dev, 1, bytes);
+ 
+ 	txq = netdev_get_tx_queue(dev, skb_get_queue_mapping(skb));
+ 	if (state->txq == txq) {
+@@ -3982,6 +4036,9 @@
+ 	const struct mtk_soc_data *soc = eth->soc;
+ 	int i, j, txqs = 1;
+ 
++	if (eth->ppd)
++		netdev_tx_reset_subqueue(eth->ppd, 0);
++
+ 	if (MTK_HAS_CAPS(eth->soc->caps, MTK_QDMA))
+ 		txqs = MTK_QDMA_NUM_QUEUES;
+ 
+@@ -4043,7 +4100,7 @@
+ 	if (!mtk_hw_reset_check(eth))
+ 		return;
+ 
+-	eth->netdev[mac->id]->stats.tx_errors++;
++	dev->stats.tx_errors++;
+ 	netif_err(eth, tx_err, dev, "transmit timed out\n");
+ 
+ 	if (atomic_read(&eth->reset.force))
+@@ -4230,6 +4287,16 @@
+ 	if (s.base.speed == 0 || s.base.speed == ((__u32)-1))
+ 		return NOTIFY_DONE;
+ 
++	/* EN8811H performs copper rate matching with PAUSE on its 2.5G
++	 * host interface. Preserve the old fixed-link queue budget so the
++	 * shared PPE/QDMA path is not capped by an unrelated copper link.
++	 * Explicit user HQoS configuration is left to the HNAT shaper API.
++	 */
++	if (eth->ppd && dev->phydev &&
++	    dev->phydev->rate_matching == RATE_MATCH_PAUSE &&
++	    dev->phydev->interface == PHY_INTERFACE_MODE_2500BASEX)
++		s.base.speed = SPEED_2500;
++
+ 	if (dsa_slave_dev_check(dev)) {
+ 		dp = dsa_port_from_netdev(dev);
+ 		queue = dp->index + 3;
+@@ -4244,22 +4311,13 @@
+ 	return NOTIFY_DONE;
+ }
+ 
+-static int mtk_open(struct net_device *dev)
++static int mtk_dma_open(struct mtk_eth *eth)
+ {
+-	struct mtk_mac *mac = netdev_priv(dev);
+-	struct mtk_eth *eth = mac->hw;
+ 	struct mtk_mac *target_mac;
+-	int i, err, ppe_num;
++	int err, ppe_num;
+ 
+ 	ppe_num = eth->soc->ppe_num;
+ 
+-	err = phylink_of_phy_connect(mac->phylink, mac->of_node, 0);
+-	if (err) {
+-		netdev_err(dev, "%s: could not attach PHY: %d\n", __func__,
+-			   err);
+-		return err;
+-	}
+-
+ 	/* we run 2 netdevs on the same dma ring so we only bring it up once */
+ 	if (!refcount_read(&eth->dma_refcnt)) {
+ 		const struct mtk_soc_data *soc = eth->soc;
+@@ -4267,9 +4325,14 @@
+ 		int i;
+ 
+ 		err = mtk_start_dma(eth);
+-		if (err) {
+-			phylink_disconnect_phy(mac->phylink);
++		if (err)
+ 			return err;
++		/* ppe0 may be the first/only user. Preserve internal VLANs just
++		 * as a non-DSA GMAC open does, before enabling RX interrupts.
++		 */
++		if (eth->ppd) {
++			mtk_m32(eth, MTK_CDMP_STAG_EN, 0, MTK_CDMP_IG_CTRL);
++			mtk_w32(eth, 0, MTK_CDMP_EG_CTRL);
+ 		}
+ 
+ #if !defined(CONFIG_NET_MEDIATEK_HNAT) && !defined(CONFIG_NET_MEDIATEK_HNAT_MODULE)
+@@ -4278,9 +4341,6 @@
+ #endif
+ 
+ 		err = 0;
+-		if (err)
+-			netdev_err(dev, "%s: could not start ppe roaming work: %d\n",
+-				   __func__, err);
+ 
+ 		for (i = 0; i < MTK_MAX_DEVS; i++) {
+ 			if (!eth->netdev[i])
+@@ -4326,6 +4386,24 @@
+ 	} else {
+ 		refcount_inc(&eth->dma_refcnt);
+ 	}
++	return 0;
++}
++
++static int mtk_open(struct net_device *dev)
++{
++	struct mtk_mac *mac = netdev_priv(dev);
++	struct mtk_eth *eth = mac->hw;
++	int i, err;
++
++	err = phylink_of_phy_connect(mac->phylink, mac->of_node, 0);
++	if (err)
++		return err;
++	err = mtk_dma_open(eth);
++	if (err) {
++		phylink_disconnect_phy(mac->phylink);
++		return err;
++	}
++	mac->dma_up = true;
+ 
+ 	phylink_start(mac->phylink);
+ 	netif_tx_start_all_queues(dev);
+@@ -4388,18 +4466,10 @@
+ 	}
+ }
+ 
+-static int mtk_stop(struct net_device *dev)
++static int mtk_dma_close(struct mtk_eth *eth)
+ {
+-	struct mtk_mac *mac = netdev_priv(dev);
+-	struct mtk_eth *eth = mac->hw;
+ 	int i;
+ 
+-	phylink_stop(mac->phylink);
+-
+-	netif_tx_disable(dev);
+-
+-	phylink_disconnect_phy(mac->phylink);
+-
+ 	/* only shutdown DMA if this is the last user */
+ 	if (!refcount_dec_and_test(&eth->dma_refcnt))
+ 		return 0;
+@@ -4446,6 +4516,100 @@
+ 	return 0;
+ }
+ 
++static int mtk_stop(struct net_device *dev)
++{
++	struct mtk_mac *mac = netdev_priv(dev);
++
++	/* A failed reset/reopen did not acquire another DMA reference. */
++	if (!mac->dma_up)
++		return 0;
++	mac->dma_up = false;
++	phylink_stop(mac->phylink);
++	netif_tx_disable(dev);
++	phylink_disconnect_phy(mac->phylink);
++	return mtk_dma_close(mac->hw);
++}
++
++static int mtk_ppd_open(struct net_device *dev)
++{
++	struct mtk_mac *mac = netdev_priv(dev);
++	int err = mtk_dma_open(mac->hw);
++
++	if (err)
++		return err;
++	mac->dma_up = true;
++	netif_carrier_on(dev);
++	netif_start_queue(dev);
++	return 0;
++}
++
++static int mtk_ppd_stop(struct net_device *dev)
++{
++	struct mtk_mac *mac = netdev_priv(dev);
++
++	netif_carrier_off(dev);
++	netif_tx_disable(dev);
++	if (!mac->dma_up)
++		return 0;
++	mac->dma_up = false;
++	return mtk_dma_close(mac->hw);
++}
++
++/* XDP changes the shared RX buffer DMA direction. Include the internal
++ * DMA owner and every running GMAC when rebuilding those buffers. On an
++ * allocation failure, restore the old program and attempt to reopen the
++ * old configuration; leave unrecoverable interfaces administratively down.
++ */
++static int mtk_ppd_xdp_setup(struct mtk_eth *eth, struct bpf_prog *prog)
++{
++	struct bpf_prog *old_prog = rtnl_dereference(eth->prog);
++	unsigned long restart = 0;
++	bool ppd_restart = netif_running(eth->ppd);
++	int i, attempt, err = 0, first_err = 0;
++
++	for (i = 0; i < MTK_MAX_DEVS; i++)
++		if (eth->netdev[i] && netif_running(eth->netdev[i]))
++			restart |= BIT(i);
++
++	for (attempt = 0; attempt < 2; attempt++) {
++		if (ppd_restart)
++			mtk_ppd_stop(eth->ppd);
++		for (i = 0; i < MTK_MAX_DEVS; i++)
++			if (restart & BIT(i))
++				mtk_stop(eth->netdev[i]);
++		rcu_assign_pointer(eth->prog, attempt ? old_prog : prog);
++		err = 0;
++		for (i = 0; i < MTK_MAX_DEVS; i++) {
++			int ret;
++
++			if (!(restart & BIT(i)))
++				continue;
++			ret = mtk_open(eth->netdev[i]);
++			if (ret) {
++				err = ret;
++				if (attempt)
++					dev_close(eth->netdev[i]);
++			}
++		}
++		if (ppd_restart) {
++			int ret = mtk_ppd_open(eth->ppd);
++
++			if (ret) {
++				err = ret;
++				if (attempt)
++					dev_close(eth->ppd);
++			}
++		}
++		if (!attempt)
++			first_err = err;
++		if (!err)
++			break;
++	}
++	if (!first_err && old_prog)
++		bpf_prog_put(old_prog);
++	return first_err;
++}
++
+ static int mtk_xdp_setup(struct net_device *dev, struct bpf_prog *prog,
+ 			 struct netlink_ext_ack *extack)
+ {
+@@ -4465,6 +4629,8 @@
+ 	}
+ 
+ 	need_update = !!eth->prog != !!prog;
++	if (eth->ppd && need_update)
++		return mtk_ppd_xdp_setup(eth, prog);
+ 	if (netif_running(dev) && need_update)
+ 		mtk_stop(dev);
+ 
+@@ -5471,6 +5637,7 @@
+ {
+ 	struct mtk_eth *eth = container_of(work, struct mtk_eth, pending_work);
+ 	unsigned long restart = 0;
++	bool ppd_restart = false;
+ 	int i;
+ 
+ 	rtnl_lock();
+@@ -5496,6 +5663,10 @@
+ 		break;
+ 	}
+ 	/* stop all devices to make sure that dma is properly shut down */
++	if (eth->ppd && netif_running(eth->ppd)) {
++		mtk_ppd_stop(eth->ppd);
++		ppd_restart = true;
++	}
+ 	for (i = 0; i < MTK_MAX_DEVS; i++) {
+ 		if (!eth->netdev[i] || !netif_running(eth->netdev[i]))
+ 			continue;
+@@ -5529,6 +5700,10 @@
+ 	}
+ 
+ 	clear_bit(MTK_RESETTING, &eth->state);
++	if (ppd_restart && mtk_ppd_open(eth->ppd)) {
++		netdev_err(eth->ppd, "PPE DMA restart failed\n");
++		dev_close(eth->ppd);
++	}
+ 
+ 	mtk_wed_fe_reset_complete();
+ 	mtk_restore_qdma_cfg(eth);
+@@ -5547,6 +5722,11 @@
+ {
+ 	int i;
+ 
++	if (eth->ppd) {
++		free_netdev(eth->ppd);
++		eth->ppd = NULL;
++	}
++
+ 	for (i = 0; i < MTK_MAX_DEVS; i++) {
+ 		if (!eth->netdev[i])
+ 			continue;
+@@ -5566,9 +5746,13 @@
+ {
+ 	int i;
+ 
++	if (eth->ppd && eth->ppd->reg_state == NETREG_REGISTERED)
++		unregister_netdev(eth->ppd);
++
+ 	for (i = 0; i < MTK_MAX_DEVS; i++) {
+ 		struct mtk_mac *mac;
+-		if (!eth->netdev[i])
++		if (!eth->netdev[i] ||
++		    eth->netdev[i]->reg_state != NETREG_REGISTERED)
+ 			continue;
+ 		mac = netdev_priv(eth->netdev[i]);
+ 		if (MTK_HAS_CAPS(eth->soc->caps, MTK_QDMA))
+@@ -5589,11 +5773,11 @@
+ 
+ static int mtk_cleanup(struct mtk_eth *eth)
+ {
+-	mtk_sgmii_destroy(eth);
+-	mtk_unreg_dev(eth);
+-	mtk_free_dev(eth);
+ 	cancel_work_sync(&eth->pending_work);
+ 	cancel_delayed_work_sync(&eth->reset.monitor_work);
++	mtk_unreg_dev(eth);
++	mtk_sgmii_destroy(eth);
++	mtk_free_dev(eth);
+ 
+ 	return 0;
+ }
+@@ -5986,6 +6170,68 @@
+ 	.ndo_select_queue	= mtk_select_queue,
+ };
+ 
++static const struct net_device_ops mtk_ppd_netdev_ops = {
++	.ndo_open = mtk_ppd_open,
++	.ndo_stop = mtk_ppd_stop,
++	.ndo_start_xmit = mtk_start_xmit,
++	.ndo_tx_timeout = mtk_tx_timeout,
++	.ndo_get_stats64 = dev_get_tstats64,
++};
++
++/* This port is internal to NETSYS. It has no PHY, MAC register bank, IP
++ * address or bridge membership. A normal qdisc supplies backpressure to
++ * the shared DMA ring, independently of the two physical carrier states.
++ */
++static int mtk_add_ppd(struct mtk_eth *eth)
++{
++	struct net_device *dev;
++	struct mtk_mac *mac;
++	int err;
++
++	if (!IS_ENABLED(CONFIG_NET_MEDIATEK_HNAT) ||
++	    !of_property_read_bool(eth->dev->of_node, "mediatek,hnat-ppd"))
++		return 0;
++	if (eth->soc->version != 2 || !MTK_HAS_CAPS(eth->soc->caps, MTK_QDMA))
++		return -EINVAL;
++
++	dev = alloc_etherdev(sizeof(*mac));
++	if (!dev)
++		return -ENOMEM;
++	strscpy(dev->name, "ppe0", IFNAMSIZ);
++	mac = netdev_priv(dev);
++	mac->id = MTK_PPD_ID;
++	mac->hw = eth;
++	dev->netdev_ops = &mtk_ppd_netdev_ops;
++	dev->pcpu_stat_type = NETDEV_PCPU_STAT_TSTATS;
++	dev->watchdog_timeo = 5 * HZ;
++	dev->flags |= IFF_NOARP;
++	dev->priv_flags |= IFF_DONT_BRIDGE | IFF_NO_ADDRCONF;
++	dev->hw_features = eth->soc->hw_features;
++	dev->features |= dev->hw_features;
++	dev->vlan_features = dev->hw_features & ~NETIF_F_HW_VLAN_CTAG_TX;
++	dev->max_mtu = mtk_get_max_mtu(eth, PHY_INTERFACE_MODE_2500BASEX);
++	eth_hw_addr_random(dev);
++	SET_NETDEV_DEV(dev, eth->dev);
++	eth->ppd = dev;
++	/* RTNL prevents netifd from closing/reopening the endpoint between
++	 * registration and the initial DMA reference acquisition.
++	 */
++	rtnl_lock();
++	err = register_netdevice(dev);
++	if (!err)
++		err = dev_open(dev, NULL);
++	if (err && dev->reg_state == NETREG_REGISTERED)
++		unregister_netdevice(dev);
++	rtnl_unlock();
++	if (err) {
++		eth->ppd = NULL;
++		free_netdev(dev);
++		return err;
++	}
++	dev_info(eth->dev, "ppe0: independent HNAT DMA endpoint\n");
++	return 0;
++}
++
+ static void mux_poll(struct work_struct *work)
+ {
+ 	struct mtk_mux *mux = container_of(work, struct mtk_mux, poll.work);
+@@ -6810,6 +7056,20 @@
+ 		}
+ 	}
+ 
++	err = mtk_add_ppd(eth);
++	if (err) {
++		mtk_unreg_dev(eth);
++		netif_napi_del(&eth->tx_napi);
++		netif_napi_del(&eth->rx_napi[0].napi);
++		if (MTK_HAS_CAPS(eth->soc->caps, MTK_RSS))
++			for (i = 1; i < MTK_RX_RSS_NUM; i++)
++				netif_napi_del(&eth->rx_napi[MTK_RSS_RING(i)].napi);
++		if (eth->hwlro)
++			for (i = 0; i < MTK_HW_LRO_RING_NUM; i++)
++				netif_napi_del(&eth->rx_napi[MTK_HW_LRO_RING(i)].napi);
++		goto err_deinit_ppe;
++	}
++
+ 	mtketh_debugfs_init(eth);
+ 	debug_proc_init(eth);
+ 
+@@ -6840,14 +7100,17 @@
+ 	struct mtk_mac *mac;
+ 	int i;
+ 
++	cancel_delayed_work_sync(&eth->reset.monitor_work);
++	cancel_work_sync(&eth->pending_work);
++
+ 	if (eth->esw_base)
+ 		iounmap(eth->esw_base);
+ 
+-	/* stop all devices to make sure that dma is properly shut down */
++	/* Unregister before releasing DMA/PCS; prevent concurrent reopen. */
++	mtk_unreg_dev(eth);
+ 	for (i = 0; i < MTK_MAX_DEVS; i++) {
+ 		if (!eth->netdev[i])
+ 			continue;
+-		mtk_stop(eth->netdev[i]);
+ 		mac = netdev_priv(eth->netdev[i]);
+ 		phylink_disconnect_phy(mac->phylink);
+ 		if (mac->sgmii_pcs)
+--- a/drivers/net/ethernet/mediatek/mtk_eth_soc.h
++++ b/drivers/net/ethernet/mediatek/mtk_eth_soc.h
+@@ -1661,6 +1661,8 @@
+ 	spinlock_t			rx_irq_lock;
+ 	struct net_device		dummy_dev;
+ 	struct net_device		*netdev[MTK_MAX_DEVS];
++	/* Software PPE endpoint, not another physical GMAC. */
++	struct net_device		*ppd;
+ 	struct mtk_mac			*mac[MTK_MAX_DEVS];
+ 	struct mtk_mux			*mux[MTK_MAX_DEVS];
+ 	int				irq[3];
+@@ -1758,6 +1760,7 @@
+ 	struct phylink_pcs		*sgmii_pcs;
+ 	struct phylink_pcs		*usxgmii_pcs;
+ 	struct mtk_eth			*hw;
++	bool				dma_up;
+ 	struct mtk_hw_stats		*hw_stats;
+ 	__be32				hwlro_ip[MTK_MAX_LRO_IP_CNT];
+ 	int				hwlro_ip_cnt;

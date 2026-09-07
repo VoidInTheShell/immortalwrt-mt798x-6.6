@@ -385,8 +385,6 @@ static int hnat_hw_init(u32 ppe_id)
 		cr_set_field(hnat_priv->ppe_base[ppe_id] + PPE_MIB_CAH_CTRL, MIB_CAH_EN, 1);
 	}
 
-	hnat_priv->g_wandev = __dev_get_by_name(&init_net, hnat_priv->wan);
-
 	dev_info(hnat_priv->dev, "PPE%d hwnat start\n", ppe_id);
 	
 	spin_lock_init(&hnat_priv->entry_lock);
@@ -558,11 +556,7 @@ static void hnat_release_netdev(void)
 		kfree(ext_entry);
 	}
 
-	if (hnat_priv->g_ppdev)
-		dev_put(hnat_priv->g_ppdev);
-
-	if (hnat_priv->g_wandev)
-		dev_put(hnat_priv->g_wandev);
+	hnat_release_ppd();
 }
 
 static struct notifier_block nf_hnat_netdevice_nb __read_mostly = {
@@ -591,6 +585,9 @@ int hnat_enable_hook(void)
 
 	ppe_del_entry_by_mac = entry_delete_by_mac;
 	hook_toggle = 1;
+	rtnl_lock();
+	hnat_update_ppd(NULL);
+	rtnl_unlock();
 
 	return 0;
 }
@@ -602,6 +599,8 @@ int hnat_disable_hook(void)
 
 	ra_sw_nat_hook_tx = NULL;
 	ra_sw_nat_hook_rx = NULL;
+	hook_toggle = 0;
+	hnat_release_ppd();
 	hnat_unregister_nf_hooks();
 
 	for (i = 0; i < CFG_PPE_NUM; i++) {
@@ -714,7 +713,8 @@ static int hnat_probe(struct platform_device *pdev)
 	dev_info(&pdev->dev, "lan = %s\n", hnat_priv->lan);
 
 	err = of_property_read_string(np, "mtketh-ppd", &name);
-	strncpy(hnat_priv->ppd, "eth0", IFNAMSIZ);
+	strscpy(hnat_priv->ppd, err ? "eth0" : name, sizeof(hnat_priv->ppd));
+	hnat_priv->ppd_isolated = of_property_read_bool(np, "mediatek,ppd-isolated");
 	dev_info(&pdev->dev, "ppd = %s\n", hnat_priv->ppd);
 
 	/*get total gmac num in hnat*/

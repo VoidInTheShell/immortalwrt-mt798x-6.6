@@ -708,8 +708,10 @@ struct mtk_hnat {
 
 	u32 foe_etry_num;
 	u32 etry_num_cfg;
-	struct net_device *g_ppdev;
-	struct net_device *g_wandev;
+	/* Borrowed netdevices: RTNL writers, RCU packet-path readers. */
+	struct net_device __rcu *g_ppdev;
+	struct net_device __rcu *g_wandev;
+	bool ppd_isolated;
 	struct net_device *wifi_hook_if[MAX_IF_NUM];
 	struct extdev_entry *ext_if[MAX_EXT_DEVS];
 	const char *ext_if_prefix[MAX_EXT_PREFIX_NUM];
@@ -905,7 +907,7 @@ enum FoeIpAct {
 	 (get_wifi_hook_if_index_from_dev(dev) != 0)) ? 1 : 0)
 #define IS_EXT(dev) ((get_index_from_dev(dev) != 0) ? 1 : 0)
 #define IS_PPD(dev)                                                            \
-        ((!strncmp(dev->name, "eth0", 4))   || (!strncmp(dev->name, "eth1", 4)))
+        ((dev) == rcu_access_pointer(hnat_priv->g_ppdev))
 #define IS_IPV4_HNAPT(x) (((x)->bfib1.pkt_type == IPV4_HNAPT) ? 1 : 0)
 #define IS_IPV4_HNAT(x) (((x)->bfib1.pkt_type == IPV4_HNAT) ? 1 : 0)
 #define IS_IPV4_GRP(x) (IS_IPV4_HNAPT(x) | IS_IPV4_HNAT(x))
@@ -1002,6 +1004,8 @@ void mtk_ppe_dev_register_hook(struct net_device *dev);
 void mtk_ppe_dev_unregister_hook(struct net_device *dev);
 int nf_hnat_netdevice_event(struct notifier_block *unused, unsigned long event,
 			    void *ptr);
+void hnat_update_ppd(struct net_device *exclude);
+void hnat_release_ppd(void);
 int nf_hnat_netevent_handler(struct notifier_block *unused, unsigned long event,
 			     void *ptr);
 uint32_t foe_dump_pkt(struct sk_buff *skb);

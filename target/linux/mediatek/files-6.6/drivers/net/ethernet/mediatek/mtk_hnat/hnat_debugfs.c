@@ -17,6 +17,7 @@
 #include <linux/netdevice.h>
 #include <linux/iopoll.h>
 
+#include <linux/rtnetlink.h>
 #include "hnat.h"
 #include "nf_hnat_mtk.h"
 #include "../mtk_eth_soc.h"
@@ -1768,33 +1769,33 @@ static ssize_t hnat_ppd_if_write(struct file *file, const char __user *buffer,
 
 	tmp = buf;
 	p = strsep(&tmp, "\n\r ");
-	dev = dev_get_by_name(&init_net, p);
+	/* The isolated path cannot be reassigned to a copper carrier. */
+	if (hnat_priv->ppd_isolated && strcmp(p, hnat_priv->ppd))
+		return -EINVAL;
+	rtnl_lock();
+	dev = __dev_get_by_name(&init_net, p);
 
 	if (dev) {
-		if (hnat_priv->g_ppdev)
-			dev_put(hnat_priv->g_ppdev);
-		hnat_priv->g_ppdev = dev;
-
-		strncpy(hnat_priv->ppd, p, IFNAMSIZ - 1);
+		strscpy(hnat_priv->ppd, p, sizeof(hnat_priv->ppd));
+		hnat_update_ppd(NULL);
 		pr_info("hnat_priv ppd = %s\n", hnat_priv->ppd);
 	} else {
 		pr_info("no such device!\n");
 	}
+	rtnl_unlock();
 
 	return count;
 }
 
 static int hnat_ppd_if_read(struct seq_file *m, void *private)
 {
-	pr_info("hnat_priv ppd = %s\n", hnat_priv->ppd);
+	struct net_device *dev;
 
-	if (hnat_priv->g_ppdev) {
-		pr_info("hnat_priv g_ppdev name = %s\n",
-			hnat_priv->g_ppdev->name);
-	} else {
-		pr_info("hnat_priv g_ppdev is null!\n");
-	}
-
+	rtnl_lock();
+	dev = rtnl_dereference(hnat_priv->g_ppdev);
+	seq_printf(m, "preferred=%s active=%s\n", hnat_priv->ppd,
+		   dev ? dev->name : "none (software fallback)");
+	rtnl_unlock();
 	return 0;
 }
 
