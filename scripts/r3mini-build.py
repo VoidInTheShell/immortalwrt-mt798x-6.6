@@ -36,6 +36,24 @@ def config():
     return dict(re.findall(r'^(CONFIG_[^=]+)=(.*)$', (ROOT / '.config').read_text(), re.M))
 
 
+def output_bin_dir(output_dir):
+    """Return the target-specific BIN_DIR below an isolated OUTPUT_DIR.
+
+    OpenWrt normally derives this from OUTPUT_DIR in rules.mk.  A command-line
+    OUTPUT_DIR assignment does not, however, replace BIN_DIR after rules.mk has
+    used ``:=`` to expand it.  The top-level buildinfo target writes straight to
+    BIN_DIR, so pass its fully resolved value explicitly for that one stage.
+    """
+    cfg = config()
+    values = []
+    for symbol in ('CONFIG_TARGET_BOARD', 'CONFIG_TARGET_SUBTARGET'):
+        value = cfg.get(symbol, '').strip('"')
+        if not re.fullmatch(r'[A-Za-z0-9_.-]+', value):
+            raise RuntimeError('Invalid ' + symbol + ' while resolving isolated output directory')
+        values.append(value)
+    return Path(output_dir) / 'targets' / values[0] / values[1]
+
+
 def resources():
     affinity = sorted(os.sched_getaffinity(0))
     mem = {k: int(v) * 1024 for k, v in re.findall(r'^(\w+):\s+(\d+) kB', Path('/proc/meminfo').read_text(), re.M)}
@@ -157,7 +175,12 @@ def make_plan(output_dir=None):
     stages += [{'name': 'package-completion', 'class': 'light', 'jobs': res['caps']['light'], 'targets': ['package/compile']},
                {'name': 'package-install', 'class': 'images', 'jobs': 1, 'targets': ['package/install']},
                {'name': 'images', 'class': 'images', 'jobs': res['caps']['images'], 'targets': ['target/install']},
-               {'name': 'buildinfo', 'class': 'images', 'jobs': 1, 'targets': ['buildinfo']},
+               # Do not invoke Makefile's recursive buildinfo wrapper here:
+               # it clears MAKEFLAGS before recursing, which drops a caller's
+               # isolated BIN_DIR assignment.  These are its three recipes,
+               # run serially by this stage just as the wrapper would do.
+               {'name': 'buildinfo', 'class': 'images', 'jobs': 1,
+                'targets': ['diffconfig', 'buildversion', 'feedsversion']},
                {'name': 'index', 'class': 'images', 'jobs': res['caps']['images'], 'targets': ['package/index']},
                {'name': 'overview', 'class': 'images', 'jobs': 1, 'targets': ['json_overview_image_info']},
                {'name': 'checksum', 'class': 'images', 'jobs': 1, 'targets': ['checksum']}]
@@ -434,6 +457,11 @@ def run_stage(stage, logdir, cpus):
         # A command-line assignment propagates through recursive make and
         # overrides rules.mk for firmware AND package repositories.
         cmd.append('OUTPUT_DIR=' + stage['output_dir'])
+        if stage['name'] == 'buildinfo':
+            # These metadata recipes write directly to BIN_DIR.  BIN_DIR was
+            # already simply-expanded when rules.mk saw OUTPUT_DIR, so it
+            # otherwise points at the repository's original bin/ tree.
+            cmd.append('BIN_DIR=' + str(output_bin_dir(stage['output_dir'])))
     # Restrict nproc and Go runtime defaults used by upstream sub-builds as well.
     def setup():
         os.sched_setaffinity(0, set(cpus[:jobs]))

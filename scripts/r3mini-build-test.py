@@ -40,6 +40,8 @@ class BuildPlanTests(unittest.TestCase):
         self.assertEqual(runner.classify('package/boot/arm-trusted-firmware-mediatek/compile')['class'], 'light')
         self.assertEqual(runner.classify('package/feeds/packages/rust/host/compile')['class'], 'rust-host')
         plan = runner.make_plan()
+        buildinfo = next(stage for stage in plan['stages'] if stage['name'] == 'buildinfo')
+        self.assertEqual(buildinfo['targets'], ['diffconfig', 'buildversion', 'feedsversion'])
         done = set()
         for stage in plan['stages']:
             for node in stage['targets']:
@@ -79,6 +81,27 @@ class BuildPlanTests(unittest.TestCase):
                 with patch.object(runner, 'fingerprint', return_value='changed'):
                     with self.assertRaisesRegex(RuntimeError, 'changed'):
                         runner.execute(plan, logs, True)
+
+    def test_isolated_buildinfo_overrides_simply_expanded_bin_dir(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            (root / '.config').write_text('CONFIG_TARGET_BOARD="mediatek"\n'
+                                         'CONFIG_TARGET_SUBTARGET="filogic"\n')
+            bindir = root / 'bin'; bindir.mkdir()
+            make = bindir / 'make'
+            make.write_text('#!/bin/sh\nexit 0\n')
+            make.chmod(0o755)
+            output = root / 'isolated-output'
+            logs = root / 'logs'; logs.mkdir()
+            stage = {'id': 'buildinfo', 'name': 'buildinfo', 'class': 'images', 'jobs': 1,
+                     'targets': ['diffconfig', 'buildversion', 'feedsversion'],
+                     'output_dir': str(output)}
+            environment = {'PATH': str(bindir) + ':' + os.environ['PATH']}
+            with patch.object(runner, 'ROOT', root), patch.dict(os.environ, environment):
+                row = runner.run_stage(stage, logs, sorted(os.sched_getaffinity(0)))
+            self.assertEqual(row['exit_code'], 0)
+            self.assertIn('OUTPUT_DIR=' + str(output), row['command'])
+            self.assertIn('BIN_DIR=' + str(output / 'targets/mediatek/filogic'), row['command'])
 
     def test_build_environment_removes_wsl_windows_path_fragments(self):
         with patch.dict(os.environ, {'PATH': '/usr/bin:/mnt/c/Program:Files:(x86)/Git:/home/test/bin:C:\\Tools\\bin'}):

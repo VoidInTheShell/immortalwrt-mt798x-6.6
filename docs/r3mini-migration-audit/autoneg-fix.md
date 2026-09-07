@@ -31,9 +31,10 @@
 - 原成功构建基线归档提交：`6e8bfa89ee`，此前构建修复：`3c4f1cd24f`。详见 [successful-build-baseline.md](successful-build-baseline.md)。
 - 原 `bin/` 不用于新构建，另有 `.portalwrt-backups/pre-autoneg-20260907-bin/` 备份。
 - 原 sysupgrade SHA256：`d0d7625b97bb6ce184f697a8621dc1e8e58716dcdd8fbf913b1cfdafb0f65b5a`。
-- 新固件、软件包仓库、元数据输出至 `.r3mini-output/autoneg-r2/`；构建器给每个 make 阶段显式传入绝对 OUTPUT_DIR。
+- 新固件、软件包仓库、元数据输出至 `.r3mini-output/autoneg-r2/`；构建器给 make 阶段显式传入绝对 OUTPUT_DIR。`buildinfo` 例外地直接串行调用其三个原始 recipe，并传入绝对 BIN_DIR：上游递归包装器会清空 MAKEFLAGS，导致仅传 OUTPUT_DIR 时那三份元数据回写旧 `bin/`。
 - 新目录仅复用软件包缓存，不复制旧固件冒充新产物。构建中间目录允许正常重建。
 - 新 VERSION_CODE 使文件名包含 `glados-r3mini-autoneg-r2` 标识。保留 r1 失败/中止日志。
+- 完整构建后的旧 `bin/` 已与构建前备份逐文件比对一致；新输出目录中保存独立的 `config.buildinfo`、`version.buildinfo` 和 `feeds.buildinfo`。详见 [autoneg-r2-build.md](autoneg-r2-build.md)。
 
 ```sh
 python3 scripts/r3mini-autoneg-test.py
