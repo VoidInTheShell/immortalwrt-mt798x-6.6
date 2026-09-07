@@ -87,7 +87,7 @@ def check_gpt(path):
     return partitions
 
 
-def check_runtime_fixes(rootfs, kernel, config_buildinfo, zerotier_demand_start=False):
+def check_runtime_fixes(rootfs, kernel, config_buildinfo, zerotier_demand_start=False, r5=False):
     """Check installed payloads, not merely the working-tree source files."""
     def read(name):
         return command(TOOLS / 'unsquashfs4', '-cat', rootfs, name).decode()
@@ -135,6 +135,31 @@ def check_runtime_fixes(rootfs, kernel, config_buildinfo, zerotier_demand_start=
                 'luci-app-mmconfig': '0.1.2-r4', 'luci-theme-kucat': '3.3.2-r20260907'}
     if zerotier_demand_start:
         expected.update({'zerotier': '1.14.1-r15', 'r3mini-defaults': '2026.09.07-r2'})
+    if r5:
+        expected.update({'r3mini-defaults': '2026.09.07-r3',
+                         'luci-app-r3mini-fan': '1.0.0-r1',
+                         'luci-app-kucat-config': '2.2.1-r20260907'})
+        require('luci-app-argon-config' in versions, 'Missing Argon settings package')
+        for name in ('www/luci-static/resources/view/argon-config.js',
+                     'www/luci-static/resources/view/kucat-config/config.js',
+                     'www/luci-static/resources/view/r3mini-fan.js',
+                     'usr/libexec/rpcd/r3mini-fan', 'etc/init.d/r3mini-fan'):
+            read(name)
+        defaults = read('etc/uci-defaults/zzzz-r3mini-services')
+        require('system.led_wlan2g.dev=ra0' in defaults and 'system.led_wlan5g.dev=rax0' in defaults,
+                'Missing retained-config LED migration')
+        require('admin/modem/mmconfig' in defaults and 'admin/modem/modemmanager' in defaults,
+                'Missing Modem menu initialization')
+        require('admin/modem' in json.loads(read('usr/share/luci/menu.d/r3mini-modem.json')),
+                'Missing Modem parent menu')
+        banner = read('etc/profile.d/portal-banner.sh')
+        require('portal_banner_center "LAN IP:' in banner and
+                'portal_banner_center "Time:' in banner and
+                "printf '%*s%s\\n'" in banner, 'Uncentered or double-spaced banner')
+        require('trip_point_${trip}_hyst" || return' not in read('etc/init.d/r3mini-fan'),
+                'Fan service must not write read-only hysteresis')
+        require('hook_toggle' in read('www/luci-static/resources/view/daed/config.js'),
+                'Missing daed/HNAT coexistence status')
     for name, version in expected.items():
         require(versions.get(name) == version, 'Stale installed package: ' + name)
     require(versions.get('libiwinfo20230701', '').endswith('-r2'), 'Stale iwinfo backend package')
@@ -205,7 +230,7 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('image', type=Path)
     parser.add_argument('--audit-dir', type=Path, required=True)
-    parser.add_argument('--codename', default='GLaDOS-R3Mini-Autoneg-r4',
+    parser.add_argument('--codename', default='GLaDOS-R3Mini-Autoneg-r5',
                         help='Expected firmware codename (use r2/r3 explicitly for older artifacts)')
     parser.add_argument('--host-flash-dir', type=Path,
                         help='Optional self-contained eMMC host-flash bundle to validate')
@@ -294,7 +319,8 @@ def main():
     if args.codename.startswith('GLaDOS-R3Mini-Autoneg-r'):
         result['runtime_fixes'] = check_runtime_fixes(
             rootfs, audit / 'kernel.gz', config_buildinfo,
-            zerotier_demand_start=args.codename == 'GLaDOS-R3Mini-Autoneg-r4')
+            zerotier_demand_start=args.codename in ('GLaDOS-R3Mini-Autoneg-r4', 'GLaDOS-R3Mini-Autoneg-r5'),
+            r5=args.codename == 'GLaDOS-R3Mini-Autoneg-r5')
     if args.host_flash_dir:
         result['host_flash'] = check_host_flash(args.host_flash_dir, image)
     (audit / 'result.json').write_text(json.dumps(result, indent=2) + '\n')

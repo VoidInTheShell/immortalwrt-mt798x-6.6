@@ -1,0 +1,70 @@
+diff --git a/Makefile b/Makefile
+index 5d4dd98..a924d49 100644
+--- a/Makefile
++++ b/Makefile
+@@ -8,7 +8,7 @@ include $(TOPDIR)/rules.mk
+ NAME:=kucat-config
+ PKG_NAME:=luci-app-$(NAME)
+ PKG_VERSION:=2.2.1
+-PKG_RELEASE:=20260312
++PKG_RELEASE:=20260907
+ 
+ PKG_MAINTAINER:=sirpdboy team <herboy2008@gmail.com>
+ 
+diff --git a/root/usr/bin/kucat-config b/root/usr/bin/kucat-config
+index 8357ea3..2f8298a 100644
+--- a/root/usr/bin/kucat-config
++++ b/root/usr/bin/kucat-config
+@@ -8,7 +8,7 @@ for i in $(seq 0 $((sum-1)))
+ do
+     use=$(uci -q get kucat.@theme[$i].use )
+     
+-    if [ "x$use" == "x1" ]; then
++    if [ "x$use" = "x1" ]; then
+ 	mode=`uci -q get kucat.@theme[$i].mode`
+ 	primary_rgbm=`uci -q get kucat.@theme[$i].primary_rgbm`
+ 	uci set kucat.@basic[0].mode=${mode}
+@@ -20,7 +20,7 @@ do
+ 			uci set kucat.@basic[0].primary_opacity='0'
+ 			uci set kucat.@basic[0].primary_rgbs_ts=`uci -q get kucat.@theme[$i].primary_rgbs_ts`
+ 			uci set kucat.@basic[0].primary_rgbs='28,66,188'
+- 			[ $mode = dark ] && uci set kucat.@basic[0].primary_rgbbody='33,45,60' || uci set kucat.@basic[0].primary_rgbbody='248,248,248'
++			[ "$mode" = dark ] && uci set kucat.@basic[0].primary_rgbbody='33,45,60' || uci set kucat.@basic[0].primary_rgbbody='248,248,248'
+ 		;;
+ 		green)
+ 			uci set kucat.@basic[0].bkuse=`uci -q get kucat.@theme[$i].bkuse`
+@@ -29,7 +29,7 @@ do
+ 			uci set kucat.@basic[0].primary_rgbm='26,131,97'
+ 			uci set kucat.@basic[0].primary_rgbs_ts=`uci -q get kucat.@theme[$i].primary_rgbs_ts`
+ 			uci set kucat.@basic[0].primary_rgbs='76,157,69'
+- 			[ $mode = dark ] && uci set kucat.@basic[0].primary_rgbbody='33,45,60' || uci set kucat.@basic[0].primary_rgbbody='248,248,248'
++			[ "$mode" = dark ] && uci set kucat.@basic[0].primary_rgbbody='33,45,60' || uci set kucat.@basic[0].primary_rgbbody='248,248,248'
+ 		;;
+ 		orange)
+ 			uci set kucat.@basic[0].bkuse=`uci -q get kucat.@theme[$i].bkuse`
+@@ -84,16 +84,11 @@ do
+ 	break
+     fi
+ done
+-if [ "x$useset" == "x0" ] ; then
+-	uci set kucat.@basic[0].mode='auto'
+-	uci set kucat.@basic[0].primary_rgbm='74,161,133'
+-	uci set kucat.@basic[0].primary_rgbs_ts='0'
+-	uci set kucat.@basic[0].primary_rgbs='225,112,88'
+-	uci set kucat.@basic[0].bkuse='1'
+-	uci set kucat.@basic[0].primary_rgbm_ts='0.5'
+-	uci set kucat.@basic[0].primary_opacity='10'
++if [ "x$useset" = "x0" ] ; then
++	# Installing the config app must not reset an existing theme without presets.
++	mode=$(uci -q get kucat.@basic[0].mode)
+ fi
+-[ $mode == dark ] && uci set kucat.@basic[0].primary_rgbbody='33,45,60' || uci set kucat.@basic[0].primary_rgbbody='244,245,247'
++[ "$mode" = dark ] && uci set kucat.@basic[0].primary_rgbbody='33,45,60' || uci set kucat.@basic[0].primary_rgbbody='244,245,247'
+ case "x$(uci -q get kucat.@basic[0].fontmode)" in
+ 	x1)
+ 	uci set kucat.@basic[0].font_d='1.1rem'
+@@ -114,4 +109,3 @@ esac
+ uci commit kucat
+ }
+ kucatset
+-

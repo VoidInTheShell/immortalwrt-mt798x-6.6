@@ -11,8 +11,8 @@
     "wifi-scripts",
     "wireless-regdb"
   ],
-  "selected_packages": 951,
+  "selected_packages": 956,
   "hardware_fragment_present": true,
   "modem_fragment_present": true,
-  "config_sha256": "4f74f9bcef7ca299a60696b33144d8ca43f246dbaed772b85c7b4e669ffbea1e"
+  "config_sha256": "08f69d8d44d6b8eeb495d935316ae717f4c7522bc78af141bffacf2f36e502a9"
 }

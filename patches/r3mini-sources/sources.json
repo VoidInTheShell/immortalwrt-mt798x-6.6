@@ -1,19 +1,19 @@
 {
-  "root_revision": "a7e0bf2a1dbf26ef718896c9f053aead4397f88a",
+  "root_revision": "e01af4d3b61c614d8f29326f890f5b14809957e4",
   "sources": [
     {
       "path": "feeds/luci",
       "origin": "https://github.com/immortalwrt/luci.git",
       "revision": "80ed8a44f244627c5a9f808d09f4c3d8f985b764",
       "patch": "feeds-luci.patch",
-      "patch_sha256": "ae77bbf3d29293ede68dd6273a18306e90e4d9cf7d309a5d17c8d97c0c1a186c"
+      "patch_sha256": "46b835e163e9359f1a6cb5432724082f6528f6f143fe8b6b55e700e3b8540ce6"
     },
     {
       "path": "feeds/packages",
       "origin": "https://github.com/immortalwrt/packages.git",
       "revision": "0cb6db25afff9a17be88520bc3fdd8f4c79f80de",
       "patch": "feeds-packages.patch",
-      "patch_sha256": "69ba2fe3e1b02c57638267146a9a4fa0c83b1c178f47100502ceab498cc1dd03"
+      "patch_sha256": "229339e1652c8df33d651879c529e1b08505eb92154f801bb3a5d2e4929803ad"
     },
     {
       "path": "package/luci-app-adguardhome",
@@ -28,6 +28,13 @@
       "revision": "aba81aa40e0f9aa1f1c5a69ee66a7a943a5f6384",
       "patch": "package-luci-app-advancedplus.patch",
       "patch_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "package/luci-app-kucat-config",
+      "origin": "https://github.com/sirpdboy/luci-app-kucat-config.git",
+      "revision": "e51de5e4f9c98c234777c26948ff454a2ae3dc99",
+      "patch": "package-luci-app-kucat-config.patch",
+      "patch_sha256": "ae21ef439b005b66f240ad6570fd192a5eb57de8c14a98ef9872692cfbe6360d"
     },
     {
       "path": "package/luci-app-nikki",

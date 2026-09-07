@@ -1,0 +1,8 @@
+{
+	"admin/system/r3mini-fan": {
+		"title": "PWM 风扇",
+		"order": 62,
+		"action": { "type": "view", "path": "r3mini-fan" },
+		"depends": { "acl": [ "luci-app-r3mini-fan" ] }
+	}
+}

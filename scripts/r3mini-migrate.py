@@ -71,6 +71,7 @@ WIRELESS_TOOLS = {'iw', 'aircrack-ng', 'wifischedule'}
 ADDITIONS = '''r3mini-defaults luci-ssl-openssl openssl-util uhttpd uhttpd-mod-ubus
 luci-app-uhttpd luci-app-daed daed daed-geoip daed-geosite
 luci-app-netspeedtest homebox ookla-speedtest autocore-arm
+ luci-app-kucat-config luci-app-argon-config luci-app-r3mini-fan
 miniupnpd-nftables tc-full ethtool-full ntfs3-mount'''.split()
 FEATURE_PREFIXES = (
     'CONFIG_DROPBEAR_', 'CONFIG_OPENSSH_', 'CONFIG_PHP8_', 'CONFIG_PERL_',
@@ -205,7 +206,7 @@ def main():
         'CONFIG_MTK_DEFAULT_5G_PROFILE': 'n',
         'CONFIG_BUILD_LOG': 'y', 'CONFIG_AUTOREMOVE': 'n',
         'CONFIG_VERSION_DIST': '"PortalWRT"', 'CONFIG_VERSION_NUMBER': '"24.10.2"',
-        'CONFIG_VERSION_CODE': '"GLaDOS-R3Mini-Autoneg-r4"', 'CONFIG_VERSION_HWREV': '"BPI-R3 Mini"',
+        'CONFIG_VERSION_CODE': '"GLaDOS-R3Mini-Autoneg-r5"', 'CONFIG_VERSION_HWREV': '"BPI-R3 Mini"',
         'CONFIG_VERSION_MANUFACTURER': '"APERTURE SCIENCE"',
         'CONFIG_VERSION_MANUFACTURER_URL': '"https://www.valvesoftware.com"',
         'CONFIG_VERSION_PRODUCT': '"APERTURE SCIENCE"',

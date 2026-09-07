@@ -1,0 +1,41 @@
+#!/bin/sh /etc/rc.common
+# Adjust the kernel's active cooling trips; keep hot/critical protection active.
+START=55
+USE_PROCD=1
+
+start_service() {
+	[ "$(cat /tmp/sysinfo/board_name 2>/dev/null)" = 'bananapi,bpi-r3-mini' ] || return 0
+	local low medium high hysteresis zone candidate value trip
+	config_load r3mini-fan
+	config_get low config low_temp 45
+	config_get medium config medium_temp 55
+	config_get high config high_temp 65
+	# This board's thermal driver exposes hysteresis read-only (2 C in DT).
+	hysteresis=2
+	for value in "$low" "$medium" "$high"; do
+		case "$value" in ''|*[!0-9]*) logger -t r3mini-fan 'Invalid fan temperature setting'; return 1;; esac
+		[ "${#value}" -le 2 ] || return 1
+	done
+	if [ "$low" -lt 35 ] || [ "$high" -gt 95 ] || [ "$hysteresis" -lt 1 ] || \
+		[ "$hysteresis" -gt 10 ] || [ "$((low + hysteresis))" -ge "$medium" ] || \
+		[ "$((medium + hysteresis))" -ge "$high" ]; then
+		logger -t r3mini-fan 'Require 35 <= low < medium < high <= 95 C, with room for hysteresis'
+		return 1
+	fi
+	for candidate in /sys/class/thermal/thermal_zone*; do
+		[ "$(cat "$candidate/type" 2>/dev/null)" = cpu-thermal ] && zone="$candidate" && break
+	done
+	[ -n "$zone" ] || return 1
+	for trip in 2 3 4; do
+		[ "$(cat "$zone/trip_point_${trip}_type" 2>/dev/null)" = active ] || return 1
+		[ -w "$zone/trip_point_${trip}_temp" ] || return 1
+		[ "$(cat "$zone/trip_point_${trip}_hyst")" = 2000 ] || return 1
+	done
+	printf '%s\n' "$((high * 1000))" > "$zone/trip_point_2_temp" || return 1
+	printf '%s\n' "$((medium * 1000))" > "$zone/trip_point_3_temp" || return 1
+	printf '%s\n' "$((low * 1000))" > "$zone/trip_point_4_temp" || return 1
+	logger -t r3mini-fan "Kernel PWM fan trips applied: $low/$medium/$high C, hysteresis $hysteresis C"
+}
+
+reload_service() { start_service; }
+service_triggers() { procd_add_reload_trigger r3mini-fan; }

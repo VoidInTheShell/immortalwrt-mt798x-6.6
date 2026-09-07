@@ -34,9 +34,19 @@ cat <<'LOGO'
 ............:=++***+==:.........................................................................................................
 ________________________________________________________________________________________________________________________________
 LOGO
-printf '\n %-42s %-42s %s\n' "LAN IP: ${portal_lan_ip:-N/A}" "WAN IP: ${portal_wan_ip:-N/A}" "Uptime: $portal_uptime"
-printf ' %-42s %-42s %s\n' "Time: $(date '+%Y-%m-%d %H:%M:%S')" "OpenWrt: ${portal_release:-Unknown}" "Build: ${portal_build:-Unknown}"
-printf ' Firmware: %s\n\n' "${portal_version:-PortalWRT}"
-printf ' Board: %s | Architecture: %s | Kernel: %s\n\n' "$(cat /tmp/sysinfo/model 2>/dev/null)" "$(uname -m)" "$(uname -r)"
-printf ' %s\n\n' 'Powered by APERTURE Science'
+portal_banner_center() {
+    # The logo canvas and its separator are 128 terminal columns wide.
+    local text="$1" padding
+    padding=$(( (128 - ${#text}) / 2 ))
+    [ "$padding" -ge 0 ] || padding=0
+    printf '%*s%s\n' "$padding" '' "$text"
+}
+printf '\n'
+portal_banner_center "LAN IP: ${portal_lan_ip:-N/A} | WAN IP: ${portal_wan_ip:-N/A} | Uptime: $portal_uptime"
+portal_banner_center "Time: $(date '+%Y-%m-%d %H:%M:%S') | OpenWrt: ${portal_release:-Unknown} | Build: ${portal_build:-Unknown}"
+printf '\n'
+portal_banner_center "Firmware: ${portal_version:-PortalWRT}"
+portal_banner_center "Board: $(cat /tmp/sysinfo/model 2>/dev/null) | Architecture: $(uname -m) | Kernel: $(uname -r)"
+portal_banner_center 'Powered by APERTURE Science'
+unset -f portal_banner_center
 unset portal_lan_device portal_lan_ip portal_wan_ip portal_seconds portal_uptime portal_version portal_release portal_build

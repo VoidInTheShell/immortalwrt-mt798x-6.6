@@ -1,8 +1,16 @@
 diff --git a/applications/luci-app-daed/htdocs/luci-static/resources/view/daed/config.js b/applications/luci-app-daed/htdocs/luci-static/resources/view/daed/config.js
-index edecbf8..215a17a 100644
+index edecbf8..a56ff0b 100644
 --- a/applications/luci-app-daed/htdocs/luci-static/resources/view/daed/config.js
 +++ b/applications/luci-app-daed/htdocs/luci-static/resources/view/daed/config.js
-@@ -47,7 +47,7 @@ return view.extend({
+@@ -2,6 +2,7 @@
+ 
+ 'use strict';
+ 'require form';
++'require fs';
+ 'require poll';
+ 'require rpc';
+ 'require uci';
+@@ -47,18 +48,23 @@ return view.extend({
  
  	render: function(data) {
  		let m, s, o;
@@ -10,8 +18,27 @@ index edecbf8..215a17a 100644
 +		let webport = (uci.get(data[0], 'config', 'listen_addr') || '0.0.0.0:2023').split(':').slice(-1)[0];
  
  		m = new form.Map('daed', _('daed'),
- 			_('A modern dashboard for dae.'));
-@@ -88,6 +88,18 @@ return view.extend({
+-			_('A modern dashboard for dae.'));
++			_('A modern dashboard for dae.') + '<br />' +
++			'允许与 MTK HNAT 同时运行；启动 daed 不会自动关闭硬件加速。共存测试时需分别验证代理分流与直连卸载，已卸载流可能绕过 dae 的软件分类。');
+ 
+ 		s = m.section(form.TypedSection);
+ 		s.anonymous = true;
+ 		s.render = function() {
+ 			poll.add(function() {
+-				return L.resolveDefault(getServiceStatus()).then(function(res) {
++				return Promise.all([getServiceStatus(),
++					L.resolveDefault(fs.read('/sys/kernel/debug/hnat/hook_toggle'), '')]).then(function(res) {
+ 					let view = document.getElementById('service_status');
+-					view.innerHTML = renderStatus(res, webport);
++					let hnat = res[1].trim();
++					view.innerHTML = renderStatus(res[0], webport) + ' · MTK HNAT: ' +
++						(hnat === 'enabled' || hnat === '1' ? '已开启（允许共存）' :
++						 hnat === 'disabled' || hnat === '0' ? '未开启' : '不可用');
+ 				});
+ 			});
+ 
+@@ -88,6 +94,18 @@ return view.extend({
  		o.datatype = 'uinteger';
  		o.default = '5';
  
@@ -30,6 +57,20 @@ index edecbf8..215a17a 100644
  		return m.render();
  	}
  });
+diff --git a/applications/luci-app-daed/root/usr/share/rpcd/acl.d/luci-app-daed.json b/applications/luci-app-daed/root/usr/share/rpcd/acl.d/luci-app-daed.json
+index 8ec379d..7acb7a0 100644
+--- a/applications/luci-app-daed/root/usr/share/rpcd/acl.d/luci-app-daed.json
++++ b/applications/luci-app-daed/root/usr/share/rpcd/acl.d/luci-app-daed.json
+@@ -3,7 +3,8 @@
+ 		"description": "Grant access to daed configuration",
+ 		"read": {
+ 			"file": {
+-				"/var/log/daed/daed.log": [ "read" ]
++				"/var/log/daed/daed.log": [ "read" ],
++				"/sys/kernel/debug/hnat/hook_toggle": [ "read" ]
+ 			},
+ 			"ubus": {
+ 				"service": [ "list" ]
 diff --git a/protocols/luci-proto-modemmanager/htdocs/luci-static/resources/modemmanager_helper.js b/protocols/luci-proto-modemmanager/htdocs/luci-static/resources/modemmanager_helper.js
 index b8558b8..ceb78f8 100644
 --- a/protocols/luci-proto-modemmanager/htdocs/luci-static/resources/modemmanager_helper.js

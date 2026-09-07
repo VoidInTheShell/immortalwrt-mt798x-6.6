@@ -1,0 +1,8 @@
+{
+	"admin/modem": {
+		"title": "Modem",
+		"order": 45,
+		"action": { "type": "firstchild" },
+		"depends": { "acl": [ "luci-proto-modemmanager" ] }
+	}
+}

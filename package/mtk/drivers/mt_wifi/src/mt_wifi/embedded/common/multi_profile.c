@@ -689,10 +689,14 @@ static INT multi_profile_merge_mac_address(
 					 "tok_str snprintf error!!!\n");
 			return NDIS_STATUS_FAILURE;
 		}
-		RTMPAddKeyParameter(tok_str, tmpbuf, 25, final);
+		/* buf1 also contains unused MacAddressN keys. Replace that slot:
+		 * the profile reader uses the first match, so appending silently
+		 * hides the second band's address behind an empty/stale value.
+		 */
+		RTMPSetKeyParameter(tok_str, tmpbuf, 25, final, TRUE);
 	}
 
-	for (i = 1; i <= mpf->pf2_num ; i++) {
+	for (i = 1; i < mpf->pf2_num; i++) {
 		ret = snprintf(tok_str, sizeof(tok_str), "MacAddress%d", i);
 
 		if (os_snprintf_error(sizeof(tok_str), ret)) {
@@ -709,7 +713,7 @@ static INT multi_profile_merge_mac_address(
 						 "tok_str snprintf error!!!\n");
 				return NDIS_STATUS_FAILURE;
 			}
-			RTMPAddKeyParameter(tok_str, tmpbuf, 25, final);
+			RTMPSetKeyParameter(tok_str, tmpbuf, 25, final, TRUE);
 		}
 	}
 
@@ -722,7 +726,7 @@ static INT multi_profile_merge_mac_address(
 					 "tok_str snprintf error!!!\n");
 			return NDIS_STATUS_FAILURE;
 		}
-		RTMPAddKeyParameter(tok_str, tmpbuf, 25, final);
+		RTMPSetKeyParameter(tok_str, tmpbuf, 25, final, TRUE);
 	}
 #endif /* CONFIG_APSTA_MIXED_SUPPORT */
 

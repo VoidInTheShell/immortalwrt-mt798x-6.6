@@ -258,6 +258,7 @@
 &pcie {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pcie_pins>;
+	max-link-width = <1>;
 	status = "okay";
 };
 

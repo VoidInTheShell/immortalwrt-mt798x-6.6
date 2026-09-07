@@ -55,4 +55,23 @@ if [ ! -e /etc/config/r3mini-zerotier-demand-start-applied ]; then
 	[ ! -x /etc/init.d/zerotier ] || /etc/init.d/zerotier enable
 	touch /etc/config/r3mini-zerotier-demand-start-applied
 fi
+
+# Repair only the old mac80211 interface names on retained r2/r3/r4 configs.
+# Keep deliberate user LED assignments intact.
+if [ "$(uci -q get system.led_wlan2g.dev)" = phy0-ap0 ]; then
+	uci -q set system.led_wlan2g.dev=ra0
+fi
+if [ "$(uci -q get system.led_wlan5g.dev)" = phy1-ap0 ]; then
+	uci -q set system.led_wlan5g.dev=rax0
+fi
+uci -q commit system
+
+# Run after package defaults on every upgrade: menu JSON is replaced by package
+# installation, unlike UCI. Both the status view and band controls belong to Modem.
+for menu in /usr/share/luci/menu.d/luci-app-mmconfig.json \
+	/usr/share/luci/menu.d/luci-proto-modemmanager.json; do
+	[ ! -f "$menu" ] || sed -i \
+		-e 's|"admin/network/mmconfig|"admin/modem/mmconfig|g' \
+		-e 's|"admin/status/modemmanager"|"admin/modem/modemmanager"|g' "$menu"
+done
 exit 0

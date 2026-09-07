@@ -1,0 +1,38 @@
+#!/bin/sh
+. /usr/share/libubox/jshn.sh
+
+case "$1" in
+list)
+	printf '%s\n' '{"status":{}}'
+	;;
+call)
+	[ "$2" = status ] || exit 1
+	json_init
+	available=0
+	for fan in /sys/class/hwmon/hwmon*; do
+		[ "$(cat "$fan/name" 2>/dev/null)" = pwmfan ] || continue
+		[ -r "$fan/pwm1" ] || continue
+		available=1
+		json_add_int pwm "$(cat "$fan/pwm1")"
+		[ ! -r "$fan/fan1_input" ] || json_add_int rpm "$(cat "$fan/fan1_input")"
+		break
+	done
+	json_add_boolean available "$available"
+	for zone in /sys/class/thermal/thermal_zone*; do
+		[ "$(cat "$zone/type" 2>/dev/null)" = cpu-thermal ] || continue
+		json_add_int temperature "$(cat "$zone/temp")"
+		json_add_string governor "$(cat "$zone/policy")"
+		json_add_int low_temp "$(cat "$zone/trip_point_4_temp")"
+		json_add_int medium_temp "$(cat "$zone/trip_point_3_temp")"
+		json_add_int high_temp "$(cat "$zone/trip_point_2_temp")"
+		break
+	done
+	for cooling in /sys/class/thermal/cooling_device*; do
+		[ "$(cat "$cooling/type" 2>/dev/null)" = pwm-fan ] || continue
+		json_add_int state "$(cat "$cooling/cur_state")"
+		json_add_int max_state "$(cat "$cooling/max_state")"
+		break
+	done
+	json_dump
+	;;
+esac

@@ -1,0 +1,4 @@
+config fan 'config'
+	option low_temp '45'
+	option medium_temp '55'
+	option high_temp '65'

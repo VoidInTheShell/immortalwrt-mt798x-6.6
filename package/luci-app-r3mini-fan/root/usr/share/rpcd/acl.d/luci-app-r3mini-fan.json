@@ -1,0 +1,7 @@
+{
+	"luci-app-r3mini-fan": {
+		"description": "Read BPI R3 Mini fan status and configure active cooling trips",
+		"read": { "ubus": { "r3mini-fan": [ "status" ] }, "uci": [ "r3mini-fan" ] },
+		"write": { "uci": [ "r3mini-fan" ] }
+	}
+}
