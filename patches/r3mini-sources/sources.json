@@ -18,9 +18,9 @@
     {
       "path": "package/5gmodem-feed",
       "origin": "https://github.com/fildunsky/luci-app-5gmodem.git",
-      "revision": "02b063db804b8d57dd480f8690bacd13439ceee6",
+      "revision": "0f98fef2dfe0d78e5ce978b96b1fd4081c09fb9f",
       "patch": "package-5gmodem-feed.patch",
-      "patch_sha256": "ca99e9c6ea407508e8b99d73edb51dc4c247603835bdc5d3b65d30d73ede598a"
+      "patch_sha256": "b6ef0a4ea8ec13446b05bb92c127900b9d668c24dbfaa3058ad5eac6ca7e25a8"
     },
     {
       "path": "package/luci-app-adguardhome",

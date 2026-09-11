@@ -1,5 +1,5 @@
 diff --git a/luci-app-5gmodem/Makefile b/luci-app-5gmodem/Makefile
-index a7338bb..d406022 100644
+index 5da927f..6276253 100644
 --- a/luci-app-5gmodem/Makefile
 +++ b/luci-app-5gmodem/Makefile
 @@ -27,12 +27,12 @@ LUCI_DEPENDS:=+sms-tool +comgt +kmod-usb-serial +kmod-usb-serial-option \
@@ -11,7 +11,7 @@ index a7338bb..d406022 100644
  	+coreutils-stty \
  	+mbim-utils
  LUCI_PKGARCH:=all
- PKG_VERSION:=2.4.60
+ PKG_VERSION:=2.4.66
 -PKG_RELEASE:=1
 +PKG_RELEASE:=2
  
@@ -121,10 +121,10 @@ index ec46f18..259cbb1 100755
  uci -q get 5gmodem.health >/dev/null 2>&1 || exit 0
  [ "$(uci -q get 5gmodem.health.heal_wifi)" = "0" ] && uci -q delete 5gmodem.health.heal_wifi
 diff --git a/luci-app-5gmodem/root/usr/share/5gmodem/5gmodem.sh b/luci-app-5gmodem/root/usr/share/5gmodem/5gmodem.sh
-index 1c7b72c..d92f7b4 100755
+index 286c232..12dea9a 100755
 --- a/luci-app-5gmodem/root/usr/share/5gmodem/5gmodem.sh
 +++ b/luci-app-5gmodem/root/usr/share/5gmodem/5gmodem.sh
-@@ -256,6 +256,7 @@ RES="/usr/share/5gmodem"
+@@ -257,6 +257,7 @@ RES="/usr/share/5gmodem"
  # пять раз в этом файле, а общая secname лежит именно здесь и до сих пор была
  # недоступна первым из этих мест. Файл без побочных эффектов - только определения.
  . "$RES/lib.sh"
@@ -132,7 +132,7 @@ index 1c7b72c..d92f7b4 100755
  
  # --- Кэш метрик: снимок для тех, кому не нужен свежий опрос -------------------
  #
-@@ -1341,16 +1342,7 @@ fi
+@@ -1350,16 +1351,7 @@ fi
  
  # CREG
  eval $(echo "$O" | busybox awk -F[,] '/^\+CREG/ {gsub(/[[:space:]"]+/,"");printf "T=\"%d\";LAC_HEX=\"%X\";CID_HEX=\"%X\";LAC_DEC=\"%d\";CID_DEC=\"%d\";MODE_NUM=\"%d\"", $2, "0x"$3, "0x"$4, "0x"$3, "0x"$4, $5}')
@@ -150,23 +150,30 @@ index 1c7b72c..d92f7b4 100755
  
  # EPS/data registration (CEREG) overrides a "SMS only" CS status. Many LTE data
  # modems (e.g. Fibocom FM350-GL) register the CS/voice domain as "SMS only"
-@@ -1364,14 +1356,7 @@ esac
+@@ -1373,21 +1365,7 @@ esac
  # SLM770A-R: AT+CUSD=? отвечает "(0-2)", а любой запрос молчит при CREG 2,6).
  # Без этого поля подсказка на вкладке USSD не смогла бы отличить «модем не
  # умеет» от «сеть сейчас не даёт».
 -REG_CS="$REG"
--if [ "$REG" = "6" ] || [ "$REG" = "7" ]; then
+-# НЕ ЗАРЕГИСТРИРОВАН В CS - ЕЩЁ НЕ «НЕ ЗАРЕГИСТРИРОВАН». У модулей только для
+-# данных (LTE-only, без голоса) CS-домена нет вовсе: +CREG отвечает 0, поиск или
+-# ERROR, а данные идут по EPS. Раньше подмена срабатывала лишь для «SMS only», и
+-# такой модем числился незарегистрированным при живом соединении - а вместе с
+-# этим профиль вендора пропускал весь блок сотовых метрик (он гейтится REGOK).
+-case "$REG" in
+-	0|2|3|4|6|7|'')
 -	CEREG_STAT=$(echo "$O" | busybox awk -F[,] '/^\+CEREG/{gsub(/[[:space:]"]+/,"");print $2;exit}')
 -	case "$CEREG_STAT" in
 -		1) REG="1";;
 -		5) REG="5";;
 -	esac
--fi
+-	;;
+-esac
 +# REG_CS and REG_DATA remain separate; modem_registration also preserves SIM errors.
  
  # MODE
  if [ -z "$MODE_NUM" ] || [ "x$MODE_NUM" == "x0" ]; then
-@@ -1722,7 +1707,8 @@ emit_snapshot() {
+@@ -1738,7 +1716,8 @@ emit_snapshot() {
  _snap_prepare
  _SN_CONNST=$(conn_status_line "$SEC")
  _SN_ALIAS=$(alias_for_path "$_POLL_AM")
@@ -176,7 +183,7 @@ index 1c7b72c..d92f7b4 100755
  [ "$IS_ROAMING" = 1 ] && _SN_ROAM10=1 || _SN_ROAM10=0
  # Страна-хвост в имени оператора избыточен ("MegaFon RUS" -> "MegaFon"): чистим
  # текущий и домашний перед выводом. Общая точка для AT и MM.
-@@ -1745,13 +1731,17 @@ _sanv S3MIMO S3MOD S4MIMO S4MOD BANDWIDTH ENBID
+@@ -1761,13 +1740,17 @@ _sanv S3MIMO S3MOD S4MIMO S4MOD BANDWIDTH ENBID
  _sanv PATHLOSS TXPOWER UECAT CQI VOLTE RSCP
  _sanv MAXDL MAXUL
  _sanv ECIO RSRP RSRQ RSSI SINR _SN_CONNST
@@ -195,7 +202,7 @@ index 1c7b72c..d92f7b4 100755
  "conn_time":"${_J_CONN_TIME}",
  "conn_time_sec":"${_J_CT}",
  "conn_time_since":"${_J_CONN_TIME_SINCE}",
-@@ -3414,4 +3404,3 @@ else
+@@ -3430,4 +3413,3 @@ else
  	rm -f "$_TMP"
  fi
  exit 0
@@ -524,7 +531,7 @@ index c855b92..8d96e1f 100755
  		# Спрашиваем ДВУМЯ независимыми способами, потому что ни один не
  		# самодостаточен:
 diff --git a/luci-app-5gmodem/root/usr/share/5gmodem/modem/usb/2c7c0801 b/luci-app-5gmodem/root/usr/share/5gmodem/modem/usb/2c7c0801
-index b04aeb8..1b1320e 100644
+index d581c3f..f1f2b20 100644
 --- a/luci-app-5gmodem/root/usr/share/5gmodem/modem/usb/2c7c0801
 +++ b/luci-app-5gmodem/root/usr/share/5gmodem/modem/usb/2c7c0801
 @@ -24,12 +24,13 @@ if [ -z "$REG" ] || [ "x$MODE_NUM" = "x11" ]; then
@@ -543,7 +550,7 @@ index b04aeb8..1b1320e 100644
  O=$(sms_tool -d $DEVICE at "at+qnwinfo;+qcainfo;+qeng=\"servingcell\";+qspn")
  
 diff --git a/luci-app-5gmodem/root/usr/share/5gmodem/modemswitch.sh b/luci-app-5gmodem/root/usr/share/5gmodem/modemswitch.sh
-index bcc3029..70d5212 100755
+index d9a8e62..8747e96 100755
 --- a/luci-app-5gmodem/root/usr/share/5gmodem/modemswitch.sh
 +++ b/luci-app-5gmodem/root/usr/share/5gmodem/modemswitch.sh
 @@ -24,6 +24,7 @@ CFG=5gmodem
@@ -593,7 +600,7 @@ index 072d13e..daa31f3 100755
  		# переставляем штамп пути на ТЕКУЩИЙ разъём (IMEI остаётся прежним).
  		uci -q delete "network.$_ex.auto" 2>/dev/null
 diff --git a/luci-app-5gmodem/root/usr/share/5gmodem/netpri.sh b/luci-app-5gmodem/root/usr/share/5gmodem/netpri.sh
-index 0ba7e65..dc97ce2 100755
+index e62bfef..2280d46 100755
 --- a/luci-app-5gmodem/root/usr/share/5gmodem/netpri.sh
 +++ b/luci-app-5gmodem/root/usr/share/5gmodem/netpri.sh
 @@ -22,6 +22,17 @@ wan_nets() {
@@ -638,7 +645,7 @@ index 0ba7e65..dc97ce2 100755
  	CHANGED=0
  	# Метрики с шагом 10: остаётся место вставить линк между существующими без
  	# перенумерации остальных. БАЗА ПЕРЕКЛЮЧАЕМАЯ (issue #12): по умолчанию 100
-@@ -1531,7 +1546,8 @@ order)
+@@ -1533,7 +1548,8 @@ order)
  	# перетаскивание = пользователь заново задал порядок: метки «оставлен в
  	# конце» от сторожа (failback=demote) больше не действуют
  	rm -f /tmp/5gmodem_health/*.demoted 2>/dev/null
@@ -648,49 +655,6 @@ index 0ba7e65..dc97ce2 100755
  	_rank=$(_metric_base)
  	# uci-метрики по рангу с шагом 10 от переключаемой базы (см. пояснение в
  	# set); интерфейсы вне переданного порядка - в хвост (метрики должны быть
-diff --git a/luci-app-5gmodem/root/usr/share/5gmodem/sessionwatch.sh b/luci-app-5gmodem/root/usr/share/5gmodem/sessionwatch.sh
-index 9e48797..4d9acee 100644
---- a/luci-app-5gmodem/root/usr/share/5gmodem/sessionwatch.sh
-+++ b/luci-app-5gmodem/root/usr/share/5gmodem/sessionwatch.sh
-@@ -31,6 +31,7 @@ export SW_BG=1
- 
- . "$RES/atlock.sh" 2>/dev/null
- . "$RES/lib.sh" 2>/dev/null   # active_path
-+. "$RES/runtime-state.sh"
- 
- _log() { logger -t 5gmodem "sessionwatch: $*"; }
- 
-@@ -257,14 +258,13 @@ check_one() {   # $1 - путь, $2 - интерфейс, $3 - прото, $4 -
- 	# Поднимаем сами: только автозапускаемый интерфейс (намеренно опущенный
- 	# автозапуск не имеет), только если устройство модема на месте, и не чаще
- 	# кулдауна - тем же _revive, что и остальные случаи.
--	_sw_st=$(ifstatus "$_if" 2>/dev/null)
-+		_sw_st=$(ifstatus "$_if" 2>/dev/null)
-+		case "$(iface_runtime_state "$_if" "$_sw_st")" in missing|disabled|stopped) return 0 ;; esac
- 	case "$_sw_st" in
- 		*'"up": true'*) : ;;
- 		*)
--			case "$_sw_st" in
--				*'"autostart": true'*) : ;;
--				*) return 0 ;;    # опущен намеренно - не трогаем
--			esac
-+			# A protocol error can block autostart too; runtime-state distinguishes
-+			# that from a deliberate ifdown or persistent auto=0/disabled=1.
- 			# Модема на шине нет - поднимать нечего, этим занимается resolve.
- 			[ -n "$_path" ] && [ -e "/sys/bus/usb/devices/$_path/idVendor" ] || return 0
- 			# ЗАВИСШИЕ uqmi СНИМАЕМ ДО ВСЕГО ОСТАЛЬНОГО, включая проверку pending:
-@@ -775,7 +775,10 @@ case "$1" in
- 			if [ -n "$_REG_FLAT" ]; then
- 				_sh_noreg=""
- 				for _sh_p in $(printf '%s\n' "$_REG_FLAT" | awk 'NF{print $1}'); do
--					uci -q get "5gmodem.m_$(printf '%s' "$_sh_p" | sed 's/[^A-Za-z0-9]/_/g')" >/dev/null 2>&1 \
-+					_sh_sec="m_$(printf '%s' "$_sh_p" | sed 's/[^A-Za-z0-9]/_/g')"
-+					uci -q get "5gmodem.$_sh_sec" >/dev/null 2>&1 || { _sh_noreg=1; break; }
-+					_sh_if=$(uci -q get "5gmodem.$_sh_sec.network")
-+					[ -n "$_sh_if" ] && [ "$(uci -q get "network.$_sh_if")" = interface ] \
- 						|| { _sh_noreg=1; break; }
- 				done
- 				if [ -n "$_sh_noreg" ]; then
 diff --git a/luci-app-5gmodem/root/usr/share/5gmodem/runtime-state.sh b/luci-app-5gmodem/root/usr/share/5gmodem/runtime-state.sh
 new file mode 100755
 index 0000000..817aee0
@@ -770,3 +734,46 @@ index 0000000..817aee0
 +	fi
 +	fw4 -q check >/dev/null 2>&1 && fw4 -q reload >/dev/null 2>&1
 +}
+diff --git a/luci-app-5gmodem/root/usr/share/5gmodem/sessionwatch.sh b/luci-app-5gmodem/root/usr/share/5gmodem/sessionwatch.sh
+index 9e48797..4d9acee 100644
+--- a/luci-app-5gmodem/root/usr/share/5gmodem/sessionwatch.sh
++++ b/luci-app-5gmodem/root/usr/share/5gmodem/sessionwatch.sh
+@@ -31,6 +31,7 @@ export SW_BG=1
+ 
+ . "$RES/atlock.sh" 2>/dev/null
+ . "$RES/lib.sh" 2>/dev/null   # active_path
++. "$RES/runtime-state.sh"
+ 
+ _log() { logger -t 5gmodem "sessionwatch: $*"; }
+ 
+@@ -257,14 +258,13 @@ check_one() {   # $1 - путь, $2 - интерфейс, $3 - прото, $4 -
+ 	# Поднимаем сами: только автозапускаемый интерфейс (намеренно опущенный
+ 	# автозапуск не имеет), только если устройство модема на месте, и не чаще
+ 	# кулдауна - тем же _revive, что и остальные случаи.
+-	_sw_st=$(ifstatus "$_if" 2>/dev/null)
++		_sw_st=$(ifstatus "$_if" 2>/dev/null)
++		case "$(iface_runtime_state "$_if" "$_sw_st")" in missing|disabled|stopped) return 0 ;; esac
+ 	case "$_sw_st" in
+ 		*'"up": true'*) : ;;
+ 		*)
+-			case "$_sw_st" in
+-				*'"autostart": true'*) : ;;
+-				*) return 0 ;;    # опущен намеренно - не трогаем
+-			esac
++			# A protocol error can block autostart too; runtime-state distinguishes
++			# that from a deliberate ifdown or persistent auto=0/disabled=1.
+ 			# Модема на шине нет - поднимать нечего, этим занимается resolve.
+ 			[ -n "$_path" ] && [ -e "/sys/bus/usb/devices/$_path/idVendor" ] || return 0
+ 			# ЗАВИСШИЕ uqmi СНИМАЕМ ДО ВСЕГО ОСТАЛЬНОГО, включая проверку pending:
+@@ -775,7 +775,10 @@ case "$1" in
+ 			if [ -n "$_REG_FLAT" ]; then
+ 				_sh_noreg=""
+ 				for _sh_p in $(printf '%s\n' "$_REG_FLAT" | awk 'NF{print $1}'); do
+-					uci -q get "5gmodem.m_$(printf '%s' "$_sh_p" | sed 's/[^A-Za-z0-9]/_/g')" >/dev/null 2>&1 \
++					_sh_sec="m_$(printf '%s' "$_sh_p" | sed 's/[^A-Za-z0-9]/_/g')"
++					uci -q get "5gmodem.$_sh_sec" >/dev/null 2>&1 || { _sh_noreg=1; break; }
++					_sh_if=$(uci -q get "5gmodem.$_sh_sec.network")
++					[ -n "$_sh_if" ] && [ "$(uci -q get "network.$_sh_if")" = interface ] \
+ 						|| { _sh_noreg=1; break; }
+ 				done
+ 				if [ -n "$_sh_noreg" ]; then
