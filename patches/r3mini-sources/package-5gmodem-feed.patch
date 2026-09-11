@@ -1,5 +1,5 @@
 diff --git a/luci-app-5gmodem/Makefile b/luci-app-5gmodem/Makefile
-index 5da927f..6276253 100644
+index a931b99..411cc5f 100644
 --- a/luci-app-5gmodem/Makefile
 +++ b/luci-app-5gmodem/Makefile
 @@ -27,12 +27,12 @@ LUCI_DEPENDS:=+sms-tool +comgt +kmod-usb-serial +kmod-usb-serial-option \
@@ -11,7 +11,7 @@ index 5da927f..6276253 100644
  	+coreutils-stty \
  	+mbim-utils
  LUCI_PKGARCH:=all
- PKG_VERSION:=2.4.66
+ PKG_VERSION:=2.4.67
 -PKG_RELEASE:=1
 +PKG_RELEASE:=2
  
