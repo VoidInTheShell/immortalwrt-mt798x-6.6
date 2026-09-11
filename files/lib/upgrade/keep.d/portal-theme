@@ -1,0 +1,8 @@
+/etc/portalwrt.conf
+/etc/portalwrt-background/
+/etc/portalwrt-background.url
+/etc/config/argon
+/etc/config/kucat
+/www/luci-static/resources/background/
+/www/luci-static/argon/background/
+/www/luci-static/kucat/background/

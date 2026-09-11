@@ -1,19 +1,26 @@
 {
-  "root_revision": "8294ce9d3609226fa57b31ae11a1214b112189c7",
+  "root_revision": "969d07519d9f93dc54893cae5bd14d61d5f5a429",
   "sources": [
     {
       "path": "feeds/luci",
       "origin": "https://github.com/immortalwrt/luci.git",
       "revision": "80ed8a44f244627c5a9f808d09f4c3d8f985b764",
       "patch": "feeds-luci.patch",
-      "patch_sha256": "46b835e163e9359f1a6cb5432724082f6528f6f143fe8b6b55e700e3b8540ce6"
+      "patch_sha256": "6168027768d485293c07c8673b25b9b4cee8c25494a0c4865250142e764d4340"
     },
     {
       "path": "feeds/packages",
       "origin": "https://github.com/immortalwrt/packages.git",
       "revision": "0cb6db25afff9a17be88520bc3fdd8f4c79f80de",
       "patch": "feeds-packages.patch",
-      "patch_sha256": "77ca761066fd8577aa219a2da230376e1fade81371ec9e6e6ef2f9b43d2f6675"
+      "patch_sha256": "d0293d87143a5c156247154bb4a9b02ad0eacbcc0a7cf31292dad2fdc72fa888"
+    },
+    {
+      "path": "package/5gmodem-feed",
+      "origin": "https://github.com/fildunsky/luci-app-5gmodem.git",
+      "revision": "02b063db804b8d57dd480f8690bacd13439ceee6",
+      "patch": "package-5gmodem-feed.patch",
+      "patch_sha256": "ca99e9c6ea407508e8b99d73edb51dc4c247603835bdc5d3b65d30d73ede598a"
     },
     {
       "path": "package/luci-app-adguardhome",
@@ -34,7 +41,7 @@
       "origin": "https://github.com/sirpdboy/luci-app-kucat-config.git",
       "revision": "e51de5e4f9c98c234777c26948ff454a2ae3dc99",
       "patch": "package-luci-app-kucat-config.patch",
-      "patch_sha256": "ae21ef439b005b66f240ad6570fd192a5eb57de8c14a98ef9872692cfbe6360d"
+      "patch_sha256": "a2333c20982c90900f5971da0779d46380dc1b9f440678976dc4b45d2f775a91"
     },
     {
       "path": "package/luci-app-nikki",
@@ -69,7 +76,7 @@
       "origin": "https://github.com/sirpdboy/luci-theme-kucat.git",
       "revision": "1c8e7f7c1052552f4fac09d60e5adc07ed33bfa3",
       "patch": "package-luci-theme-kucat.patch",
-      "patch_sha256": "cfc4200848fb6e19f2bd19ecf329b6338c11169aaf3139a6648c4a8ba64e83fe"
+      "patch_sha256": "501d7c54d94fe441ee444ebea9026e1240f014803546b5f8535f3970d229178c"
     },
     {
       "path": "package/mm-ui-sms",

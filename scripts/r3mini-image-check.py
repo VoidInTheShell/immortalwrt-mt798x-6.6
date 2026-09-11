@@ -87,7 +87,8 @@ def check_gpt(path):
     return partitions
 
 
-def check_runtime_fixes(rootfs, kernel, config_buildinfo, zerotier_demand_start=False, r5=False, r6=False):
+def check_runtime_fixes(rootfs, kernel, config_buildinfo, zerotier_demand_start=False,
+                        r5=False, r6=False, r7=False, modem_theme=False):
     """Check installed payloads, not merely the working-tree source files."""
     def read(name):
         return command(TOOLS / 'unsquashfs4', '-cat', rootfs, name).decode()
@@ -132,7 +133,36 @@ def check_runtime_fixes(rootfs, kernel, config_buildinfo, zerotier_demand_start=
             versions[fields['Package']] = fields.get('Version')
     expected = {'qosmate': '1.9.0+git.20260727.5a27872-r2',
                 'luci-app-qosmate': '1.9.0+git.20260727.6d2abc7-r1',
-                'luci-app-mmconfig': '0.1.2-r4', 'luci-theme-kucat': '3.3.2-r20260907'}
+                'luci-app-mmconfig': '0.1.2-r4', 'luci-app-5gmodem': '2.4.60-r1',
+                'modemmanager': '1.24.2-r1', 'libmbim': '1.32.0-r1',
+                'libqmi': '1.38.0-r1', 'luci-theme-kucat': '3.3.2-r20260907'}
+    if modem_theme:
+        expected['luci-app-5gmodem'] = '2.4.60-r2'
+        for name, token in {
+            'usr/share/5gmodem/runtime-state.sh': 'firewall_sync_iface()',
+            'usr/share/5gmodem/mkiface.sh': '5gmodem-mkiface.lock',
+            'usr/share/5gmodem/sessionwatch.sh': 'network.$_sh_if',
+            'usr/share/5gmodem/health.sh': 'iface_runtime_state',
+            'usr/share/5gmodem/mm-inhibit.sh': 'iface_runtime_state',
+            'usr/share/5gmodem/msw/setup.sh': 'preserving administrative stop',
+            'usr/libexec/portal-background': 'portalwrt-background',
+            'etc/init.d/portal-background': 'watch',
+            'lib/upgrade/keep.d/portal-theme': '/etc/portalwrt-background/',
+            'etc/config/kucat': '240,209,217',
+            'etc/config/argon': '#f0d1d9',
+            'usr/share/ucode/luci/template/themes/kucat/header.ut': '/luci-static/resources/background/portal.jpg',
+            'usr/share/ucode/luci/template/themes/argon/sysauth.ut': '/luci-static/resources/background/portal.jpg',
+        }.items():
+            require(token in read(name), 'Missing modem/theme fix in ' + name)
+        require('Put new interfaces after existing' in read('usr/share/5gmodem/mkiface.sh'),
+                'New interfaces can still collide with the existing WAN metric')
+        require('#f0d1d9' in read('www/luci-static/resources/view/argon-config.js'),
+                'Argon settings form still uses the old default color')
+        permissions = command(TOOLS / 'unsquashfs4', '-ll', rootfs).decode()
+        for name in ('usr/share/5gmodem/sessionwatch.sh', 'usr/share/5gmodem/mkiface.sh',
+                     'usr/libexec/portal-background'):
+            require(re.search(r'^-rwx\S*\s+.*' + re.escape(name) + r'$', permissions, re.M),
+                    'Installed helper is not executable: ' + name)
     if zerotier_demand_start:
         expected.update({'zerotier': '1.14.1-r15', 'r3mini-defaults': '2026.09.07-r2'})
     if r5:
@@ -175,11 +205,45 @@ def check_runtime_fixes(rootfs, kernel, config_buildinfo, zerotier_demand_start=
         require('haproxy' in versions, 'PassWall-selected HAProxy binary was removed')
         require('local menu=/usr/share/luci/menu.d/luci-app-netwizard.json' in
                 read('etc/init.d/advancedplus'), 'Installed advancedplus lacks optional netwizard guard')
+    if r7:
+        modem_config = read('etc/config/5gmodem')
+        modem_iface = read('usr/share/5gmodem/mkiface.sh')
+        modem_menu = json.loads(read('usr/share/luci/menu.d/luci-app-5gmodem.json'))
+        require("option prefer_modemmanager '1'" in modem_config and
+                "option portalwrt_safe_defaults '1'" in modem_config,
+                '5G Modem UI lacks the PortalWRT ModemManager-first safe defaults')
+        require('auto -> modemmanager (profile preference)' in modem_iface and
+                'PROTO="modemmanager"' in modem_iface,
+                '5G Modem auto setup does not prefer ModemManager')
+        for page in ('detail', 'esim', 'diagnostics', 'align', 'readsms', 'sendsms',
+                     'sendussd', 'sendat', 'buttons', 'stats', 'settings'):
+            require('admin/modem/5gmodem/' + page in modem_menu,
+                    'Incomplete 5G Modem menu: missing ' + page)
+        for setting in ('CONFIG_MODEMMANAGER_WITH_MBIM=y',
+                        'CONFIG_MODEMMANAGER_WITH_QMI=y',
+                        'CONFIG_MODEMMANAGER_WITH_QRTR=y',
+                        'CONFIG_MODEMMANAGER_WITH_AT_COMMAND_VIA_DBUS=y',
+                        'CONFIG_LIBQMI_COLLECTION_FULL=y',
+                        'CONFIG_LIBQMI_WITH_MBIM_QMUX=y',
+                        'CONFIG_LIBQMI_WITH_QRTR_GLIB=y'):
+            require(setting in config_buildinfo,
+                    'Incomplete ModemManager/libqmi feature set: ' + setting)
     for name, version in expected.items():
         require(versions.get(name) == version, 'Stale installed package: ' + name)
     require(versions.get('libiwinfo20230701', '').endswith('-r2'), 'Stale iwinfo backend package')
     result = {'installed_package_versions': expected, 'profile_order': '2g;5g',
               'dt_eeprom_reader_present': True, 'hardware_runtime_tested': False}
+    if modem_theme:
+        result['modem_theme_payload_verified'] = True
+        result['default_theme_rgb'] = [240, 209, 217]
+    if r7:
+        result['modem_stack'] = {
+            'policy': 'ModemManager-first',
+            'full_libqmi_collection': True,
+            'mbim_qmi_qrtr': True,
+            'webui_pages': 11,
+            'automatic_recovery_defaults': 'opt-in',
+        }
     if zerotier_demand_start:
         result['zerotier_identity'] = 'unique-on-first-enabled-network'
     return result
@@ -245,8 +309,10 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('image', type=Path)
     parser.add_argument('--audit-dir', type=Path, required=True)
-    parser.add_argument('--codename', default='GLaDOS-R3Mini-Autoneg-r6',
+    parser.add_argument('--codename', default='GLaDOS-R3Mini-Autoneg-r7',
                         help='Expected firmware codename (use r2/r3 explicitly for older artifacts)')
+    parser.add_argument('--modem-theme-fixes', action='store_true',
+                        help='Require the September 11 modem/interface and theme lifecycle fixes')
     parser.add_argument('--host-flash-dir', type=Path,
                         help='Optional self-contained eMMC host-flash bundle to validate')
     args = parser.parse_args()
@@ -281,7 +347,7 @@ def main():
     board = audit / 'board.dtb'
     tree = command('dtc', '-I', 'dtb', '-O', 'dts', board).decode()
     (audit / 'board.dts').write_text(tree)
-    if args.codename == 'GLaDOS-R3Mini-Autoneg-r6':
+    if args.codename in ('GLaDOS-R3Mini-Autoneg-r6', 'GLaDOS-R3Mini-Autoneg-r7'):
         require(fdt(board, '/soc/wed2@15011000', 'status') == 'disabled',
                 'Unused duplicate WED node is still probed')
     ethernet = '/soc/ethernet@15100000'
@@ -326,10 +392,13 @@ def main():
                 '7986_WACPU_RAM_CODE_release.bin', 'usr/bin/daed', 'usr/sbin/ModemManager')
     for component in required:
         require(component in listing, 'Missing image component ' + component)
-    if args.codename == 'GLaDOS-R3Mini-Autoneg-r6':
+    if args.codename in ('GLaDOS-R3Mini-Autoneg-r6', 'GLaDOS-R3Mini-Autoneg-r7'):
         require(re.search(r'^-rwx\S*\s+.*usr/share/AdGuardHome/addhost\.sh$', listing, re.M),
                 'AdGuardHome addhost helper is not executable')
-    original = list((ROOT / 'bin/targets/mediatek/filogic').glob('*-squashfs-sysupgrade.itb'))
+    # New builds may coexist in bin/. Pin the original naming series as well
+    # as its immutable checksum, rather than requiring an otherwise empty bin/.
+    original = list((ROOT / 'bin/targets/mediatek/filogic').glob(
+        'portalwrt-24.10-glados-r3mini-*-squashfs-sysupgrade.itb'))
     require(len(original) == 1 and sha256(original[0]) == BASELINE, 'Original firmware changed')
     gpt = list(image.parent.glob('*' + args.codename.lower() + '*emmc-gpt.bin'))
     require(len(gpt) == 1, 'Expected exactly one new GPT')
@@ -343,9 +412,12 @@ def main():
         result['runtime_fixes'] = check_runtime_fixes(
             rootfs, audit / 'kernel.gz', config_buildinfo,
             zerotier_demand_start=args.codename in ('GLaDOS-R3Mini-Autoneg-r4', 'GLaDOS-R3Mini-Autoneg-r5',
-                                                    'GLaDOS-R3Mini-Autoneg-r6'),
-            r5=args.codename in ('GLaDOS-R3Mini-Autoneg-r5', 'GLaDOS-R3Mini-Autoneg-r6'),
-            r6=args.codename == 'GLaDOS-R3Mini-Autoneg-r6')
+                                                    'GLaDOS-R3Mini-Autoneg-r6', 'GLaDOS-R3Mini-Autoneg-r7'),
+            r5=args.codename in ('GLaDOS-R3Mini-Autoneg-r5', 'GLaDOS-R3Mini-Autoneg-r6',
+                                 'GLaDOS-R3Mini-Autoneg-r7'),
+            r6=args.codename in ('GLaDOS-R3Mini-Autoneg-r6', 'GLaDOS-R3Mini-Autoneg-r7'),
+            r7=args.codename == 'GLaDOS-R3Mini-Autoneg-r7',
+            modem_theme=args.modem_theme_fixes)
     if args.host_flash_dir:
         result['host_flash'] = check_host_flash(args.host_flash_dir, image)
     (audit / 'result.json').write_text(json.dumps(result, indent=2) + '\n')

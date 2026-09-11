@@ -1,0 +1,772 @@
+diff --git a/luci-app-5gmodem/Makefile b/luci-app-5gmodem/Makefile
+index a7338bb..d406022 100644
+--- a/luci-app-5gmodem/Makefile
++++ b/luci-app-5gmodem/Makefile
+@@ -27,12 +27,12 @@ LUCI_DEPENDS:=+sms-tool +comgt +kmod-usb-serial +kmod-usb-serial-option \
+ 	+luci-proto-mbim +luci-proto-qmi +luci-proto-modemmanager \
+ 	+kmod-usb-net-rndis +kmod-usb-net-cdc-ether +kmod-usb-net-cdc-mbim +kmod-usb-net-qmi-wwan \
+ 	+usb-modeswitch +kmod-usb-acm \
+-	+curl \
++	+curl +flock \
+ 	+coreutils-stty \
+ 	+mbim-utils
+ LUCI_PKGARCH:=all
+ PKG_VERSION:=2.4.60
+-PKG_RELEASE:=1
++PKG_RELEASE:=2
+ 
+ define Package/luci-app-5gmodem/conffiles
+ /etc/config/5gmodem
+diff --git a/luci-app-5gmodem/htdocs/luci-static/resources/view/modem5g/5gdebug.js b/luci-app-5gmodem/htdocs/luci-static/resources/view/modem5g/5gdebug.js
+index 5ebfa77..505f19e 100644
+--- a/luci-app-5gmodem/htdocs/luci-static/resources/view/modem5g/5gdebug.js
++++ b/luci-app-5gmodem/htdocs/luci-static/resources/view/modem5g/5gdebug.js
+@@ -1379,7 +1379,7 @@ return view.extend({
+ 			// роутере), поэтому здесь НЕ вызываем uci.save() - иначе LuCI
+ 			// поднимал баннер «не сохранено» и требовал нажать «Применить».
+ 			ui.showModal(null, E('p', { 'class': 'spinning' }, _('Creating the modem interface...')));
+-			return fs.exec('/usr/share/5gmodem/mkiface.sh', [ 'modem', proto, apnArg, pdp, mmArg ]).then(function(res) {
++			return fs.exec('/usr/share/5gmodem/mkiface.sh', [ 'modem', proto, apnArg, pdp, mmArg, 'user' ]).then(function(res) {
+ 				ui.hideModal();
+ 				var out = {};
+ 				try { out = JSON.parse((res && res.stdout) || '{}'); } catch (e) {}
+@@ -1394,6 +1394,10 @@ return view.extend({
+ 					   и APN. uci-кэш вьюхи при этом устарел, но карточки читают
+ 					   состояние с роутера, поэтому показывают уже новое. */
+ 					if (profilesView) { profilesView.loadProfiles(); }
++					// All existence/protocol/APN fields were rendered from an old UCI snapshot.
++					window.setTimeout(function() { window.location.reload(); }, 1200);
++				} else if (out.result == 'busy') {
++					ui.addNotification(null, E('p', _('An interface operation is still running. Please wait and try again.')), 'info');
+ 				} else {
+ 					/* Причина отказа - в тексте, а не общее «модем не найден»:
+ 					   бэкенд пишет подробности в системный журнал, сюда даём
+diff --git a/luci-app-5gmodem/htdocs/luci-static/resources/view/modem5g/5gdetail.js b/luci-app-5gmodem/htdocs/luci-static/resources/view/modem5g/5gdetail.js
+index 0c1d76c..b332837 100644
+--- a/luci-app-5gmodem/htdocs/luci-static/resources/view/modem5g/5gdetail.js
++++ b/luci-app-5gmodem/htdocs/luci-static/resources/view/modem5g/5gdetail.js
+@@ -1624,6 +1624,12 @@ function connStageText(json) {
+ 	var tail = '';
+ 	var en = parseInt(json.usb_enum, 10);
+ 	if (en > 1) { tail = ' ' + _('(#%d)').format(en); }
++	if (json.sim_state == 'absent' || reg == 'SIM not inserted') { return _('SIM not inserted'); }
++	if (json.sim_state == 'pin' || reg == 'SIM PIN required') { return _('SIM PIN required'); }
++	if (json.sim_state == 'puk' || reg == 'SIM PUK required') { return _('SIM PUK required'); }
++	if (json.iface_state == 'missing') { return _('Modem interface is missing'); }
++	if (json.iface_state == 'disabled' || json.iface_state == 'stopped') { return _('Modem interface is stopped'); }
++	if (json.iface_state == 'failed') { return _('Modem interface failed to connect'); }
+ 	if (/roaming.*not allowed|roaming_not_allowed/.test(cs)) { return _('Data roaming is off'); }
+ 	if (reg == '3') { return _('Registration denied'); }
+ 	if (reg != '1' && reg != '5') {                 // ещё не зарегистрирован
+diff --git a/luci-app-5gmodem/root/etc/config/5gmodem b/luci-app-5gmodem/root/etc/config/5gmodem
+index ba94074..d277918 100644
+--- a/luci-app-5gmodem/root/etc/config/5gmodem
++++ b/luci-app-5gmodem/root/etc/config/5gmodem
+@@ -1,6 +1,12 @@
+ 
+ config 5gmodem
+ 	option auto_port '1'
++	# Keep ModemManager as the default owner of QMI/MBIM control ports. Direct
++	# kernel protocols remain available as explicit per-modem choices.
++	option prefer_modemmanager '1'
++	# Ship monitoring and recovery controls, but require an administrator to
++	# enable automatic route failover, modem resets or USB power cycling.
++	option portalwrt_safe_defaults '1'
+ 	option device ''
+ 	option at_port ''
+ 	option network ''
+diff --git a/luci-app-5gmodem/root/etc/uci-defaults/32-5gmodem-health-defaults.sh b/luci-app-5gmodem/root/etc/uci-defaults/32-5gmodem-health-defaults.sh
+index bb5a45f..c463344 100755
+--- a/luci-app-5gmodem/root/etc/uci-defaults/32-5gmodem-health-defaults.sh
++++ b/luci-app-5gmodem/root/etc/uci-defaults/32-5gmodem-health-defaults.sh
+@@ -16,7 +16,14 @@
+ # (в том числе осознанно выключенное переключение).
+ [ -n "$(uci -q show 5gmodem.health 2>/dev/null)" ] && exit 0
+ uci -q set 5gmodem.health=health
+-uci -q set 5gmodem.health.enabled='1'
+-uci -q set 5gmodem.health.failover='1'
++if [ "$(uci -q get 5gmodem.@5gmodem[0].portalwrt_safe_defaults)" = "1" ]; then
++	uci -q set 5gmodem.health.enabled='0'
++	uci -q set 5gmodem.health.failover='0'
++	uci -q set 5gmodem.health.healing='0'
++	uci -q set 5gmodem.health.heal_wifi='0'
++else
++	uci -q set 5gmodem.health.enabled='1'
++	uci -q set 5gmodem.health.failover='1'
++fi
+ uci -q commit 5gmodem
+ exit 0
+diff --git a/luci-app-5gmodem/root/etc/uci-defaults/34-5gmodem-healing-default.sh b/luci-app-5gmodem/root/etc/uci-defaults/34-5gmodem-healing-default.sh
+index 5aba235..3240bf3 100755
+--- a/luci-app-5gmodem/root/etc/uci-defaults/34-5gmodem-healing-default.sh
++++ b/luci-app-5gmodem/root/etc/uci-defaults/34-5gmodem-healing-default.sh
+@@ -7,6 +7,7 @@
+ # миграции '0' - уже воля пользователя, маркер не даёт тронуть его повторно
+ # (uci-defaults перезапускаются при каждом обновлении пакета).
+ uci -q get 5gmodem.@5gmodem[0] >/dev/null 2>&1 || exit 0
++[ "$(uci -q get 5gmodem.@5gmodem[0].portalwrt_safe_defaults)" = "1" ] && exit 0
+ [ "$(uci -q get 5gmodem.health.healing_migrated)" = "1" ] && exit 0
+ uci -q get 5gmodem.health >/dev/null 2>&1 || exit 0
+ [ "$(uci -q get 5gmodem.health.healing)" = "0" ] && uci -q delete 5gmodem.health.healing
+diff --git a/luci-app-5gmodem/root/etc/uci-defaults/35-5gmodem-healwifi-default.sh b/luci-app-5gmodem/root/etc/uci-defaults/35-5gmodem-healwifi-default.sh
+index ec46f18..259cbb1 100755
+--- a/luci-app-5gmodem/root/etc/uci-defaults/35-5gmodem-healwifi-default.sh
++++ b/luci-app-5gmodem/root/etc/uci-defaults/35-5gmodem-healwifi-default.sh
+@@ -6,6 +6,7 @@
+ # человеком. Снимаем такой '0' один раз; выключенный ПОСЛЕ миграции - воля
+ # пользователя, маркер защищает её от повторного снятия.
+ uci -q get 5gmodem.@5gmodem[0] >/dev/null 2>&1 || exit 0
++[ "$(uci -q get 5gmodem.@5gmodem[0].portalwrt_safe_defaults)" = "1" ] && exit 0
+ [ "$(uci -q get 5gmodem.health.healwifi_migrated)" = "1" ] && exit 0
+ uci -q get 5gmodem.health >/dev/null 2>&1 || exit 0
+ [ "$(uci -q get 5gmodem.health.heal_wifi)" = "0" ] && uci -q delete 5gmodem.health.heal_wifi
+diff --git a/luci-app-5gmodem/root/usr/share/5gmodem/5gmodem.sh b/luci-app-5gmodem/root/usr/share/5gmodem/5gmodem.sh
+index 1c7b72c..d92f7b4 100755
+--- a/luci-app-5gmodem/root/usr/share/5gmodem/5gmodem.sh
++++ b/luci-app-5gmodem/root/usr/share/5gmodem/5gmodem.sh
+@@ -256,6 +256,7 @@ RES="/usr/share/5gmodem"
+ # пять раз в этом файле, а общая secname лежит именно здесь и до сих пор была
+ # недоступна первым из этих мест. Файл без побочных эффектов - только определения.
+ . "$RES/lib.sh"
++. "$RES/runtime-state.sh"
+ 
+ # --- Кэш метрик: снимок для тех, кому не нужен свежий опрос -------------------
+ #
+@@ -1341,16 +1342,7 @@ fi
+ 
+ # CREG
+ eval $(echo "$O" | busybox awk -F[,] '/^\+CREG/ {gsub(/[[:space:]"]+/,"");printf "T=\"%d\";LAC_HEX=\"%X\";CID_HEX=\"%X\";LAC_DEC=\"%d\";CID_DEC=\"%d\";MODE_NUM=\"%d\"", $2, "0x"$3, "0x"$4, "0x"$3, "0x"$4, $5}')
+-case "$T" in
+-	0*) REG="0";;
+-	1*) REG="1";;
+-	2*) REG="2";;
+-	3*) REG="3";;
+-	5*) REG="5";;
+-	6*) REG="6";;
+-	7*) REG="7";;
+-	*) REG="";;
+-esac
++modem_registration "$O"
+ 
+ # EPS/data registration (CEREG) overrides a "SMS only" CS status. Many LTE data
+ # modems (e.g. Fibocom FM350-GL) register the CS/voice domain as "SMS only"
+@@ -1364,14 +1356,7 @@ esac
+ # SLM770A-R: AT+CUSD=? отвечает "(0-2)", а любой запрос молчит при CREG 2,6).
+ # Без этого поля подсказка на вкладке USSD не смогла бы отличить «модем не
+ # умеет» от «сеть сейчас не даёт».
+-REG_CS="$REG"
+-if [ "$REG" = "6" ] || [ "$REG" = "7" ]; then
+-	CEREG_STAT=$(echo "$O" | busybox awk -F[,] '/^\+CEREG/{gsub(/[[:space:]"]+/,"");print $2;exit}')
+-	case "$CEREG_STAT" in
+-		1) REG="1";;
+-		5) REG="5";;
+-	esac
+-fi
++# REG_CS and REG_DATA remain separate; modem_registration also preserves SIM errors.
+ 
+ # MODE
+ if [ -z "$MODE_NUM" ] || [ "x$MODE_NUM" == "x0" ]; then
+@@ -1722,7 +1707,8 @@ emit_snapshot() {
+ _snap_prepare
+ _SN_CONNST=$(conn_status_line "$SEC")
+ _SN_ALIAS=$(alias_for_path "$_POLL_AM")
+-_SN_CPORT="${DEVICE:-$_CPORT_MM}"
++	_SN_CPORT="${DEVICE:-$_CPORT_MM}"
++	_SN_IFSTATE=$(iface_runtime_state "$SEC")
+ [ "$IS_ROAMING" = 1 ] && _SN_ROAM10=1 || _SN_ROAM10=0
+ # Страна-хвост в имени оператора избыточен ("MegaFon RUS" -> "MegaFon"): чистим
+ # текущий и домашний перед выводом. Общая точка для AT и MM.
+@@ -1745,13 +1731,17 @@ _sanv S3MIMO S3MOD S4MIMO S4MOD BANDWIDTH ENBID
+ _sanv PATHLOSS TXPOWER UECAT CQI VOLTE RSCP
+ _sanv MAXDL MAXUL
+ _sanv ECIO RSRP RSRQ RSSI SINR _SN_CONNST
+-_sanv _SN_ALIAS _SN_CPORT BS_DIST
++	_sanv _SN_ALIAS _SN_CPORT BS_DIST
++	_sanv _SN_IFSTATE SIM_STATE REG_DATA
+ cat <<EOF
+ {
+ "path":"${_J__POLL_AM}",
+ "ipaddr":"${_J_IPADDR}",
+ "ipaddr6":"${_J_IPADDR6}",
+ "iface":"${_J_SEC}",
++"iface_state":"${_J__SN_IFSTATE}",
++"sim_state":"${_J_SIM_STATE}",
++"registration_data":"${_J_REG_DATA}",
+ "conn_time":"${_J_CONN_TIME}",
+ "conn_time_sec":"${_J_CT}",
+ "conn_time_since":"${_J_CONN_TIME_SINCE}",
+@@ -3414,4 +3404,3 @@ else
+ 	rm -f "$_TMP"
+ fi
+ exit 0
+-
+diff --git a/luci-app-5gmodem/root/usr/share/5gmodem/health.sh b/luci-app-5gmodem/root/usr/share/5gmodem/health.sh
+index 1fc1bb1..34d99bc 100644
+--- a/luci-app-5gmodem/root/usr/share/5gmodem/health.sh
++++ b/luci-app-5gmodem/root/usr/share/5gmodem/health.sh
+@@ -28,6 +28,7 @@
+ 
+ RES="/usr/share/5gmodem"
+ . "$RES/lib.sh"
++. "$RES/runtime-state.sh"
+ 
+ HDIR=/tmp/5gmodem_health
+ CFG=5gmodem
+@@ -652,11 +653,6 @@ HEAL_MAX=6
+ # перезагрузки модуля - в полторы; берём с запасом, чтобы не влезть в них.
+ GONE_HEAL_MIN=180
+ 
+-# Сколько уважать ЛЕЖАЧИЙ интерфейс с autostart=false, не записанным в конфиг.
+-# Ручная остановка из интерфейса столько не живёт, а незавершённый ifdown - живёт
+-# вечно, и без этого срока модем из него не выбирается (см. лечение ниже).
+-STUCK_DOWN_MIN=900
+-
+ # Потолок по умолчанию (опция не задана) - reboot: переподключение и
+ # перезагрузка модуля обратимы и безопасны, а именно они закрывают главные
+ # самолечимые классы (SIM illegal, залипший дозвон). Питание USB-порта -
+@@ -902,44 +898,9 @@ heal() {
+ 			*) continue ;;
+ 		esac
+ 		[ "$H_HEAL" = "1" ] || continue
+-		# ВЫКЛЮЧЕННЫЙ ИНТЕРФЕЙС НЕ ЛЕЧИМ - НО РАЗЛИЧАЕМ ВОЛЮ И АВАРИЮ.
+-		#
+-		# autostart=false бывает двух совершенно разных природ:
+-		#   - воля человека, записанная в конфиг (auto='0' / disabled='1') -
+-		#     её уважаем всегда, иначе выключенный модем не просто поднимут, а
+-		#     дойдут до перезагрузки модуля;
+-		#   - следствие ЧУЖОГО (и нашего же) незавершённого ifdown - состояние
+-		#     временное, в конфиге его нет, и после перезагрузки роутера
+-		#     интерфейс поднялся бы сам.
+-		#
+-		# Второе нельзя уважать вечно: первая ступень лестницы сама делает
+-		# `ifdown` + `iface_up`, и если подъём не довёлся (модем в этот момент
+-		# переэнумерировался), интерфейс остаётся опущенным - а дальше и
+-		# лестница, и sessionwatch обходят его стороной как «выключенный
+-		# намеренно». Модем висит вечно при исправном железе и готовой SIM:
+-		# ровно это и случилось на стенде 05.08.2026 через час после включения
+-		# лечения. Поэтому runtime-ifdown уважаем ограниченное время, а дальше
+-		# считаем аварией и поднимаем.
+-		_h_auto=$(printf '%s' "$_HDUMP" | jsonfilter \
+-			-e "@.interface[@.interface=\"$_h_if\"].autostart" 2>/dev/null)
+-		if [ "$_h_auto" = "false" ]; then
+-			[ "$(uci -q get "network.$_h_if.auto")" = "0" ] && continue
+-			[ "$(uci -q get "network.$_h_if.disabled")" = "1" ] && continue
+-			# ОШИБКА ПРОТОКОЛА - ЭТО НЕ ВОЛЯ ЧЕЛОВЕКА, ЛЕЧИМ СРАЗУ.
+-			#
+-			# Сдавшись, протокол зовёт proto_block_restart, и netifd СНИМАЕТ
+-			# autostart - внешне неотличимо от ручной остановки. Отличает их
+-			# список errors: у ручного ifdown он пуст, а здесь лежит причина
+-			# отказа (живой случай 05.08.2026, Quectel EP06: `{"subsystem":
+-			# "qmi","code":"SIM_ILLEGAL_STATE"}` после самосброса модуля).
+-			# Ждать выдержку в этом случае незачем - интерфейс уже мёртв, и
+-			# сам netifd к нему больше не вернётся.
+-			if [ -z "$(printf '%s' "$_HDUMP" | jsonfilter \
+-				-e "@.interface[@.interface=\"$_h_if\"].errors[0].code" 2>/dev/null)" ]; then
+-				case "$_h_since" in ''|*[!0-9]*) continue ;; esac
+-				[ $(( $(uptime_s) - _h_since )) -ge "$STUCK_DOWN_MIN" ] || continue
+-			fi
+-		fi
++		# Administrative stops are not faults, regardless of how long they last.
++		case "$(iface_runtime_state "$_h_if")" in missing|disabled|stopped) continue ;; esac
++		# runtime-state leaves protocol-blocked failures eligible for recovery.
+ 		_h_sec=$(sec_for_iface_h "$_h_if") || continue
+ 		_h_cap=$(heal_cap "$(uci -q get "$CFG.$_h_sec.heal")")
+ 		[ "$_h_cap" -ge 1 ] || continue
+diff --git a/luci-app-5gmodem/root/usr/share/5gmodem/mkiface.sh b/luci-app-5gmodem/root/usr/share/5gmodem/mkiface.sh
+index ffa522b..795488f 100755
+--- a/luci-app-5gmodem/root/usr/share/5gmodem/mkiface.sh
++++ b/luci-app-5gmodem/root/usr/share/5gmodem/mkiface.sh
+@@ -51,6 +51,20 @@ APNARG="$3"
+ # пути их не различить (интерфейс прежнего сносился при подмене). Реализация -
+ # общая, в lib.sh (её же используют resolve/swap_cleanup).
+ . /usr/share/5gmodem/lib.sh
++. /usr/share/5gmodem/runtime-state.sh
++# Serialize every creator, including fallback and the deferred start worker.
++# A busy reply is retryable, not a failed/partially committed creation.
++exec 9>/tmp/5gmodem-mkiface.lock
++flock -n 9 || { printf '{"result":"busy"}\n'; exit 0; }
++USER_REQUEST="$6"
++
++_mk_may_start() {
++	[ "$(uci -q get "network.$IF.proto")" = "$PROTO" ] || return 1
++	[ "$(uci -q get "network.$IF.device")" = "$IDEV" ] || return 1
++	iface_config_disabled "$IF" && return 1
++	case "$(iface_runtime_state "$IF")" in missing|disabled|stopped|up|pending) return 1 ;; esac
++	return 0
++}
+ # ДОБАВИТЬ ИНТЕРФЕЙС В ЗОНУ wan - ЧЕРЕЗ ПОЛНУЮ ПЕРЕСБОРКУ СПИСКА.
+ #
+ # ЗАЧЕМ ТАК, А НЕ add_list. Список сетей зоны в /etc/config/firewall бывает ДВУХ
+@@ -66,7 +80,7 @@ APNARG="$3"
+ # разбираем по пробелам и пересобираем ЯВНЫМ списком. Заодно это чинит уже
+ # испорченную зону и убирает дубликаты (старые версии добавляли интерфейс по
+ # нескольку раз - он появлялся в «Приоритете интернета» четырежды).
+-_fw_zone_add() {
++_fw_zone_add_config() {
+ 	_fz=$(uci show firewall 2>/dev/null \
+ 		| sed -n "s/^firewall\.\([^.]*\)\.name='wan'\$/\1/p" | head -1)
+ 	[ -n "$_fz" ] && [ -n "$1" ] || return 0
+@@ -110,6 +124,13 @@ _fw_zone_add() {
+ 	uci commit firewall
+ }
+ 
++_fw_zone_add() {
++	_fw_zone_add_config "$1" && firewall_sync_iface "$1" && return 0
++	logger -t 5gmodem 'Interface configuration saved, but firewall synchronization failed'
++	json firewall_failed "${PROTO:-$FPROTO}" "${IDEV:-$FDEV}"
++	exit 1
++}
++
+ stamp_iface() {
+ 	stamp_iface_owner "$1" "$2"
+ }
+@@ -119,11 +140,21 @@ stamp_iface() {
+ # интернета» (база переключаемая, см. _metric_base в netpri.sh) - созданный
+ # интерфейс никогда не перехватывает default-маршрут у соседей.
+ _def_metric() {
++	local base
+ 	if [ "$(uci -q get 5gmodem.@5gmodem[0].mwan3_metrics)" = "1" ]; then
+-		echo 20
++		base=20
+ 	else
+-		echo 110
++		base=110
+ 	fi
++	# A deleted interface has no OLDMETRIC. A fixed 110 can collide with the
++	# remaining WAN (also 110 after it was ranked second), losing its fallback
++	# route during subsequent route updates. Put new interfaces after existing
++	# priorities; recreating an existing section still preserves its own metric.
++	uci -q show network | awk -F= -v base="$base" '
++		/\.metric=/ {
++			v=$2; gsub(/[^0-9]/,"",v);
++			if (v != "" && v+0 >= base && v+0 <= 4294967285) base=v+10;
++		} END { printf "%.0f\n", base }'
+ }
+ 
+ set_apn_opt() {
+@@ -459,7 +490,9 @@ if [ -n "$AMP" ] && [ -z "$WANTWDM" ] && { [ "$REQ" = auto ] || [ "$REQ" = "" ]
+ 		# uci). Безусловное metric=20 ниже сбрасывало порядок аплинков при каждом
+ 		# пересоздании интерфейса (смена SIM, hotplug, кнопка) - сохраняем, как APN.
+ 		OLDMETRIC=$(uci -q get "network.$IF.metric")
+-		uci -q delete "network.$IF" 2>/dev/null
++		for _mk_opt in proto device ifname devpath pdptype iptype pdp auth allowedauth; do
++			uci -q delete "network.$IF.$_mk_opt" 2>/dev/null
++		done
+ 		uci set "network.$IF=interface"
+ 
+ 		# Default to the built-in 'fibocom' proto: stable, SMS-safe (does not
+@@ -625,9 +658,12 @@ if [ -n "$AMP" ] && [ -z "$WANTWDM" ] && { [ "$REQ" = auto ] || [ "$REQ" = "" ]
+ 		if [ -n "$MSEC" ]; then
+ 			uci -q set "5gmodem.$MSEC.mm_exclude=1"
+ 			uci -q commit 5gmodem
+-			/usr/share/5gmodem/mm-inhibit.sh once >/dev/null 2>&1 &
++			/usr/share/5gmodem/mm-inhibit.sh once 9>&- >/dev/null 2>&1 &
+ 		fi
+-		ifup "$IF" >/dev/null 2>&1
++		ubus call network reload >/dev/null 2>&1 || { json network_failed "$FPROTO" "$FDEV"; exit 1; }
++		firewall_sync_iface "$IF" || { json firewall_failed "$FPROTO" "$FDEV"; exit 1; }
++		PROTO="$FPROTO"; IDEV="$FDEV"
++		_mk_may_start && ifup "$IF" >/dev/null 2>&1
+ 		json created "$FPROTO" "$FDEV"
+ 		exit 0
+ 	fi
+@@ -668,10 +704,21 @@ case "$REQ" in
+ 		# каждом ЯВНОМ выборе; swap_cleanup чистит его при смене железа в
+ 		# разъёме, так что чужому модему он не достанется.
+ 		_mki_saved=$(uci -q get "5gmodem.$MSEC.iface_proto" 2>/dev/null)
++		[ "$USER_REQUEST" = user ] && _mki_saved=""
+ 		if [ -n "$_mki_saved" ] && [ "$_mki_saved" != "auto" ] \
+ 		   && [ -f "/lib/netifd/proto/$_mki_saved.sh" ]; then
+ 			PROTO="$_mki_saved"
+ 			logger -t 5gmodem "mkiface: auto -> saved user choice ($_mki_saved)"
++		elif [ "$USER_REQUEST" != user ] && [ "$_mki_saved" != auto ] \
++		   && [ "$(uci -q get 5gmodem.@5gmodem[0].prefer_modemmanager)" != "0" ] \
++		   && [ -f /lib/netifd/proto/modemmanager.sh ]; then
++			# PortalWRT's full-modem profile deliberately uses one connection
++			# manager. MM provides shared QMI access through qmi-proxy, exposes the
++			# complete upstream plugin set, and avoids uqmi/umbim racing cdc-wdm.
++			# A saved or explicit per-modem protocol above still wins, so qmi,
++			# mbim, qmiraw and vendor AT paths remain available for recovery.
++			PROTO="modemmanager"
++			logger -t 5gmodem "mkiface: auto -> modemmanager (profile preference)"
+ 		else
+ 		case "$DRV" in
+ 			cdc_mbim) PROTO="mbim" ;;
+@@ -922,7 +969,11 @@ OLDROAM=$(uci -q get "network.$IF.allow_roaming")
+ OLDMETRIC=$(uci -q get "network.$IF.metric")
+ # DNS пользователя (если вписал руками) сохраняем через пересоздание, как apn.
+ OLDDNS=$(uci -q get "network.$IF.dns")
+-uci -q delete "network.$IF" 2>/dev/null
++# Preserve administrative state, MTU, tables, DNS lists and route policy.
++# Remove only transport-specific options that cannot be carried across protocols.
++for _mk_opt in proto device ifname devpath pdptype iptype pdp auth allowedauth; do
++	uci -q delete "network.$IF.$_mk_opt" 2>/dev/null
++done
+ uci set "network.$IF=interface"
+ uci set "network.$IF.proto=$PROTO"
+ uci set "network.$IF.device=$IDEV"
+@@ -967,7 +1018,7 @@ uci set "network.$IF.metric=${OLDMETRIC:-$(_def_metric)}"
+ # тумблером «Fallback DNS» на карточке модема (verb setopt dnsfb) и хранится прямо
+ # в network.<iface>.dns - здесь мы лишь ПЕРЕНОСИМ его через пересоздание
+ # интерфейса. По умолчанию фолбэк выключен, автоматически ничего не ставим.
+-[ -n "$OLDDNS" ] && uci set "network.$IF.dns=$OLDDNS"
++# Existing DNS options/lists remain intact above.
+ uci commit network
+ 
+ # ПЕРЕЗАГРУЗИТЬ КОНФИГ netifd - ОБЯЗАТЕЛЬНО, И ИМЕННО ЗДЕСЬ.
+@@ -980,7 +1031,7 @@ uci commit network
+ # than max size 15» (для proto none поле device он разбирает как имя сетевухи
+ # и режет по точке) - и модем «не заводился» до ручного вмешательства.
+ # reload сам поднимает autostart-интерфейсы; ifup после него безвреден.
+-ubus call network reload >/dev/null 2>&1
++# Applied below, after ownership and firewall membership are synchronized.
+ 
+ # СОЗДАЛИ ИНТЕРФЕЙС НА НАШЕМ ШЕЛЛ-ПРОТО, А NETIFD ЕГО НЕ ЗНАЕТ - вот
+ # ЕДИНСТВЕННЫЙ момент, когда рестарт сети оправдан: без него интерфейс мёртв
+@@ -1139,9 +1190,12 @@ if [ -n "$MSEC" ]; then
+ 		[ -f "$_mki_ipf" ] && { kill "$(cat "$_mki_ipf" 2>/dev/null)" 2>/dev/null; rm -f "$_mki_ipf"; }
+ 	fi
+ 	# применить немедленно, не дожидаясь 15-секундного прохода демона
+-	/usr/share/5gmodem/mm-inhibit.sh once >/dev/null 2>&1 &
++	/usr/share/5gmodem/mm-inhibit.sh once 9>&- >/dev/null 2>&1 &
+ fi
+ 
++ubus call network reload >/dev/null 2>&1 || { json network_failed "$PROTO" "$IDEV"; exit 1; }
++firewall_sync_iface "$IF" || { json firewall_failed "$PROTO" "$IDEV"; exit 1; }
++
+ if [ "$PROTO" = "modemmanager" ]; then
+ 	# ifup ТОЛЬКО после того, как MM реально увидит модем. Сразу после
+ 	# (пере)запуска MM модема ещё нет - он допрашивает порты десятки секунд, - а
+@@ -1157,7 +1211,7 @@ if [ "$PROTO" = "modemmanager" ]; then
+ 			mmcli -L 2>/dev/null | grep -q "/Modem/" && break
+ 			sleep 2; _n=$((_n + 2))
+ 		done
+-		ifup "$IF"
++		_mk_may_start && ifup "$IF"
+ 	) >/dev/null 2>&1 </dev/null &
+ elif [ "$PROTO" = qmi ] || [ "$PROTO" = mbim ] || [ "$PROTO" = qmiraw ]; then
+ 	# kernel-прото: сначала автоматически привести модем в рабочее состояние
+@@ -1167,9 +1221,10 @@ elif [ "$PROTO" = qmi ] || [ "$PROTO" = mbim ] || [ "$PROTO" = qmiraw ]; then
+ 	# В ФОНЕ с отвязанными дескрипторами: подготовка может занять до ~2 минут
+ 	# (сброс + переэнумерация), а rpcd ждёт EOF и упал бы по таймауту (XHR error).
+ 	(
++		_mk_may_start || exit 0
+ 		kernel_proto_prepare "$IDEV" "$AMP" || logger -t 5gmodem-mkiface \
+ 			"kernel_proto_prepare failed for $IF ($PROTO) - bringing it up anyway"
+-		ifup "$IF"
++		_mk_may_start && ifup "$IF"
+ 	) >/dev/null 2>&1 </dev/null &
+ elif [ "$PROTO" = xmm ] || [ "$PROTO" = atc ]; then
+ 	# ДОЗВОН ТОЛЬКО ПОСЛЕ РЕГИСТРАЦИИ В СЕТИ.
+@@ -1208,10 +1263,10 @@ elif [ "$PROTO" = xmm ] || [ "$PROTO" = atc ]; then
+ 			[ "$_xr_n" -ge 90 ] && logger -t 5gmodem-mkiface \
+ 				"$IF ($PROTO): регистрации нет за 90c - поднимаю интерфейс как есть"
+ 		fi
+-		ifup "$IF"
++		_mk_may_start && ifup "$IF"
+ 	) >/dev/null 2>&1 </dev/null &
+ else
+-	ifup "$IF" >/dev/null 2>&1
++	_mk_may_start && ifup "$IF" >/dev/null 2>&1
+ fi
+ 
+ json created "$PROTO" "$IDEV"
+diff --git a/luci-app-5gmodem/root/usr/share/5gmodem/mm-inhibit.sh b/luci-app-5gmodem/root/usr/share/5gmodem/mm-inhibit.sh
+index c855b92..8d96e1f 100755
+--- a/luci-app-5gmodem/root/usr/share/5gmodem/mm-inhibit.sh
++++ b/luci-app-5gmodem/root/usr/share/5gmodem/mm-inhibit.sh
+@@ -18,6 +18,7 @@
+ # Runs as a small procd service (see /etc/init.d/5gmodem-mm-inhibit).
+ 
+ . /usr/share/5gmodem/lib.sh 2>/dev/null   # at_query: очередь к порту + таймаут
++. /usr/share/5gmodem/runtime-state.sh
+ 
+ RES=/usr/share/5gmodem
+ CFG=5gmodem
+@@ -158,6 +159,7 @@ _mm_ifup_if_down() {
+ 	_sec="m_$(echo "$_p" | sed 's/[^A-Za-z0-9]/_/g')"
+ 	_mif=$(uci -q get "$CFG.$_sec.network"); [ -n "$_mif" ] || return 0
+ 	[ "$(uci -q get "network.$_mif.proto")" = modemmanager ] || return 0
++	case "$(iface_runtime_state "$_mif")" in missing|disabled|stopped|up|pending) return 0 ;; esac
+ 	ifstatus "$_mif" 2>/dev/null | grep -q '"up": true' && return 0   # уже поднят
+ 	# ГАРД от параллельных подъёмов + COOLDOWN: лок держится всё время попытки
+ 	# (ожидание MM + ifup + добор коннекта), чтобы НЕ дёргать ifup повторно, пока
+@@ -176,6 +178,9 @@ _mm_ifup_if_down() {
+ 				[ "$(basename "$_jd" 2>/dev/null)" = "$_p" ] || continue
+ 				logger -t 5gmodem "MM discovered modem $_p - bringing up interface $_mif (netifd tore it down at boot before MM started)"
+ 				: > "$_lk"          # отметить старт попытки - от него считаем cooldown
++				case "$(iface_runtime_state "$_mif")" in
++					missing|disabled|stopped|up|pending) rm -f "$_lk"; exit 0 ;;
++				esac
+ 				ifup "$_mif"
+ 				# Не дёргаем повторно, пока идёт коннект: ждём up до 90с. Поднялся -
+ 				# готово; нет - отпускаем лок, следующий проход попробует заново.
+@@ -454,11 +459,11 @@ mm_recover_missing() {
+ 				[ -n "$_sw_if" ] || _sw_if=$(uci -q get 5gmodem.@5gmodem[0].network)
+ 				[ -n "$_sw_if" ] || continue
+ 				[ "$(uci -q get "network.$_sw_if.proto")" = "modemmanager" ] || continue
+-				: > "$RUN/$_rb_key.qmiswitch" 2>/dev/null
+ 				logger -t 5gmodem "modem $_rp: MM never assembled it and the protocol is on auto - switching interface $_sw_if to proto $_sw_pro (cdc-wdm driver $_wdm_drv)"
+ 				# MKIFACE_AUTOFALLBACK: это ВЫНУЖДЕННЫЙ прото, а не выбор человека -
+ 				# в iface_proto его писать нельзя (см. mkiface.sh).
+-				MKIFACE_AUTOFALLBACK=1 "$RES/mkiface.sh" "$_sw_if" "$_sw_pro" >/dev/null 2>&1
++				_sw_result=$(MKIFACE_AUTOFALLBACK=1 "$RES/mkiface.sh" "$_sw_if" "$_sw_pro" 2>/dev/null)
++				case "$_sw_result" in *'"result":"created"'*) : > "$RUN/$_rb_key.qmiswitch" ;; esac
+ 				continue
+ 			fi
+ 			# MM СЕЙЧАС ОПРАШИВАЕТ ПОРТЫ - НЕ МЕШАЕМ. На медленном модеме с
+@@ -537,6 +542,7 @@ _restore_stolen() {
+ 		SEC="m_$(echo "$PATHID" | sed 's/[^A-Za-z0-9]/_/g')"
+ 		IF=$(uci -q get "$CFG.$SEC.network")
+ 		[ -n "$IF" ] || continue
++		case "$(iface_runtime_state "$IF")" in missing|disabled|stopped) continue ;; esac
+ 		# Правду о сессии знает МОДЕМ, а не netifd - см. пояснение выше.
+ 		# Спрашиваем ДВУМЯ независимыми способами, потому что ни один не
+ 		# самодостаточен:
+diff --git a/luci-app-5gmodem/root/usr/share/5gmodem/modem/usb/2c7c0801 b/luci-app-5gmodem/root/usr/share/5gmodem/modem/usb/2c7c0801
+index b04aeb8..1b1320e 100644
+--- a/luci-app-5gmodem/root/usr/share/5gmodem/modem/usb/2c7c0801
++++ b/luci-app-5gmodem/root/usr/share/5gmodem/modem/usb/2c7c0801
+@@ -24,12 +24,13 @@ if [ -z "$REG" ] || [ "x$MODE_NUM" = "x11" ]; then
+ 		*) REG="";;
+ 	esac
+ 	[ "x$REG" = "x1" ] || [ "x$REG" = "x5" ] && REGOK=1
++	case "$REG" in 1|5) REG_DATA="$REG" ;; esac
+ 
+ 	[ -n "$TAC_DEC" ] && [ "$TAC_DEC" != "0" ] && TAC_DEC="${TAC_DEC}"
+ 	[ -n "$CID_HEX" ] && CID_DEC=$(printf "%d" "0x${CID_HEX}")
+ fi
+ 
+-if [ "$REGOK" = "1" ]; then
++if [ "$REGOK" = "1" ] || [ "$SIM_STATE" = ready ]; then
+ 
+ O=$(sms_tool -d $DEVICE at "at+qnwinfo;+qcainfo;+qeng=\"servingcell\";+qspn")
+ 
+diff --git a/luci-app-5gmodem/root/usr/share/5gmodem/modemswitch.sh b/luci-app-5gmodem/root/usr/share/5gmodem/modemswitch.sh
+index bcc3029..70d5212 100755
+--- a/luci-app-5gmodem/root/usr/share/5gmodem/modemswitch.sh
++++ b/luci-app-5gmodem/root/usr/share/5gmodem/modemswitch.sh
+@@ -24,6 +24,7 @@ CFG=5gmodem
+ [ -r "$RES/quirks.sh" ] && . "$RES/quirks.sh"
+ 
+ . /usr/share/5gmodem/lib.sh   # secname / sec_for_iface / active_path
++. /usr/share/5gmodem/runtime-state.sh
+ . /usr/share/5gmodem/atlock.sh   # at_lock/at_unlock - чтение IMEI не должно
+                                  # сталкиваться с опросом метрик в том же порту
+ 
+diff --git a/luci-app-5gmodem/root/usr/share/5gmodem/msw/iface.sh b/luci-app-5gmodem/root/usr/share/5gmodem/msw/iface.sh
+index ea762f7..f0d801d 100755
+--- a/luci-app-5gmodem/root/usr/share/5gmodem/msw/iface.sh
++++ b/luci-app-5gmodem/root/usr/share/5gmodem/msw/iface.sh
+@@ -38,6 +38,8 @@ ensure_iface() {
+ 	IF=$(uci -q get "$CFG.$SEC.network")
+ 	[ -n "$IF" ] || return 0
+ 	uci -q get "network.$IF" >/dev/null 2>&1 || return 0
++	# Do not undo a user's persistent disable or an explicit runtime ifdown.
++	case "$(iface_runtime_state "$IF")" in disabled|stopped) return 0 ;; esac
+ 
+ 	# ШТАМП ВЛАДЕЛЬЦА (network.<if>.modem_path, ставит mkiface.sh). Если интерфейс
+ 	# создан для ДРУГОГО модема - не трогаем его. Иначе мы бы своими руками
+@@ -204,6 +206,7 @@ ensure_iface() {
+ 		fi
+ 		ifup "$IF" >/dev/null 2>&1
+ 	fi
++	firewall_sync_iface "$IF" || logger -t 5gmodem-resolve "Firewall synchronization failed for $IF"
+ }
+ 
+ # ИНТЕРФЕЙС-СИРОТА для модема $1: указывает на устройство ЭТОГО модема, но создан
+diff --git a/luci-app-5gmodem/root/usr/share/5gmodem/msw/setup.sh b/luci-app-5gmodem/root/usr/share/5gmodem/msw/setup.sh
+index 072d13e..daa31f3 100755
+--- a/luci-app-5gmodem/root/usr/share/5gmodem/msw/setup.sh
++++ b/luci-app-5gmodem/root/usr/share/5gmodem/msw/setup.sh
+@@ -130,6 +130,12 @@ setup_one_modem() {
+ 	if [ -n "$_ex" ]; then
+ 		uci -q set "$CFG.$SEC.network=$_ex"
+ 		[ "$(active_path)" = "$P" ] && uci -q set "$CFG.@5gmodem[0].network=$_ex"
++		case "$(iface_runtime_state "$_ex")" in
++			disabled|stopped)
++				uci -q commit "$CFG"
++				logger -t 5gmodem "autosetup: preserving administrative stop of $_ex"
++				return 0 ;;
++		esac
+ 		# Модем вернулся: снимаем «спящее» auto=0, выставленное при вытеснении, и
+ 		# переставляем штамп пути на ТЕКУЩИЙ разъём (IMEI остаётся прежним).
+ 		uci -q delete "network.$_ex.auto" 2>/dev/null
+diff --git a/luci-app-5gmodem/root/usr/share/5gmodem/netpri.sh b/luci-app-5gmodem/root/usr/share/5gmodem/netpri.sh
+index 0ba7e65..dc97ce2 100755
+--- a/luci-app-5gmodem/root/usr/share/5gmodem/netpri.sh
++++ b/luci-app-5gmodem/root/usr/share/5gmodem/netpri.sh
+@@ -22,6 +22,17 @@ wan_nets() {
+ 
+ . /usr/share/5gmodem/atlock.sh
+ . /usr/share/5gmodem/lib.sh
++. /usr/share/5gmodem/runtime-state.sh
++
++_netpri_prepare() {
++	exec 9>/tmp/5gmodem-mkiface.lock
++	flock -n 9 || { echo '{"error":"interface operation in progress"}'; return 1; }
++	local iface
++	for iface in $(wan_nets); do
++		[ "$(ifup_state "$iface" '@.up')" = true ] || continue
++		firewall_sync_iface "$iface" || { echo '{"error":"firewall synchronization failed"}'; return 1; }
++	done
++}
+ 
+ # СОСТОЯНИЕ ИНТЕРФЕЙСОВ - ОДНИМ ДАМПОМ НА ВЕСЬ ВЫЗОВ.
+ #
+@@ -920,8 +931,11 @@ _rerank_iface_routes() {   # $1 - l3_device, $2 - нужная метрика, $
+ 				_rr_pfx=${_rr_ln%% *}
+ 				# строку целиком переиспользуем как аргументы add, заменив метрику
+ 				_rr_new=$(printf '%s' "$_rr_ln" | sed "s/metric $_rr_cur/metric $2/")
+-				ip "$_rr_fam" route add $_rr_new $_rr_a 2>/dev/null
+-				ip "$_rr_fam" route del "$_rr_pfx" dev "$1" metric "$_rr_cur" $_rr_a 2>/dev/null
++				if ip "$_rr_fam" route add $_rr_new $_rr_a 2>/dev/null; then
++					ip "$_rr_fam" route del "$_rr_pfx" dev "$1" metric "$_rr_cur" $_rr_a 2>/dev/null
++				else
++					logger -t 5gmodem "netpri: preserving old subnet route after add failure on $1"
++				fi
+ 			done
+ 		done
+ 	done
+@@ -1351,7 +1365,8 @@ set)
+ 		*" $CH "*) ;;
+ 		*) echo '{"error":"not a wan uplink"}'; exit 1 ;;
+ 	esac
+-	note_foreign_uci network "netpri set"
++		note_foreign_uci network "netpri set"
++		_netpri_prepare || exit 1
+ 	CHANGED=0
+ 	# Метрики с шагом 10: остаётся место вставить линк между существующими без
+ 	# перенумерации остальных. БАЗА ПЕРЕКЛЮЧАЕМАЯ (issue #12): по умолчанию 100
+@@ -1531,7 +1546,8 @@ order)
+ 	# перетаскивание = пользователь заново задал порядок: метки «оставлен в
+ 	# конце» от сторожа (failback=demote) больше не действуют
+ 	rm -f /tmp/5gmodem_health/*.demoted 2>/dev/null
+-	note_foreign_uci network "netpri order"
++		note_foreign_uci network "netpri order"
++		_netpri_prepare || exit 1
+ 	_rank=$(_metric_base)
+ 	# uci-метрики по рангу с шагом 10 от переключаемой базы (см. пояснение в
+ 	# set); интерфейсы вне переданного порядка - в хвост (метрики должны быть
+diff --git a/luci-app-5gmodem/root/usr/share/5gmodem/sessionwatch.sh b/luci-app-5gmodem/root/usr/share/5gmodem/sessionwatch.sh
+index 9e48797..4d9acee 100644
+--- a/luci-app-5gmodem/root/usr/share/5gmodem/sessionwatch.sh
++++ b/luci-app-5gmodem/root/usr/share/5gmodem/sessionwatch.sh
+@@ -31,6 +31,7 @@ export SW_BG=1
+ 
+ . "$RES/atlock.sh" 2>/dev/null
+ . "$RES/lib.sh" 2>/dev/null   # active_path
++. "$RES/runtime-state.sh"
+ 
+ _log() { logger -t 5gmodem "sessionwatch: $*"; }
+ 
+@@ -257,14 +258,13 @@ check_one() {   # $1 - путь, $2 - интерфейс, $3 - прото, $4 -
+ 	# Поднимаем сами: только автозапускаемый интерфейс (намеренно опущенный
+ 	# автозапуск не имеет), только если устройство модема на месте, и не чаще
+ 	# кулдауна - тем же _revive, что и остальные случаи.
+-	_sw_st=$(ifstatus "$_if" 2>/dev/null)
++		_sw_st=$(ifstatus "$_if" 2>/dev/null)
++		case "$(iface_runtime_state "$_if" "$_sw_st")" in missing|disabled|stopped) return 0 ;; esac
+ 	case "$_sw_st" in
+ 		*'"up": true'*) : ;;
+ 		*)
+-			case "$_sw_st" in
+-				*'"autostart": true'*) : ;;
+-				*) return 0 ;;    # опущен намеренно - не трогаем
+-			esac
++			# A protocol error can block autostart too; runtime-state distinguishes
++			# that from a deliberate ifdown or persistent auto=0/disabled=1.
+ 			# Модема на шине нет - поднимать нечего, этим занимается resolve.
+ 			[ -n "$_path" ] && [ -e "/sys/bus/usb/devices/$_path/idVendor" ] || return 0
+ 			# ЗАВИСШИЕ uqmi СНИМАЕМ ДО ВСЕГО ОСТАЛЬНОГО, включая проверку pending:
+@@ -775,7 +775,10 @@ case "$1" in
+ 			if [ -n "$_REG_FLAT" ]; then
+ 				_sh_noreg=""
+ 				for _sh_p in $(printf '%s\n' "$_REG_FLAT" | awk 'NF{print $1}'); do
+-					uci -q get "5gmodem.m_$(printf '%s' "$_sh_p" | sed 's/[^A-Za-z0-9]/_/g')" >/dev/null 2>&1 \
++					_sh_sec="m_$(printf '%s' "$_sh_p" | sed 's/[^A-Za-z0-9]/_/g')"
++					uci -q get "5gmodem.$_sh_sec" >/dev/null 2>&1 || { _sh_noreg=1; break; }
++					_sh_if=$(uci -q get "5gmodem.$_sh_sec.network")
++					[ -n "$_sh_if" ] && [ "$(uci -q get "network.$_sh_if")" = interface ] \
+ 						|| { _sh_noreg=1; break; }
+ 				done
+ 				if [ -n "$_sh_noreg" ]; then
+diff --git a/luci-app-5gmodem/root/usr/share/5gmodem/runtime-state.sh b/luci-app-5gmodem/root/usr/share/5gmodem/runtime-state.sh
+new file mode 100755
+index 0000000..817aee0
+--- /dev/null
++++ b/luci-app-5gmodem/root/usr/share/5gmodem/runtime-state.sh
+@@ -0,0 +1,73 @@
++#!/bin/sh
++# Shared, read-only state interpretation. Safe to source from collectors/watchers.
++
++registration_stat() {
++	awk -v domain="$1" '
++	$0 ~ "^\\+" domain ":" {
++		sub(/^[^:]*:[[:space:]]*/, ""); n=split($0,a,",");
++		# Queries have <n>,<stat>; unsolicited reports have <stat>,"<area>".
++		v=(n == 1 || a[2] ~ /"/) ? a[1] : a[2];
++		gsub(/[[:space:]\r]/,"",v); if (v ~ /^[0-9]+$/) result=v;
++	} END { if (result != "") print result }'
++}
++
++modem_registration() {
++	local reply="$1" domain value
++	SIM_STATE=unknown
++	case "$reply" in
++		*'+CPIN: READY'*) SIM_STATE=ready ;;
++		*'+CPIN: SIM PIN'*|*'+CME ERROR: 11'*) SIM_STATE=pin ;;
++		*'+CPIN: SIM PUK'*|*'+CME ERROR: 12'*) SIM_STATE=puk ;;
++		*'+CME ERROR: 10'*) SIM_STATE=absent ;;
++		*'+CME ERROR: 13'*) SIM_STATE=failed ;;
++		*'+CME ERROR: 14'*) SIM_STATE=busy ;;
++	esac
++	REG_CS=$(printf '%s\n' "$reply" | registration_stat CREG)
++	REG_DATA=""
++	# A successful packet registration wins over CS rejection/SMS-only status.
++	for domain in C5GREG CEREG CGREG; do
++		value=$(printf '%s\n' "$reply" | registration_stat "$domain")
++		[ -n "$REG_DATA" ] || REG_DATA="$value"
++		case "$value" in 1|5) REG_DATA="$value"; break ;; esac
++	done
++	REG=${REG_DATA:-$REG_CS}
++	case "$SIM_STATE" in
++		absent) REG='SIM not inserted' ;;
++		pin) REG='SIM PIN required' ;;
++		puk) REG='SIM PUK required' ;;
++		failed) REG='SIM failure' ;;
++		busy) REG='SIM busy' ;;
++	esac
++}
++
++iface_config_disabled() {
++	[ "$(uci -q get "network.$1.auto")" = 0 ] ||
++		[ "$(uci -q get "network.$1.disabled")" = 1 ]
++}
++
++iface_runtime_state() {
++	local name="$1" state="$2" errors
++	[ -n "$name" ] && [ "$(uci -q get "network.$name")" = interface ] || { echo missing; return; }
++	iface_config_disabled "$name" && { echo disabled; return; }
++	[ -n "$state" ] || state=$(ifstatus "$name" 2>/dev/null)
++	[ -n "$state" ] || { echo unavailable; return; }
++	[ "$(printf '%s' "$state" | jsonfilter -e '@.up' 2>/dev/null)" = true ] && { echo up; return; }
++	[ "$(printf '%s' "$state" | jsonfilter -e '@.pending' 2>/dev/null)" = true ] && { echo pending; return; }
++	errors=$(printf '%s' "$state" | jsonfilter -e '@.errors[*].code' 2>/dev/null)
++	[ -n "$errors" ] && { echo failed; return; }
++	[ "$(printf '%s' "$state" | jsonfilter -e '@.autostart' 2>/dev/null)" = false ] && { echo stopped; return; }
++	echo down
++}
++
++# UCI commit alone does not update fw4's cached logical zone membership.
++firewall_sync_iface() {
++	local name="$1" dev zone
++	command -v fw4 >/dev/null 2>&1 || return 0
++	dev=$(ifstatus "$name" 2>/dev/null | jsonfilter -e '@.l3_device' 2>/dev/null)
++	zone=$(fw4 -q network "$name" 2>/dev/null)
++	if [ -n "$zone" ]; then
++		[ -z "$dev" ] && return 0
++		fw4 -q zone "$zone" "$dev" >/dev/null 2>&1 && return 0
++	fi
++	fw4 -q check >/dev/null 2>&1 && fw4 -q reload >/dev/null 2>&1
++}

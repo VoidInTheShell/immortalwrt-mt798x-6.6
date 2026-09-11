@@ -39,13 +39,13 @@ EXCLUDED = {
     'kmod-ipt-offload': '本机卸载控制使用私有 MTK HNAT，不增加 legacy FLOWOFFLOAD 路径',
     'luci-app-eqos-mtk': '软件 EQOS 启停会全局清空 mangle PREROUTING；改用真实硬件队列工具，避免干扰代理/QoS',
 }
-# The user's modem policy is one complete ModemManager stack. mmcli, qmicli,
-# mbimcli and its rpcd bridge remain available from the existing MM baseline.
+# The full modem UI is ModemManager-first, but ships QMI/MBIM netifd protocols,
+# comgt, uqmi, umbim and sms-tool as explicit per-modem rescue/control helpers.
+# Keep competing connection daemons and unrelated serial protocols excluded.
 for _name in '''luci-app-modem luci-i18n-modem-zh-cn luci-app-qmodem
 luci-app-qmodem-mwan luci-proto-qmodem qmodem quectel-CM-5G quectel-CM-5G-M
-luci-proto-3g luci-proto-mbim luci-proto-qmi luci-proto-ncm
-comgt comgt-directip comgt-ncm uqmi umbim modemband quectel-timesync
-adb-enablemodem sendat sms-tool fibocom-dial qmodem-next luci-app-qmodem-next
+luci-proto-3g luci-proto-ncm comgt-directip comgt-ncm modemband quectel-timesync
+adb-enablemodem sendat fibocom-dial qmodem-next luci-app-qmodem-next
 luci-app-modemband luci-app-modeminfo luci-app-sms-tool-js
 kmod-pcie_mhi kmod-pcie_mhi_fb kmod-pcie_mhi_nss
 kmod-qmi_wwan_f kmod-qmi_wwan_m kmod-qmi_wwan_q kmod-qmi_wwan_s kmod-qmi_wwan_q_nss'''.split():
@@ -206,7 +206,7 @@ def main():
         'CONFIG_MTK_DEFAULT_5G_PROFILE': 'n',
         'CONFIG_BUILD_LOG': 'y', 'CONFIG_AUTOREMOVE': 'n',
         'CONFIG_VERSION_DIST': '"PortalWRT"', 'CONFIG_VERSION_NUMBER': '"24.10.2"',
-        'CONFIG_VERSION_CODE': '"GLaDOS-R3Mini-Autoneg-r6"', 'CONFIG_VERSION_HWREV': '"BPI-R3 Mini"',
+        'CONFIG_VERSION_CODE': '"GLaDOS-R3Mini-Autoneg-r7"', 'CONFIG_VERSION_HWREV': '"BPI-R3 Mini"',
         'CONFIG_VERSION_MANUFACTURER': '"APERTURE SCIENCE"',
         'CONFIG_VERSION_MANUFACTURER_URL': '"https://www.valvesoftware.com"',
         'CONFIG_VERSION_PRODUCT': '"APERTURE SCIENCE"',

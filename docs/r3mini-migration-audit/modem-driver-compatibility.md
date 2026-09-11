@@ -1,6 +1,6 @@
 # R3 Mini ModemManager 与 USB 驱动兼容性核查
 
-本报告核对 USB 基线；后续最大驱动覆盖补充见 [modem-extra-drivers.md](modem-extra-drivers.md)。核对了当前 BPI-R3 Mini 设备树、Linux 6.6.133 源码、OpenWrt 内核包定义、ModemManager 1.22.0 及 libqmi/libmbim 包。核查结果已经写入 [modem-required.config](modem-required.config)。片段仍需由根配置解析器展开依赖；本次没有编译固件，也没有在目标板上执行 `mmcli`、拨号或模块控制。
+本报告核对 USB 基线；后续最大驱动覆盖补充见 [modem-extra-drivers.md](modem-extra-drivers.md)。核对了当前 BPI-R3 Mini 设备树、Linux 6.6.133 源码、OpenWrt 内核包定义，以及 r7 采用的 ModemManager 1.24.2、libqmi 1.38.0、libmbim 1.32.0。核查结果已经写入 [modem-required.config](modem-required.config)。目标库、MM、驱动和完整 rootfs 已完成 AArch64 编译、镜像检查和 r7 实机启动；RG520N-CN 已实测由 `qmi_wwan`、`option1` 和 Quectel 插件枚举出 QMI/AT/GPS/net 端口。设备当前无 SIM，因此注册、信号和 bearer 仍须插卡验证。
 
 结论是采用 Linux 主线 `qmi_wwan` 作为唯一 QMI WWAN 实现，并同时保留主线的 USB 串口、CDC ACM、MBIM、NCM、ECM、Huawei NCM、Sierra Net、RNDIS、Option HSO 和 Samsung Kalmia 模块。这样覆盖常见 Quectel、Fibocom、Sierra、Huawei、ZTE、Telit、u-blox、SIMCom、Qualcomm/Gobi 和旧式 Option 设备的 USB 工作模式。专用 Fibocom/Quectel QMI 模块虽然各自带有少量额外 ID 和厂商 raw-IP/QMAP 行为，但会与主线驱动争抢同一 USB 接口；在没有针对实际模块做选择性适配前，不把它们和主线一起装入镜像。
 
@@ -57,9 +57,9 @@ Linux 6.6 的 Kconfig 还包含 `USB_CDC_PHONET` 和 `USB_VL600`。前者依赖�
 
 ## ModemManager 与用户空间依赖
 
-当前包定义（`feeds/packages/net/modemmanager/Makefile` 38–93 行）给出以下事实：MM 依赖 `glib2`、`dbus`、`ppp`，在开启协议时依赖 `libmbim`、`libqmi`、`libqrtr-glib`；Meson 参数固定 `-Dbuiltin_plugins=true`、`-Dudev=false`、`-Dmbim=true`、`-Dqmi=true`、`-Dqrtr=true`，并由 `CONFIG_MODEMMANAGER_WITH_AT_COMMAND_VIA_DBUS` 打开通过 D-Bus 执行 AT 命令的能力。上游 1.22.0 的各厂商插件选项均保持 `auto`，所以在协议依赖满足时按上游默认集合构建所有可用内建插件；树中不存在按插件拆分的 `CONFIG_PACKAGE_modemmanager-*` 选择项。
+当前包定义（`feeds/packages/net/modemmanager/Makefile` 38–93 行）给出以下事实：MM 依赖 `glib2`、`dbus`、`ppp`，在开启协议时依赖 `libmbim`、`libqmi`、`libqrtr-glib`；Meson 参数固定 `-Dbuiltin_plugins=true`、`-Dudev=false`、`-Dmbim=true`、`-Dqmi=true`、`-Dqrtr=true`，并由 `CONFIG_MODEMMANAGER_WITH_AT_COMMAND_VIA_DBUS` 打开通过 D-Bus 执行 AT 命令的能力。上游 1.24.2 的各厂商插件选项均保持 `auto`，所以在协议依赖满足时按上游默认集合构建所有可用内建插件；树中不存在按插件拆分的 `CONFIG_PACKAGE_modemmanager-*` 选择项。实际编译摘要生成 488 个 target，并包含 Quectel、Fibocom、Foxconn、MediaTek、Sierra、Telit、u-blox、SimTech、QCOM SoC、generic 等内建插件。
 
-`libqmi` 的包定义（`feeds/packages/libs/libqmi/Config.in` 4–31 行、Makefile 39–80 行）确认片段启用了 QMI-over-MBIM、QRTR GLib 和 `full` message collection；`libmbim` 1.30.0 的 Makefile 36–58 行提供 MBIM 库与 `mbim-utils`。当前版本组合为 MM 1.22.0、libqmi 1.34.0、libmbim 1.30.0，满足包的构建下限。`qmi-utils`/`mbim-utils` 只安装 `qmicli`/`qmi-network`/`qmi-firmware-update` 与 `mbimcli`/`mbim-network`，片段保留它们用于现场诊断，不把它们作为拨号服务启用。
+`libqmi` 的包定义（`feeds/packages/libs/libqmi/Config.in` 4–31 行、Makefile 39–80 行）确认片段启用了 QMI-over-MBIM、QRTR GLib 和 `full` message collection；`libmbim` 1.32.0 的 Makefile提供 MBIM 库与 `mbim-utils`。当前版本组合为 MM 1.24.2、libqmi 1.38.0、libmbim 1.32.0，满足 MM 1.24 的构建下限。`qmi-utils`/`mbim-utils` 安装 `qmicli`/`qmi-network`/`qmi-firmware-update` 与 `mbimcli`/`mbim-network`，默认用于诊断；只有管理员显式把某个模组切换成 qmi/mbim rescue 协议时，它们才成为该模组的数据会话工具。
 
 MM 的 OpenWrt 运行接线已经逐项核对：
 
@@ -70,7 +70,7 @@ MM 的 OpenWrt 运行接线已经逐项核对：
 
 ModemManager 的 `-Dudev=false` 是本树 OpenWrt 集成的有意选择：包安装自身的规则和 hotplug 脚本，但 MM 走通用 sysfs/kernel-device 路径，不链接桌面版 `libgudev`。当前树没有 `libgudev` 包；`libudev-zero` 是一个提供 `libudev` 的 drop-in 包，并与 `libudev`、`eudev`、`udev` 冲突。片段保留已选的 `libudev-zero` 供其他包使用，但不把它误写成 MM 的直接依赖，也不与真实 udev 系列并选。
 
-为保持单一管理路径，片段把 `luci-proto-qmi`、`luci-proto-mbim`、`luci-proto-quectel`、`uqmi`、`umbim`、`comgt`、`quectel-cm`、QModem、`luci-app-modem` 和 `luci-app-modemband` 都设为 `not set`。这些包要么带来另一套 netifd/拨号逻辑，要么依赖 vendor CM；它们会让同一个 QMI/MBIM/AT 端口出现多个控制者，不能与 MM-only 目标混用。
+r7 的自动路径仍只有 ModemManager。为支持综合页面的显式救援选择，片段改为安装 `luci-proto-qmi`、`luci-proto-mbim`、`uqmi`、`umbim`、`comgt` 和 `sms-tool`；自动建接口策略不会选择这些直连协议。管理员手动切换某一模组时，页面对该模组应用 MM inhibit，避免双重占用。`luci-proto-quectel`、`quectel-cm`、QModem、旧 `luci-app-modem`、`luci-app-modemband` 以及重叠的 vendor QMI 内核实现仍禁选。
 
 ## 静态核查记录
 
@@ -80,6 +80,6 @@ ModemManager 的 `-Dudev=false` 是本树 OpenWrt 集成的有意选择：包安
 2. 用 Linux 6.6.133 源码检查了 `USB_SERIAL_GENERIC`、`USB_SERIAL_OPTION`、`USB_SERIAL_QUALCOMM`、`USB_SERIAL_SIERRAWIRELESS`、`USB_NET_QMI_WWAN`、`USB_NET_CDC_MBIM`、`USB_NET_CDC_NCM`、`USB_NET_HUAWEI_CDC_NCM`、`USB_NET_CDCETHER`、`USB_SIERRA_NET`、`USB_NET_KALMIA`、`USB_HSO` 的 Kconfig 依赖、模块名和移动宽带说明。
 3. 扫描了 `qmi_wwan.c` 与 `option.c` 的 USB ID 表：`qmi_wwan.c` 包含多代 Qualcomm/Gobi、Huawei、Novatel、Dell、MeigLink、Quectel 和其他复合接口，`option.c` 还覆盖 ZTE、SIMCom、Fibocom、u-blox、Telit 与 Sierra 的大量 AT/串口组合；报告对厂商专用 QMI ID 只列为缺口，不把它们与主线重复选择。
 4. 读取了 MM、libqmi、libmbim 的 Makefile/Config.in 以及 MM 的 init/hotplug/netifd/RPC 文件，验证了 QMI、MBIM、QRTR、AT-over-D-Bus、FULL collection、D-Bus、PPP、procd、netifd、rpcd、Lua/cjson 和 LuCI 的关系。
-5. 对当前 `.config` 的相关项做了只读对照：目标已经选择主线 USB QMI/MBIM/NCM/ECM/Huawei/Sierra/RNDIS、串口选项、MM、libqmi FULL、libmbim、qmi-utils、mbim-utils 和 MM LuCI；片段新增 HSO/Kalmia 及 HSO 所需 RFKILL，明确保持两个 vendor QMI 包和各类替代管理器关闭。
+5. 对当前 `.config` 的相关项做了只读对照：目标已经选择主线 USB QMI/MBIM/NCM/ECM/Huawei/Sierra/RNDIS、串口选项、MM、libqmi FULL、libmbim、qmi-utils、mbim-utils、完整综合 LuCI 和纯 MM 备用页；片段新增 HSO/Kalmia 及 HSO 所需 RFKILL，明确保持两个 vendor QMI 包和独立拨号守护进程关闭。
 
 最后仍有一个必须在真实模块上完成的边界：USB VID:PID、interface number、模块当前 USB 模式和电源/复位时序决定某一张卡究竟会落到 QMI、MBIM、ECM、NCM、RNDIS 或 AT 路径。静态表只能证明驱动与 MM 依赖完整，不能替代插入每种物理模块后的 `mmcli --list-modems`、控制端口识别和实际 bearer 测试。

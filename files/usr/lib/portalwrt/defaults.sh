@@ -150,22 +150,35 @@ portal_docker() {
 }
 
 portal_theme() {
-    local section
+    local section argon key value pair
     # UCI basic section 是当前 KuCat UCode 模板实际使用的配置接口。
     section=$(uci -q show kucat | sed -n 's/^kucat\.\([^.=]*\)=basic$/\1/p' | head -n 1)
     [ -n "$section" ] || section=basic
     uci set "kucat.$section=basic" || return 1
-    uci set "kucat.$section.mode=light" || return 1
-    uci set "kucat.$section.bkuse=1" || return 1
-    uci set "kucat.$section.bklock=1" || return 1
-    uci set "kucat.$section.background=0" || return 1
-    uci set "kucat.$section.primary_rgbm=252,217,229" || return 1
-    uci set "kucat.$section.primary_rgbbody=252,217,229" || return 1
-    uci set "kucat.$section.primary_rgbm_ts=0" || return 1
-    uci set "kucat.$section.bgqs=1" || return 1
-    uci set "kucat.$section.dayword=0" || return 1
+    for pair in mode=light bkuse=1 bklock=1 background=0 primary_rgbm=240,209,217 primary_rgbbody=240,209,217 primary_rgbm_ts=0 bgqs=1 dayword=0; do
+        key=${pair%%=*}; value=${pair#*=}
+        uci -q get "kucat.$section.$key" >/dev/null || uci set "kucat.$section.$key=$value" || return 1
+    done
+    # Migrate only the old PortalWRT factory pink; leave custom colors alone.
+    for key in primary_rgbm primary_rgbbody; do
+        [ "$(uci -q get "kucat.$section.$key")" != '252,217,229' ] || uci set "kucat.$section.$key=240,209,217"
+    done
+    argon=$(uci -q show argon | sed -n 's/^argon\.\([^.=]*\)=global$/\1/p' | head -n 1)
+    [ -n "$argon" ] || argon=global
+    uci set "argon.$argon=global" || return 1
+    [ "$(uci -q get "argon.$argon.primary")" != '#5e72e4' ] || uci set "argon.$argon.primary=#f0d1d9"
+    [ "$(uci -q get "argon.$argon.dark_primary")" != '#483d8b' ] || uci set "argon.$argon.dark_primary=#f0d1d9"
+    for pair in primary=#f0d1d9 dark_primary=#f0d1d9 online_wallpaper=none mode=normal blur=0 blur_dark=0 transparency=0.3 transparency_dark=0.3; do
+        key=${pair%%=*}; value=${pair#*=}
+        uci -q get "argon.$argon.$key" >/dev/null || uci set "argon.$argon.$key=$value" || return 1
+    done
     uci set luci.themes.KuCat=/luci-static/kucat || return 1
-    uci set luci.main.mediaurlbase=/luci-static/kucat || return 1
+    uci set luci.themes.Argon=/luci-static/argon || return 1
+    # Theme changes must survive reboot/package upgrades.
+    if [ "$(uci -q get system.portalwrt.theme_initialized)" != 1 ]; then
+        uci set luci.main.mediaurlbase=/luci-static/kucat || return 1
+    fi
     uci commit kucat || return 1
+    uci commit argon || return 1
     uci commit luci
 }

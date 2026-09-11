@@ -9,10 +9,11 @@
     "kmod-random-core",
     "kmod-tpm",
     "wifi-scripts",
-    "wireless-regdb"
+    "wireless-regdb",
+    "wwan"
   ],
-  "selected_packages": 956,
+  "selected_packages": 967,
   "hardware_fragment_present": true,
   "modem_fragment_present": true,
-  "config_sha256": "047acec58fc561ba270b0a3ca59437f959329bcf52b8703efa29064779bccc46"
+  "config_sha256": "92ba7a395ba493c97fd2b7761ac7a180a4a4ecc766ed6b3324cdad56f5c63e12"
 }

@@ -33,11 +33,91 @@ index 90d425a..3f057f2 100644
 -});
 \ No newline at end of file
 +});
+diff --git a/root/etc/uci-defaults/30_luci-kuacat b/root/etc/uci-defaults/30_luci-kuacat
+index 4d44a3f..b789cf0 100644
+--- a/root/etc/uci-defaults/30_luci-kuacat
++++ b/root/etc/uci-defaults/30_luci-kuacat
+@@ -1,12 +1,8 @@
+ #!/bin/sh
+-if [ "$PKG_UPGRADE" != 1 ]; then
+-	uci get luci.themes.KuCat >/dev/null 2>&1 || \
+-uci batch <<-EOF
+-	set luci.themes.KuCat=/luci-static/kucat
+-	set luci.main.mediaurlbase=/luci-static/kucat
+-	commit luci
+-EOF
+-fi
++uci set luci.themes.KuCat=/luci-static/kucat
++uci -q get luci.main.mediaurlbase >/dev/null || \
++	uci set luci.main.mediaurlbase=/luci-static/kucat
++uci commit luci
+ 
+ rm -rf /tmp/luci-*
+ exit 0
+diff --git a/root/etc/uci-defaults/30_luci-kucat b/root/etc/uci-defaults/30_luci-kucat
+index ad19d7f..34482ae 100644
+--- a/root/etc/uci-defaults/30_luci-kucat
++++ b/root/etc/uci-defaults/30_luci-kucat
+@@ -2,9 +2,13 @@
+ 
+ uci batch <<-EOF
+ 	set luci.themes.KuCat=/luci-static/kucat
+-	set luci.main.mediaurlbase=/luci-static/kucat
+ 	commit luci
+ EOF
++# Register on every install, but never undo the user's selected theme.
++uci -q get luci.main.mediaurlbase >/dev/null || {
++    uci set luci.main.mediaurlbase=/luci-static/kucat
++    uci commit luci
++}
+ 
+ chmod +x /usr/libexec/rpcd/luci.kucat*
+ rm -rf /tmp/luci-*
 diff --git a/ucode/template/themes/kucat/header.ut b/ucode/template/themes/kucat/header.ut
-index f8eb757..4f21aea 100644
+index f8eb757..92fa426 100644
 --- a/ucode/template/themes/kucat/header.ut
 +++ b/ucode/template/themes/kucat/header.ut
-@@ -242,7 +242,7 @@ if (dayword == "1") {
+@@ -19,7 +19,7 @@
+ -#}
+ {%
+ import { cursor } from 'uci';
+-import { readfile, access, lsdir } from 'fs';
++import { readfile, access, lsdir, stat } from 'fs';
+ import { srand } from 'math';
+ import { getuid, getspnam } from 'luci.core';
+ const boardinfo = ubus.call('system', 'board');
+@@ -34,7 +34,7 @@ let config_exists = false;
+ let kucat = '';
+ let showword = "";
+ 
+-let primary_rgbm = '45,102,147', primary_rgbbody = '244,245,247',primary_rgbm_ts = '0.8', primary_opacity = '0', primary_rgbs = '132,188,218', primary_rgbs_ts = '0.1', mode = 'auto';
++let primary_rgbm = '240,209,217', primary_rgbbody = '244,245,247',primary_rgbm_ts = '0.8', primary_opacity = '0', primary_rgbs = '132,188,218', primary_rgbs_ts = '0.1', mode = 'auto';
+ let gohome = bar + "status/", gouser = bar + "system/", gossr = bar + "services/", bgqs = '1', setbar = '1', dayword = '0';
+ let background = '0', bkuse = '0', bklock = '1', fontd = '0.92rem', fontz = '0.875rem', fontx = '0.825rem' , font3d = '0', boxshadow = '0';
+ let bg_url = media + "/img/bg1.jpg";
+@@ -47,7 +47,7 @@ if (access('/etc/config/kucat')) {
+ if (config_exists && kucat) {
+     try {
+         let config = uci_cursor.get_all(kucat, "@basic[0]");
+-        primary_rgbm = config.primary_rgbm || "45,102,147";
++        primary_rgbm = config.primary_rgbm || "240,209,217";
+         primary_rgbbody= config.primary_rgbbody || "244,245,247";
+         primary_rgbm_ts = config.primary_rgbm_ts || "0.8";
+         primary_opacity = config.primary_opacity || '0';
+@@ -127,7 +127,11 @@ function fetchPIC(path, themeDir) {
+ 
+ function Getwallpaper(themeDir, num) {
+     let bgUrl = media + '/img/bg1.jpg';
+-    if ( num == '0' ) {
++	    if ( num == '0' ) {
++	         const custom = "/luci-static/resources/background/portal.jpg";
++	         if (access("/www" + custom)) {
++	             return { url: custom + "?v=" + (stat("/www" + custom)?.mtime || 0) };
++	         }
+          let physicalPath = "/www" + themeDir;
+          if (!access(physicalPath)) { return { url: bgUrl };}
+          let bgpath = fetchPIC(physicalPath, themeDir);
+@@ -242,7 +246,7 @@ if (dayword == "1") {
              --primary-rgbbody:33,45,60;--inputtext-color: #ccc;  --inputborder-color: rgba(255,255,255,0.32);  --input-bgcolor: rgba(0,0,0,0.22);  --input-boxcolor: rgba(255,255,255,0.32);  --input-boxhovercolor: rgba(255,255,255,0.42);  --input-checkcolor: rgba(255,255,255,0.7);--filter-color:invert(90%);
          {% else %}
              --menu-item-titlebg-color: rgba(var(--primary-rgbm),0.5);--body-hover-bgcolor: rgba(50,50,50,0.05);--menu-hover-color: #fff;--menu-fontcolor: #f5f5f5f5;--primarytextcolor: #505063;--primary-title-color: #4d4d5d;--menu-color: #eee;--title-color: #3c3c3c;--body-color: #424242;
@@ -46,7 +126,7 @@ index f8eb757..4f21aea 100644
  	{% endif %}
          {% if (bgqs == '0'): %}
              --bgqs-image: -webkit-linear-gradient(135deg, rgba(255, 255, 255, 0.1) 25%, transparent 25%, transparent 50%, rgba(255, 255, 255, 0.1) 50%, rgba(255, 255, 255, 0.1) 75%, transparent 75%, transparent);
-@@ -294,7 +294,7 @@ class="lang_{{ dispatcher.lang }} {{ ctx.authsession ? 'logged-in' : '' }} {{ le
+@@ -294,7 +298,7 @@ class="lang_{{ dispatcher.lang }} {{ ctx.authsession ? 'logged-in' : '' }} {{ le
  	<div style="" class="loading"></div>
          <div class="main-left">
              <div class="sidenav-header d-flex align-items-center">
@@ -55,7 +135,7 @@ index f8eb757..4f21aea 100644
              </div>
              <div class="mainmenu" id="mainmenu" style="display:none"></div>
          </div>
-@@ -317,7 +317,7 @@ class="lang_{{ dispatcher.lang }} {{ ctx.authsession ? 'logged-in' : '' }} {{ le
+@@ -317,7 +321,7 @@ class="lang_{{ dispatcher.lang }} {{ ctx.authsession ? 'logged-in' : '' }} {{ le
  	   <div class="bfill">
                      <div class="bcontainer">
                          <div class="flex1">

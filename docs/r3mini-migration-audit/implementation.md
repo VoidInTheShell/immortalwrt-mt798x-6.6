@@ -1,6 +1,6 @@
 # PortalWRT R3 Mini 功能迁移实施记录
 
-核查及实施日期：2026-09-06。本文件描述最终迁移方案；[README.md](README.md) 的主体是迁移前调查快照。**配置和源码适配已写入工作区，正式固件编译及实机验证尚未执行。** 不把配置选择成功当成已经验证全部硬件和代理功能。
+核查及实施日期：2026-09-06，蜂窝栈更新于 2026-09-09。本文件描述最终迁移方案；[README.md](README.md) 的主体是迁移前调查快照。r7 已完成全量构建、rootfs/FIT/GPT 镜像检查、r6 设备端 `sysupgrade -T`、保留配置刷写和刷后运行验收。现有 RG520N-CN 未插 SIM，故注册与 bearer 留待插卡验证；不能把这一个模组的枚举结果当成已经验证每一种物理模组。
 
 最终选择数量、配置指纹、验证结果和编译计划汇总见 [final-validation.md](final-validation.md)。
 
@@ -18,7 +18,8 @@
 
 迁移通用终端、GNU/util-linux 工具、Python/Perl/Lua/PHP、存储/文件共享、网络诊断、SSH/SFTP、DNS 和 LuCI 功能。包从目标源码构建，不复制 x86 二进制。补入 Dropbear 的 zlib/askpass、完整 OpenSSH 客户端及 SFTP、dnsmasq-full 的 ipset/nftset 等补全；OpenSSH 服务端预装但默认关闭，避免与 Dropbear 同占 22。curl 的旧 `LIBCURL_NGHTTP2` 功能名映射到本分支 `LIBCURL_HTTP2`，所有迁移功能开关也一起核对，不能只数软件包。
 
-最终共选择 951 个真实软件包：948 个编入固件，3 个 HS20 实验包仅生成 IPK。
+Autoneg-r7 最终解析出 966 个真实软件包：其中 3 个 HS20 实验包仅生成 IPK，
+其余编入固件。
 原 x86 的 16 个 m 选择中，PHP/XML/SQLite/xxd/时区及通用库等 13 项已改为 y，
 避免“编译了但固件里没有运行环境”。HS20 的 3 包维持原有 m：其示例 PHP 页会挂入
 主 Web 目录，启用服务器时还会修改 uhttpd.main 证书，故不自动部署到常用管理环境。
@@ -26,7 +27,7 @@
 
 | 范围 | 最终处理 |
 | --- | --- |
-| 蜂窝网络 | ModemManager 统一管理，官方 LuCI 联网/状态页面 + MM 专用 SMS/USSD/AT 页面 + 频段/制式页面；QMI/MBIM/QRTR/AT 依赖完整。补齐 USB modem 与主线 PCIe MHI/WWAN/T7xx/IOSM 驱动，取消重复拨号器及争抢接口的 vendor QMI/MHI 实现 |
+| 蜂窝网络 | ModemManager 1.24.2 作为自动连接管理器，libqmi 1.38.0/libmbim 1.32.0 配套；完整 `luci-app-5gmodem` 主界面 + 官方 LuCI + 纯 MM 短信/频段备用页。补齐 USB modem 与主线 PCIe MHI/WWAN/T7xx/IOSM 驱动；QMI/MBIM 直连仅作显式救援，不安装独立 vendor CM 和争抢接口的 vendor QMI/MHI 实现 |
 | QoS | 只保留 **MTK 专用硬件 QDMA QoS `mtkhqos_util`** 和 QoSmate；取消 EQOS、SQM、qos-scripts、qosify、nft-qos 及对应页面。tc-full、IFB、CAKE、HFSC、ctinfo 等是所保留功能的底层工具/模块，不是额外 QoS 管理器 |
 | Web 管理 | uhttpd + ubus + OpenSSL TLS；不选 nginx。LuCI、CGI/ubus 页面不需要 nginx，daed 等独立后端继续使用自己的监听端口 |
 | Node.js | 不安装目标 Node、node-*、ts-node；FileBrowser/SmartDNS 前端仍需主机 Node，选用官方主机二进制以避免编译整套 Node |
@@ -38,23 +39,22 @@
 
 ### ModemManager 前端
 
-`CONFIG_PACKAGE_luci-proto-modemmanager=y` 是完整的 MM LuCI 前端选择，不只是
-netifd 协议定义。该包提供 **状态 → 蜂窝网络**实时状态页，以及在
-**网络 → 接口**中创建和编辑 ModemManager 接口的配置页；状态页通过
+`CONFIG_PACKAGE_luci-proto-modemmanager=y` 提供 **状态 → 蜂窝网络**实时状态页，
+以及在 **网络 → 接口**中创建和编辑 ModemManager 接口的配置页；状态页通过
 `modemmanager-rpcd` 的 `mmcli` 桥接读取模组、SIM、注册、信号和小区信息。
-构建脚本的安装阶段会检查这些菜单、ACL 和静态 JS 文件，防止后台包存在而
-前端文件漏进固件。
+r7 另选 `luci-app-5gmodem` 2.4.60 作为主综合页面，补齐驱动/端口、CA、邻区、
+SIM/eSIM、短信、USSD、AT、诊断、统计、多模组和手动恢复功能；纯 MM 的
+`luci-app-sms-manager` 与经适配的 `luci-app-mmconfig` 继续作为独立备用入口。
 
-前端候选、版本固定和功能边界见
-[`modem-frontend.md`](modem-frontend.md)。官方前端已同步上游
-`4beb8db7d68dd823d446d197903a62ca1af697d2`（2026-08-18）的页面与 ACL 修复；
-另选 `luci-app-sms-manager` 和经适配的 `luci-app-mmconfig` 补齐短信、USSD、
-通过 MM 的 AT、频段和制式管理；没有混入 sms-tool/comgt 等另一套串口控制。
+前端候选、版本固定、权限和功能边界见
+[`modem-frontend.md`](modem-frontend.md)。综合页面依赖的 sms-tool/comgt、
+uqmi/umbim 和 QMI/MBIM netifd 协议随镜像安装，但自动接口策略已改为优先 MM；
+只有管理员显式切换某个模组时才使用直连协议，并对该模组设置 inhibit。QModem、
+Quectel-CM、旧 `luci-app-modem` 和重叠的 vendor QMI 内核驱动仍排除。
 
-QModem 的现代 JavaScript 页面和 `luci-app-modem` 虽然各自提供更多厂商 AT
-操作，但它们同时带有自己的扫描/拨号管理逻辑；它们不是 MM 的前端。当前方案
-按单一 ModemManager 管理策略保留与 MM 直接配套的目标 LuCI 前端，避免两个
-管理程序同时占用同一模组的 AT 端口或数据会话。
+构建脚本的软件安装阶段会检查三套页面的菜单、ACL、静态 JS 和后端文件，并验证
+MM 的 MBIM/QMI/QRTR/AT-over-D-Bus、libqmi FULL/QMI-over-MBIM/QRTR 选择，防止
+出现“后台包存在但界面或协议能力漏装”。
 
 驱动和依赖要求固定在 [modem-required.config](modem-required.config)，USB 核查见
 [modem-driver-compatibility.md](modem-driver-compatibility.md)，最大覆盖补充见
@@ -108,7 +108,7 @@ NetSpeedTest 已切换到可用的新源并适配 ARM64，核验 Homebox musl/AR
 
 PortalWRT 品牌、APERTURE SCIENCE、固件版本/构建日期和登录横幅已保留；型号、架构和内核从实际设备读取，版本标识为 GLaDOS-R3Mini / BPI-R3 Mini，不写死 x86。原客制化脚本中的 x86 网络处理保留架构条件，不在 R3 上套用。
 
-完整 profile 仅面向 eMMC，production 为 2048 MiB，构建带 metadata 的 sysupgrade.itb 并进行分区容量校验，提供 eMMC GPT/引导组件。取消全功能 NAND factory / initramfs recovery 产物，避免超出 NAND/32 MiB recovery 分区。尚未生成最终固件，不能预报压缩体积；现有 eMMC GPT 是否满足容量需刷机前另行确认，普通升级不负责扩分区。
+完整 profile 仅面向 eMMC，production 为 2048 MiB，构建带 metadata 的 sysupgrade.itb 并进行分区容量校验，提供 eMMC GPT/引导组件。取消全功能 NAND factory / initramfs recovery 产物，避免超出 NAND/32 MiB recovery 分区。r7 sysupgrade 镜像为 256,509,013 字节，生产 GPT 容量检查为 2,147,483,648 字节；运行中的 r6 已用原生 `sysupgrade -T` 接受该镜像。普通升级不负责扩分区，仍不得绕过设备端校验使用 `-F`。
 
 ## 分组编译、线程与时间统计
 
@@ -128,15 +128,15 @@ PortalWRT 品牌、APERTURE SCIENCE、固件版本/构建日期和登录横幅�
 | 软件安装到 rootfs | 1 | 避免安装/文件数据库写入争用 |
 | 镜像/索引 | 4 | 与编译阶段分开；校验信息部分串行 |
 
-这些是基于当前资源和构建类型的保守起始值，**未执行构建压力试验，不能承诺它们是数学意义上的最大安全线程或保证一次编译绝不失败**。脚本遵守原 PKG/HOST_BUILD_PARALLEL，使用 CPU affinity 约束调用 nproc 的子构建，不全局强制 PKG_JOBS。若源码自身硬编码超额线程，仍需从真实编译日志识别。
+这些是基于当前资源和构建类型的保守起始值，不是数学意义上的最大安全线程。r7 全量增量构建按该调度完成 10/10 阶段，总墙钟时间 636.888 秒；这只证明本次源码、缓存和主机资源组合成功，不保证清空缓存后或不同资源限制下有相同时长。脚本遵守原 PKG/HOST_BUILD_PARALLEL，使用 CPU affinity 约束调用 nproc 的子构建，不全局强制 PKG_JOBS。若源码自身硬编码超额线程，仍需从真实编译日志识别。
 
 主机 GNU make 4.4 默认使用 FIFO jobserver，而本树 Ninja 1.12.1 的补丁只解析管道文件描述符；构建脚本检测版本后显式使用 `--jobserver-style=pipe`，让并行 Meson/CMake/Ninja 子构建共享同一份任务预算。每个阶段开始前重新读取可用内存，只能向下调整该阶段计划线程数，实际线程数另写日志。
 
-正式构建到达内核阶段后，会核验生成的内核配置确实包含 BTF、cgroup/BPF 和私有 HNAT；软件安装阶段会检查实际 rootfs 中的 HNAT/WARP/无线模块、WO 固件、daed/MM 的 AArch64 ELF 文件、MM 菜单/ACL/JS 及品牌文件。检查失败会阻止生成后续镜像，不能把这些未来的产物检查写成当前已经通过。
+正式构建已经核验生成的内核配置包含 BTF、cgroup/BPF 和私有 HNAT；软件安装阶段也检查了实际 rootfs 中的 HNAT/WARP/无线模块、WO 固件、daed/MM 的 AArch64 ELF 文件、MM 菜单/ACL/JS 及品牌文件。r7 这些检查均通过；对应的运行时硬件行为仍要与镜像结构检查区分。
 
 脚本记录每次阶段尝试的耗时、退出码、进程组 RSS 采样、完整日志，以及 OpenWrt `time:` 行提供的组件 user/system/wall 时间；总时长用单调时钟单独统计，不能将并行组件 wall 时间相加冒充总耗时。失败即停，保留独立 attempt 日志；`--resume` 核验配置、源码和计划指纹，不把旧成功标记套到新配置。
 
 续跑保留原阶段的线程上限，避免仅因可用内存变化就失去续跑能力；实际执行仍按当前
 资源向下调整，并使用当前 CPU affinity。依赖图、源码或配置改变仍会拒绝复用旧标记。
 
-已做配置/依赖/归档下载/脚本回归检查。`make download` 处理 OpenWrt 管理的归档；部分 Go modules、npm/pnpm 或 Cargo 依赖由上游构建阶段继续下载，因此目前不能声称可完全离线构建。完整编译、最终文件冲突检查、镜像内容和实际 HNAT/风扇/daed 功能验收留给正式构建与上机阶段，不能用静态检查替代。
+已做配置/依赖/归档下载/脚本回归、完整编译、最终文件冲突、rootfs 内容和镜像结构检查。`make download` 处理 OpenWrt 管理的归档；部分 Go modules、npm/pnpm 或 Cargo 依赖仍由上游构建阶段下载，因此不能据此声称任意空缓存环境都可完全离线重建。r7 的 FIT 哈希、设备树、rootfs、metadata、生产 GPT、固件版本和蜂窝组件均通过独立镜像检查，并已在现网 R3 Mini 上完成保留配置升级。刷后确认 MM 1.24.2、综合 WebUI、驱动绑定和 MM-first 配置；未插 SIM 的注册/拨号，以及 HNAT、风扇、daed 等非本轮目标的专项压力测试仍不能用镜像检查替代。

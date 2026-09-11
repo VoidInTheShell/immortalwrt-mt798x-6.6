@@ -59,7 +59,7 @@ collectd-mod-load	y	migrate	collectd-mod-load	迁移功能；使用目标源码�
 collectd-mod-memory	y	migrate	collectd-mod-memory	迁移功能；使用目标源码和依赖，服务默认状态单独适配
 collectd-mod-network	y	migrate	collectd-mod-network	迁移功能；使用目标源码和依赖，服务默认状态单独适配
 collectd-mod-rrdtool	y	migrate	collectd-mod-rrdtool	迁移功能；使用目标源码和依赖，服务默认状态单独适配
-comgt	y	exclude		用户统一使用 ModemManager；其 mmcli/QMI/MBIM 工具覆盖此功能
+comgt	y	migrate	comgt	迁移功能；使用目标源码和依赖，服务默认状态单独适配
 comgt-directip	y	exclude		用户统一使用 ModemManager；其 mmcli/QMI/MBIM 工具覆盖此功能
 comgt-ncm	y	exclude		用户统一使用 ModemManager；其 mmcli/QMI/MBIM 工具覆盖此功能
 conntrack	y	migrate	conntrack	迁移功能；使用目标源码和依赖，服务默认状态单独适配
@@ -820,12 +820,12 @@ luci-mod-status	y	migrate	luci-mod-status	迁移功能；使用目标源码和�
 luci-mod-system	y	migrate	luci-mod-system	迁移功能；使用目标源码和依赖，服务默认状态单独适配
 luci-proto-3g	y	exclude		用户统一使用 ModemManager；其 mmcli/QMI/MBIM 工具覆盖此功能
 luci-proto-ipv6	y	migrate	luci-proto-ipv6	迁移功能；使用目标源码和依赖，服务默认状态单独适配
-luci-proto-mbim	y	exclude		用户统一使用 ModemManager；其 mmcli/QMI/MBIM 工具覆盖此功能
+luci-proto-mbim	y	migrate	luci-proto-mbim	迁移功能；使用目标源码和依赖，服务默认状态单独适配
 luci-proto-minieap	y	migrate	luci-proto-minieap	迁移功能；使用目标源码和依赖，服务默认状态单独适配
 luci-proto-modemmanager	y	migrate	luci-proto-modemmanager	迁移功能；使用目标源码和依赖，服务默认状态单独适配
 luci-proto-ncm	y	exclude		用户统一使用 ModemManager；其 mmcli/QMI/MBIM 工具覆盖此功能
 luci-proto-ppp	y	migrate	luci-proto-ppp	迁移功能；使用目标源码和依赖，服务默认状态单独适配
-luci-proto-qmi	y	exclude		用户统一使用 ModemManager；其 mmcli/QMI/MBIM 工具覆盖此功能
+luci-proto-qmi	y	migrate	luci-proto-qmi	迁移功能；使用目标源码和依赖，服务默认状态单独适配
 luci-proto-quectel	y	exclude		依赖旧 quectel-cm 驱动集合；拨号功能由现有 MM 提供
 luci-proto-vxlan	y	migrate	luci-proto-vxlan	迁移功能；使用目标源码和依赖，服务默认状态单独适配
 luci-proto-wireguard	y	migrate	luci-proto-wireguard	迁移功能；使用目标源码和依赖，服务默认状态单独适配
@@ -1025,7 +1025,7 @@ smartdns	y	migrate	smartdns	迁移功能；使用目标源码和依赖，服务�
 smartdns-ui	y	migrate	smartdns-ui	迁移功能；使用目标源码和依赖，服务默认状态单独适配
 smartmontools	y	migrate	smartmontools	迁移功能；使用目标源码和依赖，服务默认状态单独适配
 smbinfo	y	migrate	smbinfo	迁移功能；使用目标源码和依赖，服务默认状态单独适配
-sms-tool	y	exclude		用户统一使用 ModemManager；其 mmcli/QMI/MBIM 工具覆盖此功能
+sms-tool	y	migrate	sms-tool	迁移功能；使用目标源码和依赖，服务默认状态单独适配
 socat	y	migrate	socat	迁移功能；使用目标源码和依赖，服务默认状态单独适配
 softethervpn5-bridge	y	migrate	softethervpn5-bridge	迁移功能；使用目标源码和依赖，服务默认状态单独适配
 softethervpn5-client	y	migrate	softethervpn5-client	迁移功能；使用目标源码和依赖，服务默认状态单独适配
@@ -1069,10 +1069,10 @@ udpxy	y	migrate	udpxy	迁移功能；使用目标源码和依赖，服务默认�
 uhttpd	y	migrate	uhttpd	迁移功能；使用目标源码和依赖，服务默认状态单独适配
 uhttpd-mod-lua	y	migrate	uhttpd-mod-lua	迁移功能；使用目标源码和依赖，服务默认状态单独适配
 uhttpd-mod-ubus	y	migrate	uhttpd-mod-ubus	迁移功能；使用目标源码和依赖，服务默认状态单独适配
-umbim	y	exclude		用户统一使用 ModemManager；其 mmcli/QMI/MBIM 工具覆盖此功能
+umbim	y	migrate	umbim	迁移功能；使用目标源码和依赖，服务默认状态单独适配
 umdns	y	migrate	umdns	迁移功能；使用目标源码和依赖，服务默认状态单独适配
 unzip	y	migrate	unzip	迁移功能；使用目标源码和依赖，服务默认状态单独适配
-uqmi	y	exclude		用户统一使用 ModemManager；其 mmcli/QMI/MBIM 工具覆盖此功能
+uqmi	y	migrate	uqmi	迁移功能；使用目标源码和依赖，服务默认状态单独适配
 urandom-seed	y	migrate	urandom-seed	迁移功能；使用目标源码和依赖，服务默认状态单独适配
 urngd	y	migrate	urngd	迁移功能；使用目标源码和依赖，服务默认状态单独适配
 usbids	y	migrate	usbids	迁移功能；使用目标源码和依赖，服务默认状态单独适配

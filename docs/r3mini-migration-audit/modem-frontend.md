@@ -1,41 +1,86 @@
-# ModemManager LuCI 前端选型与适配
+# R3 Mini ModemManager 与完整 LuCI 前端选型
 
-核查日期：2026-09-06。最终采用官方联网/状态页面，加上通过 MM 操作的短信和频段扩展。它们共用一个 ModemManager 后台，满足功能互补；不另外运行拨号器或直接抢占模块串口。此处是通用模块配置，不把整套驱动和界面限定为某一款 RG520 或 L850 模块。
+核查及适配日期：2026-09-09。Autoneg-r7 采用上游最新稳定版 ModemManager
+1.24.2、libqmi 1.38.0 和 libmbim 1.32.0，并把 `luci-app-5gmodem` 2.4.60
+作为主功能界面。官方 `luci-proto-modemmanager`、纯 MM 的
+`luci-app-mmconfig` 与 `luci-app-sms-manager` 继续保留，既提供标准接口/状态页，
+也为第三方综合页面提供故障时的独立入口。
 
-## 最终选择
+## 版本辨析
 
-| 包 | 页面功能 | 来源与版本 |
+x86 页面上看到的 `v25.341.088611.22.0` 不是一个 ModemManager 版本，而是页面把
+LuCI 包版本 `25.341.08861~9973412` 与 MM 核心版本 `1.22.0` 连续显示造成的视觉拼接。
+x86 实际安装的是 MM 1.22.0-r20；检查时 R3 Mini r6 已是 1.22.0-r21，核心并不比
+x86 旧。两边信息量差异主要来自 x86 上另装的旧 `luci-app-modem` 1.4.4，而不是
+ModemManager 核心版本。
+
+上游 ModemManager 标签和 NEWS 已核对：1.24.2 是 2025-07-28 发布的稳定版；
+1.25.95 属开发序列，因此 r7 选择 1.24.2，不用开发快照。1.24 系列要求
+libmbim 至少 1.32、libqmi 至少 1.36，本树分别升到 1.32.0 和 1.38.0。OpenWrt
+master 当前包仍为 MM 1.24.0，所以 r7 的 1.24.2 是经过本树交叉编译验证的上游
+稳定更新，并非简单照抄 24.10 feed。
+
+参考：[ModemManager tags](https://gitlab.freedesktop.org/mobile-broadband/ModemManager/-/tags)、
+[ModemManager 1.24.2 NEWS](https://gitlab.freedesktop.org/mobile-broadband/ModemManager/-/raw/1.24.2/NEWS)、
+[OpenWrt ModemManager 包](https://github.com/openwrt/packages/blob/master/net/modemmanager/Makefile)。
+
+## r7 最终组合
+
+| 包 | 页面/后端功能 | 固定版本或来源 |
 | --- | --- | --- |
-| `luci-proto-modemmanager` | 状态 → 蜂窝网络；网络 → 接口 → ModemManager | 同步 OpenWrt LuCI `4beb8db7d68dd823d446d197903a62ca1af697d2`（2026-08-18）的页面与 ACL 修复 |
-| `modemmanager-rpcd` | MM 状态到 LuCI 的桥接，配套 Lua/cjson/rpcd | 目标 feed 配套后端，加上本地依赖和解析修复 |
-| `luci-app-sms-manager` | 收发 SMS、USSD、通过 MM 执行 AT、通讯录和配置 | 4IceG 上游 1.0.9，提交 `322392909e046c172f06e8dfff8a956b9ede4bbb`（2026-07-04），做 R3/MM 集成适配 |
-| `luci-app-mmconfig` | MM 发现设备、显示能力、选择频段/制式 | koshev-msk/modemfeed 的 0.1.2，源提交 `8e4f19d8f11171872c99529166ca7344fe86080a`（2026-08-27），移除额外管理器依赖并修复配置处理 |
+| `modemmanager` | QMI、MBIM、QRTR、AT-over-D-Bus、内建通用及厂商插件 | 1.24.2-r1 |
+| `libqmi` / `libmbim` | 完整 QMI message collection、QMI-over-MBIM、QRTR、诊断 CLI | 1.38.0-r1 / 1.32.0-r1 |
+| `luci-app-5gmodem` | 模组/驱动/端口、信号与小区、CA、频段/制式、SIM/eSIM、SMS、USSD、AT、诊断、统计、复位和多模组 | 2.4.60-r1，提交 `02b063db804b8d57dd480f8690bacd13439ceee6` |
+| `luci-proto-modemmanager` + `modemmanager-rpcd` | Network 接口编辑、Status 蜂窝页、MM JSON 桥接 | 当前固定 LuCI feed及本地健壮性修复 |
+| `luci-app-mmconfig` | 只经 MM 设置频段和制式的轻量备用页 | 0.1.2-r4 |
+| `luci-app-sms-manager` | 只经 MM 操作 SMS/USSD/AT 的轻量备用页 | 1.0.9 |
 
-官方页面负责设备、制造商、型号、固件、IMEI、SIM、运营商、注册状态、信号和小区信息；接口编辑器负责 APN、PIN、认证、允许/首选制式、IPv4/IPv6、MTU、路由跃点和 EPS bearer。保留 `luci-mod-network`、`luci-mod-status`、LuCI、rpcd、uhttpd 和 ubus，使页面有导航入口和可执行后端。
+综合页面的入口为 **Modem → 5G Modem**，包含 Network、eSIM、Modem
+diagnostics、Alignment、Inbox、Outbox、USSD、AT、Buttons、Statistics 和
+Settings 十一个子页面。相较 x86 的旧 1.4.4 页面，它不仅恢复通用/USB 驱动和
+端口信息，还提供多模组档案、SIM/eSIM、邻区、聚合、诊断与统计等现代功能。
+源码固定和本地补丁由 [sources.json](../../patches/r3mini-sources/sources.json) 管理；
+上游项目见 [fildunsky/luci-app-5gmodem](https://github.com/fildunsky/luci-app-5gmodem)。
 
-官方前端已同步数组判断、认证字段动态依赖、IP 默认值和 mmcli 索引 ACL 修复。后端另外修复把 `%` 当格式符解析、缺失可选字段导致异常、对象路径校验及 Lua/rpcd 依赖。详见 [modemmanager-runtime.md](modemmanager-runtime.md)。
+## 连接管理策略
 
-短信包选择的是 **sms-manager**，不是 **sms-tool-js**。前者明确通过 ModemManager 工作；后者上游明确不与 MM 配合。短信通知、自动转发和 LED 轮询不默认启用，普通浏览器内的读取与用户主动操作仍可使用。SMS-manager 上游将它标为开发版本，因此不能声称每种模块的 SMS/USSD 都已经经过实机验证。[上游说明](https://github.com/4IceG/luci-app-sms-manager)
+功能完整不等于允许所有拨号器同时占用控制口。r7 的策略是：
 
-频段页沿用 MM 的设备发现和能力报告。原包依赖 `luci-app-modeminfo`，并通过 uci-defaults 改写 `/lib/netifd/proto/modemmanager.sh`，这些行为已移除；不会因为多一个页面就拉入 comgt/raw AT 或改变整个网络协议脚本。只对匹配的 MM 网络接口操作，默认空配置不限制频段。实际实现和模拟检查见 [modem-bands-frontend.md](modem-bands-frontend.md)。
+- 自动发现的新 QMI/MBIM 模组默认创建 `proto=modemmanager` 接口；MM 是控制口和
+  数据会话的默认所有者。
+- 管理员此前保存的显式协议选择优先。`qmi`、`mbim`、`qmiraw` 及 vendor AT
+  路径连同 uqmi/umbim/comgt 仍随完整 UI 安装，作为特定模组不兼容时的手动救援路径。
+- 切到内核直连协议时，页面按单模组设置 inhibit，避免 MM 与 uqmi/umbim 争抢
+  同一个 cdc-wdm；切回 MM 时解除 inhibit。
+- 不选 QModem、Quectel-CM、旧 `luci-app-modem` 及会重叠绑定的
+  `qmi_wwan_f`/`qmi_wwan_q`。它们不是“缺少的通用驱动”，并装会让控制口归属和
+  USB 绑定随启动/插拔时序变化。
 
-## 其他候选的取舍
+综合页面带健康检查、故障切换、模组复位、USB 电源循环和 Wi-Fi 修复能力。
+PortalWRT 默认把这些自动恢复动作设为关闭，由管理员在页面中逐项启用；信息读取、
+手动控制和 ModemManager 拨号功能不因此裁剪。这样在主路由上安装完整界面时，首次
+启动不会仅因页面默认值就自动改路由、重置模组或循环 USB 供电。
 
-| 候选 | 不采用的原因 |
-| --- | --- |
-| `luci-app-sms-tool-js` | 使用 sms_tool/直接端口，与 MM 的端口所有权不一致；其上游推荐 MM 用户使用 sms-manager |
-| 原样的 `luci-app-mmconfig` | 功能有价值，但额外 modeminfo 依赖和全局 netifd 改写不适合本配置；采用经过适配的版本 |
-| `luci-app-modeminfo`、`luci-app-modemband` | 常用后端直接访问 AT 串口，不能当成无冲突的 MM 插件 |
-| QModem、`luci-app-modem`、`luci-app-wwand` | 自带扫描、端口管理或拨号后台；与用户要求的单一 MM 管理重叠 |
-| `luci-app-5gmodem` | 功能多，但混合 vendor CM、comgt、sms-tool 等多套控制路径，需要整体改变管理方案 |
-| `luci-app-L850GL-MM` | L850-GL 专用命令/桥接器及 expert MM 替换，不适合作为任意 USB/PCIe 模块的通用前端 |
+## 权限和能力边界
 
-没有证据表明存在一个能对所有厂商模块完整提供联网、锁小区、短信、eSIM 下载和邻区扫描，并直接兼容本树 MM 1.22 的单一通用应用。这里选取的是已核对的 MM 功能组合；厂商私有能力、eSIM 和网络不提供的 USSD 不能靠安装页面变成可用。
+`luci-app-5gmodem` 的 ACL 按设计允许执行任意 AT 命令、切频段/制式、复位模组并
+修改 network/firewall UCI，属于 root-equivalent 管理权限。该 ACL 只能授予完整
+管理员，不能下放给受限 LuCI 角色；公网也不应直接暴露 LuCI。
 
-## 构建与实机边界
+页面能显示的字段仍取决于模组当前 USB composition、SIM 状态、运营商网络、固件
+AT 指令和 MM 插件实际报告。没有 SIM、尚未注册或模组不提供相应指标时，注册、信号、
+CA/邻区字段为空是正常结果，不能靠升级 UI 凭空产生。频段、eSIM、USSD、SMS 和复位
+操作也必须由管理员主动触发，并可能短暂中断数据会话。
 
-配置验证要求上述四个包及 MM/QMI/MBIM/AT 依赖都被选中。正式构建的软件安装阶段还检查 rootfs 中真实存在官方状态/协议 JS、菜单、ACL、MM 后端、短信和频段页面，避免“后台存在，界面漏装”。静态 JS/JSON/shell 和模拟后端检查不等于在真实模块上成功收发短信或切换频段。
+## r7 实机结果
 
-首次使用仍需在 LuCI 的 MM 接口页配置运营商 APN，选择实际模块。没有插入模块时应显示空状态；不能假设索引永远是 0。收发短信、USSD、AT 与频段修改必须由用户主动操作，结果取决于 SIM、运营商、模块固件和 MM 插件所报告的能力。
+R3 Mini 已用普通保留配置 `sysupgrade` 刷入 r7；设备端在刷前报告 compat 1.2，签名、
+设备匹配、有效性和允许备份检查全部通过，全程未使用 `-F` 或 `-n`。刷后 `mmcli
+--version` 返回 1.24.2，三个核心包和 5gmodem 版本均与上表一致。uhttpd 对
+`5gdetail.js` 实际返回 HTTP 200，11 个主页面文件全部存在。
 
-源码参考：[官方 LuCI](https://github.com/openwrt/luci/tree/4beb8db7d68dd823d446d197903a62ca1af697d2/protocols/luci-proto-modemmanager)、[MM 频段页](https://github.com/koshev-msk/modemfeed/tree/8e4f19d8f11171872c99529166ca7344fe86080a/luci/applications/luci-app-mmconfig)、[SMS-manager](https://github.com/4IceG/luci-app-sms-manager/tree/322392909e046c172f06e8dfff8a956b9ede4bbb)、[SMS-tool-js](https://github.com/4IceG/luci-app-sms-tool-js)、[L850-GL 专用页面](https://github.com/As-tsaqib/luci-app-L850GL-MM)。
+自动发现为 `network.modem.proto='modemmanager'`，证明 MM-first 路径已生效；MM 识别
+RG520N-CN 的 `cdc-wdm0 (qmi)`、`ttyUSB2/ttyUSB3 (at)`、`ttyUSB1 (gps)` 与
+`wwan0 (net)`，驱动仍是主线 `qmi_wwan`/`option1`，插件为 `quectel`。当前
+`sim-missing`，所以 netifd 的 modem 接口不建立 bearer 并报告 `NO_DEVICE` 是待插卡条件，
+不是 USB 枚举失败。健康检查、故障切换、模组恢复和 Wi-Fi 修复四项均实测保持 0。

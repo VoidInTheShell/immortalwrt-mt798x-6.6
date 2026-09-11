@@ -149,7 +149,8 @@ uci() {
         self.assertEqual(result.stderr, '')
         self.assertNotIn('set kucat.@basic[0].mode=', result.stdout)
         self.assertNotIn('set kucat.@basic[0].primary_rgbm=', result.stdout)
-        self.assertIn('set kucat.@basic[0].primary_rgbbody=33,45,60', result.stdout)
+        # No active preset: reboot must retain the user's custom body color too.
+        self.assertNotIn('set kucat.@basic[0].primary_rgbbody=', result.stdout)
 
 
 if __name__ == '__main__':
