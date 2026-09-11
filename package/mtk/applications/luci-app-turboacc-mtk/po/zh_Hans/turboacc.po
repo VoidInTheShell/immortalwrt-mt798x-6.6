@@ -57,14 +57,6 @@ msgstr "启用以太网 IPv6 HNAT"
 msgid "Enable hardware offloading for wired IPv6 connections."
 msgstr "为有线 IPv6 连接启用硬件加速。"
 
-#: applications/luci-app-turboacc/htdocs/luci-static/resources/view/turboacc.js:177
-msgid "Enable AP Mode"
-msgstr "启用AP模式"
-
-#: applications/luci-app-turboacc/htdocs/luci-static/resources/view/turboacc.js:178
-msgid "Fill in ip to enable AP Mode(reboot needed)"
-msgstr "填写IP将启动AP模式（同网段不重复ip,需重启后生效.对于无线桥接，请桥接完成后再启用AP模式)"
-
 #: applications/luci-app-turboacc/htdocs/luci-static/resources/view/turboacc.js:183
 msgid "HNAT bind rate threshold (pps)"
 msgstr "HNAT连接速率绑定阈值(pps)"
@@ -197,4 +189,3 @@ msgstr "HNAT PPE数量"
 
 msgid "Bind Entrys"
 msgstr "已绑定连接数"
-

@@ -9,7 +9,7 @@ USE_PROCD=1
 start_service() {
 	config_load "turboacc"
 
-	local fastpath fastpath_mh_eth_hnat_ap=""
+	local fastpath
 	config_get fastpath "config" "fastpath"
 	# Software shaping must keep seeing packets even if this page is reloaded
 	# while QoSmate is active. Do not overwrite the user's saved UCI choice.
@@ -77,8 +77,6 @@ start_service() {
 			if [ -e "$hnat_path/hnat_setting" ]; then
 				echo "11 $fastpath_mh_eth_hnat_bind_rate" > "$hnat_path/hnat_setting"
 			fi
-
-			config_get fastpath_mh_eth_hnat_ap "config" "fastpath_mh_eth_hnat_ap" ""
 		fi
 		;;
 	esac
@@ -92,49 +90,6 @@ start_service() {
 	config_get tcpcca "config" "tcpcca" "cubic"
 	if [ -e /proc/sys/net/ipv4/tcp_congestion_control ]; then
 		sysctl -w net.ipv4.tcp_congestion_control="$tcpcca" >/dev/null 2>&1
-	fi
-
-	# AP conversion is intentionally opt-in.  An empty or malformed value
-	# must not rewrite network, DHCP, or wireless configuration at boot.
-	if [ -n "$fastpath_mh_eth_hnat_ap" ]; then
-		if printf '%s\n' "$fastpath_mh_eth_hnat_ap" | awk -F. 'NF != 4 { exit 1 } { for (i=1; i<=4; i++) if ($i !~ /^[0-9]+$/ || length($i)>3 || $i+0>255) exit 1 }'; then
-			local available_interfaces iface current_ports new_ports
-			available_interfaces=""
-			for iface in eth0 eth1 wan; do
-				if ifconfig "$iface" 2>&1 | grep -qv "error fetching interface information"; then
-					echo "$iface interface detected."
-					available_interfaces="$available_interfaces $iface"
-				fi
-			done
-
-			echo "Valid IPv4 address detected: $fastpath_mh_eth_hnat_ap"
-			uci -q delete network.wan
-			uci -q delete network.wwan
-			uci -q delete network.wan6
-
-			current_ports="$(uci -q get network.@device[0].ports)"
-			echo "Current bridge ports: $current_ports"
-			new_ports="$current_ports"
-			for iface in $available_interfaces; do
-				if echo "$current_ports" | grep -qw "$iface"; then
-					echo "Port $iface is already part of the bridge"
-				else
-					echo "Adding port $iface to the bridge"
-					new_ports="$new_ports $iface"
-				fi
-			done
-
-			uci set network.@device[0].ports="$new_ports"
-			uci set dhcp.lan.ignore=1
-			uci set network.lan.ipaddr="$fastpath_mh_eth_hnat_ap"
-			uci set wireless.wifinet1.network=lan
-			uci set wireless.wifinet2.network=lan
-			uci commit network
-			uci commit dhcp
-			uci commit wireless
-		else
-			logger -t turboacc "Ignoring invalid MTK HNAT AP IPv4 address: $fastpath_mh_eth_hnat_ap"
-		fi
 	fi
 }
 

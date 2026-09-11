@@ -26,6 +26,11 @@ fi
 
 uci -q set "turboacc.config.fullcone"="0"
 
+# Older releases exposed a destructive "AP mode" setting in the HNAT panel.
+# Network topology belongs to /etc/config/network and must never be rewritten
+# as a side effect of starting an acceleration service.
+uci -q delete "turboacc.config.fastpath_mh_eth_hnat_ap"
+
 uci -q commit "turboacc"
 
 uci -q batch <<-EOF >"/dev/null"

@@ -32,14 +32,6 @@ msgstr ""
 msgid "Enable IPv6 Acceleration."
 msgstr ""
 
-#: applications/luci-app-turboacc/htdocs/luci-static/resources/view/turboacc.js:177
-msgid "Enable AP Mode"
-msgstr ""
-
-#: applications/luci-app-turboacc/htdocs/luci-static/resources/view/turboacc.js:178
-msgid "Fill in ip to enable AP Mode(reboot needed)"
-msgstr ""
-
 #: applications/luci-app-turboacc/htdocs/luci-static/resources/view/turboacc.js:183
 msgid "HNAT bind rate threshold (pps)"
 msgstr ""

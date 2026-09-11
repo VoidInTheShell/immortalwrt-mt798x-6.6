@@ -231,12 +231,6 @@ return view.extend({
 		o.rmempty = false;
 		o.depends('fastpath_mh_eth_hnat', '1');
 		
-		o = s.option(form.Value, 'fastpath_mh_eth_hnat_ap', _('Enable AP Mode'),
-			_('Fill in ip to enable AP Mode(reboot needed)'));
-		o.optional = true;
-		o.datatype = 'ip4addr';
-		o.depends('fastpath_mh_eth_hnat', '1');
-		
 		o = s.option(form.Value, 'fastpath_mh_eth_hnat_bind_rate', _('HNAT bind rate threshold (pps)'),
 			_('The smaller the threshold, the easier it is for the connection to be accelerated.'));
 		o.optional = true;
